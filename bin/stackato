@@ -1,0 +1,53 @@
+#!/bin/sh
+# -*- tcl -*- \
+exec tclsh "$0" ${1+"$@"}
+package require Tcl 8.5
+# lib is sibling of bin, directory of this file.
+# The _XXX_ is a trick, extending the path to force
+# normalize to follow a symlink in the last path segment.
+# We use an additional dirname to get rid of it again.
+
+# When testing self-containment use only the local lib/ and ext/ for
+# directories for packages.
+#set auto_path {}
+#tcl::tm::path remove {*}[tcl::tm::path list]
+
+::apply {{topdir} {
+    #puts @$topdir
+
+    lappend ::auto_path $topdir/lib
+
+    package require platform
+    foreach arch [platform::patterns [platform::identify]] {
+	#puts $arch\t$topdir/vendor/P-$arch
+
+	if {![file exists $topdir/vendor/P-$arch]} continue
+	lappend ::auto_path $topdir/vendor/P-$arch
+    }
+
+    return
+}} [file dirname \
+	[file dirname \
+	     [file dirname \
+		  [file normalize \
+		       [info script]/_XXX_]]]]
+
+#puts AP\t[join [lsort -dict $auto_path] \nAP\t]
+#puts TM\t[join [lsort -dict [tcl::tm::path list]] \nTM\t]
+
+#rename exit __exit ; proc exit {args} { puts [join [info loaded] \n] ; foreach p [lsort -dict [package names]] { catch { puts [package ifneeded $p [package present $p]] } } ; uplevel 1 __exit {*}$args }
+
+if {[info exists ::env(STACKATO_APP_ROOT)]} {
+    set ::env(HOME) $::env(STACKATO_APP_ROOT)
+}
+
+# Pseudo-package dict of Tcl 8.5, not defined on some platforms, it seems 
+catch { package provide dict 8.5.3.1 }
+
+package require debug
+package require debug::snit
+package require stackato::client::cli
+set cli [stackato::client::cli new $argv]
+$cli run
+$cli destroy
+exit

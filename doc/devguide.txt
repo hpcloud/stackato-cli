@@ -1,0 +1,72 @@
+Structure of the Tcl STACKATO command-line client
+-------------------------------------------------
+
+bin/
+	stackato 
+		The main script of the client.
+
+config/
+	Configuration file for the tunnel setup, the definitions for
+	the default/standard tunnel clients.
+
+doc/
+	This documentation file.
+
+lib/
+	Main code area for the client
+
+	browse/
+		Helper package for opening urls in a browser.
+		Snarfed from the TDK 'help' package and simplified.
+
+	cli/
+		Main high-level implementation of the client's command
+		line. cli.tcl is the main file with option and
+		argument processing, dispatching to the c_*.tcl files
+		holding the various command sections.
+
+	debug/
+		Helper package for the client internal '--debug'
+		tracing.
+
+	rest/
+		Low-level package wrapping around Tcl's http package
+		for better support of REST.
+
+	stackato/
+		Low-level package for access to the CF REST API.
+		Uses rest/ above, and is used in turn by the cli/
+		packages.
+
+	stackato_util/
+		Tcl utility package relatively specified to stackato.
+
+			term colorization
+			web forms
+			json generation from tcl structures
+			general logging and client output
+			term readline
+			term utilities
+			yaml processing utilities
+			string processing utilities
+
+
+	tunnel/
+		Low-level tunnel support package. Implements the core
+		of transfering data through http calls.
+
+	util/
+		Tcl utility packages written for stackato but fairly
+		general.
+
+			dict utilities
+			exec'ution utilities
+			lambda's
+			mock (for the testsuite, http interception and faking)
+			TclOO utilities
+			tabular display
+			try/finally 8.5 backport
+			var substitution core
+
+tunnel/
+	The server side tunnel application. Ruby.
