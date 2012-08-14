@@ -284,6 +284,15 @@ oo::class create ::stackato::client::cli::command::Misc {
 
     # # ## ### ##### ######## ############# #####################
 
+    method debug_home {} {
+	Debug.cli/misc {}
+
+	catch { say "STACKATO_APP_ROOT=$::env(STACKATO_APP_ROOT)" }
+	say "HOME=             $::env(HOME)"
+	say "~=                [file normalize ~]"
+	return
+    }
+
     method columns {} {
 	Debug.cli/misc {}
 

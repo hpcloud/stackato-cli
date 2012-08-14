@@ -576,6 +576,10 @@ oo::class create ::stackato::client::cli {
 		my Usage {debug-manifest}
 		my SetNamedCommand apps debug_manifest debug-manifest
 	    }
+	    debug-home {
+		my Usage {debug-home}
+		my SetNamedCommand misc debug_home debug-home
+	    }
 	    version {
 		my Usage {version} \
 		    {Report client application version}
@@ -698,9 +702,13 @@ oo::class create ::stackato::client::cli {
 		}
 	    }
 	    logout {
-		my Usage {logout} \
-		    {Logs current user out of the target system}
-		my SetCommand user logout
+		my Usage {logout [--all] [target]} \
+		    {Logs current user out of the current, all, or specified target system}
+		if {[llength $myargs] == 1} {
+		    my SetCommand user logout 1
+		} else {
+		    my SetCommand user logout
+		}
 
 	    }
 	    passwd {
@@ -1142,4 +1150,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.4.3
+package provide stackato::client::cli 1.4.4

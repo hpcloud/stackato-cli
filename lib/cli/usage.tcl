@@ -269,7 +269,13 @@ namespace eval ::stackato::client::cli::usage {
 		Change the password for the current user
 
 	    logout
-		Logs current user out of the target system
+		Logs current user out of the current target system
+
+	    logout target
+		Logs current user out of the specified target system
+
+	    logout --all
+		Logs current user out of all known targets
 
 	    add-user [--email, --passwd]
 		Register a new user (requires admin privileges)

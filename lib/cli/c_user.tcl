@@ -181,10 +181,21 @@ oo::class create ::stackato::client::cli::command::User {
 	return
     }
 
-    method logout {} {
+    method logout {{thetarget {}}} {
 	Debug.cli/user {}
-	config remove_token_file
-	say [color green "Successfully logged out of \[[my target_url]\]"]
+
+	if {[dict get [my options] all]} {
+	    config remove_token_file
+	    say [color green "Successfully logged out of all known targets"]
+	    return
+	}
+
+	if {$thetarget eq {}} {
+	    set thetarget [my target_url]
+	}
+
+	config remove_token_for $thetarget
+	say [color green "Successfully logged out of \[$thetarget]\]"]
 	return
     }
 

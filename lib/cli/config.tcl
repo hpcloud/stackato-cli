@@ -152,6 +152,36 @@ proc ::stackato::client::cli::config::remove_token_file {} {
     return
 }
 
+proc ::stackato::client::cli::config::remove_token_for {target} {
+    Debug.config {}
+
+    set token_file [configfile token]
+    set tokens [all_tokens $token_file]
+
+    if {![dict exists $tokens $target]} {
+	stackato::log::err "Unable to log out of unknown target \[$target\]"
+    }
+
+    set thetoken [dict get $tokens $target]
+
+    dict unset tokens $target
+
+    Debug.config {dict = ($tokens)}
+
+    fileutil::writeFile $token_file [stackato::jmap targets $tokens]\n
+    FixPermissions $token_file
+
+    set todelete {}
+    foreach stem [configfiles key] {
+	if {![string match key_${thetoken}* $stem]} continue
+	lappend todelete {*}[glob -nocomplain ${stem}*]
+
+    }
+    if {![llength $todelete]} return
+    file delete -- {*}$todelete
+    return
+}
+
 proc ::stackato::client::cli::config::store_token {token {token_file {}} {sshkey {}}} {
     Debug.config {}
     variable target_url
@@ -217,7 +247,7 @@ proc ::stackato::client::cli::config::aliases {} {
 
     try {
 	return [lindex [tclyaml read file $aliases_file] 0 0]
-    } on error e {
+    } on error {e o} {
 	Debug.config {@E = '$e'}
 	Debug.config {@O = ($o)}
 	return {}
@@ -524,10 +554,26 @@ namespace eval ::stackato::client::cli::config {
 	suggest_url target_url store_target keyfile target! \
 	all_tokens auth_token remove_token_file store_token \
 	instances store_instances targets base_of reset_group \
-	aliases store_aliases urlcanon topdir remove_group_file
+	aliases store_aliases urlcanon topdir remove_group_file \
+	remove_token_for
 
     namespace ensemble create
 }
+
+# Normalize the ~ in the paths, to show full paths in debug output.
+apply {{} {
+    variable config
+    set newc {}
+    foreach {k v} $config {
+	set new {}
+	foreach path $v {
+	    lappend new [file normalize $path]
+	}
+	lappend newc $k $new
+    }
+    set config $newc
+
+} ::stackato::client::cli::config}
 
 # # ## ### ##### ######## ############# #####################
 ## Ready
