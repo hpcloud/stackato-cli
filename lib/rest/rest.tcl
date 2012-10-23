@@ -11,6 +11,10 @@ package require Tcl 8.5
 package require http
 package require TclOO
 
+debug level  rest
+debug prefix rest {}
+debug prefix rest {[::debug::snit::call] | }
+
 #puts [package ifneeded http [package present http]]
 
 # RESTful service core
@@ -23,6 +27,7 @@ oo::class create ::REST {
 	variable base wadls acceptedmimetypestack options
 
 	constructor {baseURL args} {
+		Debug.rest {}
 		set base   $baseURL
 		my LogWADL $baseURL
 
@@ -40,6 +45,7 @@ oo::class create ::REST {
 	}
 
 	method configure {args} {
+		Debug.rest {}
 		switch -- [llength $args] {
 			0 {
 				return [array get options]
@@ -55,16 +61,19 @@ oo::class create ::REST {
 	}
 
 	method cget {option} {
+		Debug.rest {}
 		return $options($option)
 	}
 
 	# TODO: Cookies!
 
 	method ExtractError {tok} {
+		Debug.rest {}
 		return [http::code $tok],[http::data $tok]
 	}
 
 	method OnRedirect {tok location} {
+		Debug.rest {}
 		upvar 1 url url
 		set url $location
 		# By default, GET doesn't follow redirects; the next line would
@@ -101,11 +110,13 @@ oo::class create ::REST {
 	}
 
 	method PushAcceptedMimeTypes args {
+		Debug.rest {}
 		lappend acceptedmimetypestack [http::config -accept]
 		http::config -accept [join $args ", "]
 		return
 	}
 	method PopAcceptedMimeTypes {} {
+		Debug.rest {}
 		set old [lindex $acceptedmimetypestack end]
 		set acceptedmimetypestack [lrange $acceptedmimetypestack 0 end-1]
 		http::config -accept $old
@@ -113,25 +124,22 @@ oo::class create ::REST {
 	}
 
 	method DoRequest {method url {type ""} {value ""}} {
+		Debug.rest {}
+
 		if {$value in [file channels]} {
 			set query -querychannel
-			if {[llength $options(-progress)]} {
-				lappend req_options -queryprogress $options(-progress)
-			}
-			if {$options(-blocksize) ne {}} {
-				lappend req_options -queryblocksize $options(-blocksize)
-			}
 		} else {
 			set query -query
-			if {[llength $options(-progress)]} {
-				lappend req_options -queryprogress $options(-progress)
-			}
-			if {$options(-blocksize) ne {}} {
-				lappend req_options -queryblocksize $options(-blocksize)
-			}
+		}
+		if {[llength $options(-progress)]} {
+			lappend req_options -queryprogress $options(-progress)
+		}
+		if {$options(-blocksize) ne {}} {
+			lappend req_options -queryblocksize $options(-blocksize)
 		}
 
 		lappend req_options -method $method -type $type $query $value
+
 		if {[llength $options(-headers)]} {
 			lappend req_options -headers $options(-headers)
 		}
@@ -139,7 +147,7 @@ oo::class create ::REST {
 		# Show request
 		if {$options(-trace)} {
 			if {$value ne {}} {
-				if {[string match *form* $type]} {
+				if {[string match *form* $type] && ($query eq "-query")} {
 					puts "\nRequest  $method, $type: $url -query <BINARY_FORM-VALUE-NOT-SHOWN>"
 				} else {
 					puts "\nRequest  $method, $type: $url -query $value"
@@ -166,10 +174,14 @@ oo::class create ::REST {
 			if {[catch {
 				set tok [http::geturl $url {*}$req_options]
 			} e o]} {
-				set host [join [lrange [split $url /] 0 2] /]
-				return -code error \
-					-errorcode [list REST HTTP REFUSED] \
-					"Server \"$host\" refused connection ($e)."
+				if {[string match *refused* $e]} {
+					set host [join [lrange [split $url /] 0 2] /]
+					return -code error \
+						-errorcode [list REST HTTP REFUSED] \
+						"Server \"$host\" refused connection ($e)."
+				} else {
+					return {*}$o $e
+				}
 			}
 
 			# Show response

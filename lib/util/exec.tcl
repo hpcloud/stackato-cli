@@ -51,7 +51,11 @@ proc ::exec::drop {pid} {
 
     if {$loc < 0} return
     set pids [lreplace $pids $loc $loc]
-    catch { kill $pid }
+    if {[catch {
+	kill $pid
+    } msg]} {
+	Debug.exec {problem: $msg}
+    }
     return
 }
 

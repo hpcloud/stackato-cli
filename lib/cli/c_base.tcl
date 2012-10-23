@@ -298,6 +298,29 @@ oo::class create ::stackato::client::cli::command::Base {
 	return $v
     }
 
+    method ValidateOptions {legal {script {}}} {
+	set illegal [my CheckOptions $legal]
+	if {[llength $illegal]} {
+	    set v "Options not recognized here: [join [lsort -dict $illegal] {, }]"
+	    if {$script ne {}} {
+		set text [uplevel 1 $script]
+		if {$text ne {}} {
+		    append v \n$text
+		}
+	    }
+	    return -code error -errorcode {OPTION INVALID} $v
+	}
+    }
+
+    method CheckOptions {legal} {
+	set illegal {}
+	foreach specified [dict get' [my options] __options {}] {
+	    if {$specified in $legal} continue
+	    lappend illegal $specified
+	}
+	return $illegal
+    }
+
     # # ## ### ##### ######## #############
     ## State
 

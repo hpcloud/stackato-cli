@@ -28,6 +28,7 @@ package require zipfile::encode
 package require sha1 2
 package require stackato::jmap
 package require browse
+package require tar 0.7.1 ; # tar::untar seekorskip stream fix
 package require platform
 
 namespace eval ::stackato::client::cli::command::Apps {}
@@ -96,10 +97,29 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set banner "Staging Application \[$appname\]: "
 	display $banner false
 
+	set fastlog 0
 	Debug.cli/apps {tail = [dict get [my options] tail]}
 	if {[dict get [my options] tail]} {
-	    # Launch a ssh sub-process tailing the operation of the stager.
-	    set pid [my run_ssh {} $appname - 1]
+	    # Tail the operation of the stager...
+	    if {[package vsatisfies [my ServerVersion] 2.3]} {
+		set fastlog 1
+
+		# For a fast-log enabled stackato simply use a
+		# suitably filtered log --follow as sub-process.
+
+		set newer [my GetLast $appname]
+		set pid [exec::bgrun 2>@ stderr >@ stdout \
+			     {*}[my appself] logs $appname \
+			     --follow --no-timestamps \
+			     --newer $newer
+			    ]
+	    } else {
+		# Stackato pre 2.3: Launch a ssh sub-process going
+		# through stackato-ssh with special arguments.
+		set pid [my run_ssh {} $appname - 1]
+	    }
+
+	    Debug.cli/apps {Tail PID = $pid}
 	}
 
 	Debug.cli/apps {REST request STARTED...}
@@ -108,7 +128,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	display [color green OK]
 
-	if {[dict get [my options] tail] && ($pid ne {})} {
+	if {!$fastlog && [dict get [my options] tail] && ($pid ne {})} {
+	    Debug.cli/apps {Kill PID = $pid}
 	    ::exec::drop $pid
 	}
 
@@ -121,7 +142,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set start_time [clock seconds]
 
 	while {1} {
-	    if {$count <= $TICKER_TICKS} { display . false }
+	    if {!$fastlog && ($count <= $TICKER_TICKS)} { display . false }
 
 	    after [expr {1000 * $SLEEP_TIME}];# @todo ping into the helper thread?
 
@@ -131,9 +152,16 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 		if {[llength [my crashinfo $appname false $start_time]]} {
 		    # Check for the existance of crashes
-		    display [color red "\nError: Application \[$appname\] failed to start, logs information below.\n"]
-
-		    my grab_crash_logs $appname 0 true yes
+		    if {$fastlog} {
+			if {[dict get [my options] tail] && ($pid ne {})} {
+			    Debug.cli/apps {Kill PID = $pid}
+			    ::exec::drop $pid
+			}
+			display [color red "\nError: Application \[$appname\] failed to start, see log above.\n"]
+		    } else {
+			display [color red "\nError: Application \[$appname\] failed to start, logs information below.\n"]
+			my grab_crash_logs $appname 0 true yes
+		    }
 		    if {$push} {
 			display ""
 			if {[my promptok]} {
@@ -178,6 +206,11 @@ oo::class create ::stackato::client::cli::command::Apps {
 		break
 	    }
 	} ;# while 1
+
+	if {$fastlog && [dict get [my options] tail] && ($pid ne {})} {
+	    Debug.cli/apps {Kill PID = $pid}
+	    ::exec::drop $pid
+	}
 
 	if {$failed} { exit 1 }
 	if {[log feedback]} {
@@ -494,7 +527,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set content [[my client] app_files $appname $path $idx]
 		my display_logfile $path $content $idx [color bold "====> \[$idx: $path\] <====\n"]
 	    }  trap {STACKATO CLIENT NOTFOUND} e {
-		display [color red "$e for $path"]
+		display [color red $e]
 	    } trap {STACKATO CLIENT TARGETERROR} {e o} {
 		if {[string match *retrieving*404* $e]} {
 		    display [color red "($idx)$path: No such file or directory"]
@@ -556,7 +589,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    set content [[my client] app_files $appname $path $instance]
 	    display $content
 	} trap {STACKATO CLIENT NOTFOUND} e {
-	    display [color red "$e for $path"]
+	    display [color red $e]
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    if {[string match *retrieving*404* $e]} {
 		display [color red "($instance)$path: No such file or directory"]
@@ -565,6 +598,441 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    }
 	}
 	return
+    }
+
+    method scp {args} {
+	Debug.cli/apps {}
+	# args = appname src... dst
+	#      | src... dst
+
+	if {![my app_exists? [lindex $args 0]]} {
+	    set appname {}
+	} else {
+	    set appname [lindex $args 0]
+	    set args [lrange $args 1 end]
+	}
+
+	if {[llength $args] < 2} {
+	    # not enough arguments.
+	    return -code error -errorcode {STACKATO USAGE} \
+		{Not enough arguments for [scp]}
+	}
+
+
+	manifest 1app $appname [callback do_scp $args]
+	return
+    }
+
+    method do_scp {args appname} {
+	# args = src... dst (at least two).
+	Debug.cli/apps {}
+
+	set instance [dict get' [my options] instance 0]
+	if {$instance eq {}} { set instance 0 }
+
+	set dst [lindex $args end]
+	set src [lrange $args 0 end-1]
+
+	# Classify destination and sources in terms of local and remote.
+	# Note that all sources have to have the same classification.
+
+	set dst [my PClass $dst dclass]
+	set sclass {}
+	foreach s $src {
+	    set s [my PClass $s sc]
+	    if {($sclass ne {}) && ($sc ne $sclass)} {
+		return -code error -errorcode {STACKATO USAGE} \
+		    {Illegal mix of local and remote source paths}
+	    }
+	    set sclass $sc
+	    lappend new $s
+	}
+	set src $new
+
+	# Four possibilities for src/dst classes:
+	# (1) local -> local
+	# (2) local -> remote
+	# (3) remote -> local
+	# (4) remote -> remote
+
+	Debug.cli/apps {mode = $sclass/$dclass}
+	switch -exact -- $sclass/$dclass {
+	    local/local {
+		# Copying is purely local.
+		# This can be done using the builtin 'file copy'.
+		# To match the semantics of unix's 'cp' command we
+		# have to fully normalize the paths however, to ensure
+		# that files are copied, and not the symlinks.
+
+		set dst [my full_normalize $dst]
+		set src [struct::list map $src [callback full_normalize]]
+		if {[catch {
+		    file copy -force {*}$src $dst
+		} e o]} {
+		    # Translate into CLI error, not internal.
+		    return {*}$o -errorcode {STACKATO CLIENT CLI} $e
+		}
+	    }
+	    local/remote {
+		# Stream local to remote, taking destination path type
+		# (file, directory, missing) into account.
+		my do_scp_lr $appname $instance $src $dst
+	    }
+	    remote/local {
+		# Stream remote to local, taking destination path type
+		# (file, directory, missing) into account.
+		my do_scp_rl $appname $instance $src $dst
+	    }
+	    remote/remote {
+		# Copying is purely on the remote side. This is done
+		# using the unix 'cp' we can expect to exist there.
+
+		my run_ssh [list cp -r {*}$src $dst] $appname $instance
+	    }
+	}
+
+	return
+    }
+
+    method do_scp_lr {appname instance src dst} {
+	Debug.cli/apps {}
+	# src - all local, dst - remote
+
+	# scp semantics...
+	# dst exists ? File or directory ?
+	#
+	# dst a file?
+	# yes: multiple sources?
+	#      yes: error (a)
+	#      no:  copy file, overwrite existing file (b)
+	#
+	# dst a directory?
+	# yes: copy all sources into the directory (c)
+	#
+	# now implied => dst missing.
+	# multiple sources?
+	# yes: error (d)
+	# no:  copy file or directory, create destination
+	#
+
+	if {[my scp_test_file $dst]} {
+	    # destination exists, is a file.
+	    # must have single source, must be a file.
+
+	    if {[llength $src] > 1} {
+		# (Ad a)
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "copying multiple files, but last argument `$dst' is not a directory"
+	    }
+
+	    set src [lindex $src 0]
+	    if {[file isdirectory $src]} {
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "cannot overwrite non-directory `$dst' with directory `$src'"
+
+	    }
+
+	    # (Ad b)
+	    my scp_lr_ff $src $dst
+	    return
+	}
+
+	if {[my scp_test_dir $dst]} {
+	    # (Ad c)
+	    my scp_lr_md $src $dst
+	    return
+	}
+
+	# destination doesn't exist.
+	# single source: copy file to file.
+	# single source: copy directory to directory.
+	# multiple sources: error, can't copy to missing directory.
+
+	if {[llength $src] == 1} {
+	    # (Ad e)
+
+	    set src [lindex $src 0]
+	    if {[file isdirectory $src]} {
+		# single directory to non-existing destination.
+		# destination is created as directory, then src
+		# contents are streamed.
+
+		cd::indir $src {
+		    set paths \
+			[struct::list filter \
+			     [lsort -unique [glob -nocomplain .* *]] \
+			     [lambda {x} {
+				 return [expr {($x ne ".") && ($x ne "..")}]
+			     }]]
+		    my scp_lr_md $paths $dst
+		}
+	    } else {
+		my scp_lr_ff $src $dst
+	    }
+	    return
+	}
+
+	# (Ad d)
+	return -code error \
+	    -errorcode {STACKATO CLIENT CLI} \
+	    "`$dst': specified destination directory does not exist"
+	return
+    }
+
+    method scp_lr_ff {src dst} {
+	# copy file to file (existing or new), streamed via cat on both sides.
+	# The double list-quoting for the remote command hides the
+	# output redirection from the local exec.
+
+	upvar 1 appname appname instance instance
+
+	Debug.cli/apps {local/remote file/file}
+
+	my run_ssh [list [list cat > $dst]] \
+	    $appname $instance 3 \
+	    [list {*}[my appself] scp-xfer-transmit1 $src]
+	return
+    }
+
+    method scp_lr_md {srclist dst} {
+	# destination created if not existing, is a directory.
+	# copy all sources into that directory.
+	# streamed via tar on both sides.
+
+	upvar 1 appname appname instance instance
+
+	Debug.cli/apps {local/remote */dir}
+
+	my run_ssh [list mkdir -p $dst \; cd $dst \; tar xf -] \
+	    $appname $instance 3 \
+	    [list {*}[my appself] scp-xfer-transmit {*}$srclist]
+	return
+    }
+
+    method scp_rl_ff {src dst} {
+	# copy file to file, streamed via cat on both sides.
+	upvar 1 appname appname instance instance
+
+	Debug.cli/apps {remote/local file/file}
+
+	my run_ssh [list cat $src] \
+	    $appname $instance 3 \
+	    {} [list {*}[my appself] scp-xfer-receive1 $dst]
+	return
+    }
+
+    method scp_rl_md {srclist dst} {
+	# destination exists, is a directory.
+	# copy all sources into that directory.
+	# streamed via tar on both sides.
+
+	upvar 1 appname appname instance instance
+
+	my run_ssh [list tar cf - {*}$srclist] \
+	    $appname $instance 3 \
+	    {} [list {*}[my appself] scp-xfer-receive $dst]
+	return
+    }
+
+    method scp_rl_dd {src dst} {
+	# destination exists, is a directory.
+	# copy source directory to that directory.
+	# streamed via tar on both sides.
+
+	upvar 1 appname appname instance instance
+
+	my run_ssh [list cd $src \; tar cf - .] \
+	    $appname $instance 3 \
+	    {} [list {*}[my appself] scp-xfer-receive $dst]
+	return
+    }
+
+    method scp_test_file {path} {
+	upvar 1 appname appname instance instance
+	# test uses standard unix stati to communicate its result:
+	# (0)    == false ==> OK
+	# (!= 0) == true  ==> FAIL
+	if {![my run_ssh [list test -f $path] $appname $instance 2]} {
+	    return 1
+	} else {
+	    return 0
+	}
+    }
+
+    method scp_test_dir {path} {
+	upvar 1 appname appname instance instance
+	# test uses standard unix stati to communicate its result:
+	# (0)    == false ==> OK
+	# (!= 0) == true  ==> FAIL
+	if {![my run_ssh [list test -d $path] $appname $instance 2]} {
+	    return 1
+	} else {
+	    return 0
+	}
+    }
+
+    method scp_test_exists {path} {
+	upvar 1 appname appname instance instance
+	# test uses standard unix stati to communicate its result:
+	# (0)    == false ==> OK
+	# (!= 0) == true  ==> FAIL
+	if {![my run_ssh [list test -e $path] $appname $instance 2]} {
+	    return 1
+	} else {
+	    return 0
+	}
+    }
+
+    method do_scp_rl {appname instance src dst} {
+	Debug.cli/apps {}
+	# src - all remote, dst - local
+
+	# scp semantics...
+	# dst exists ? File or directory ?
+	#
+	# dst a file?
+	# yes: multiple sources?
+	#      yes: error (a)
+	#      no:  copy file, overwrite existing file (b)
+	#
+	# dst a directory?
+	# yes: copy all sources into the directory (c)
+	#
+	# now implied => dst missing.
+	# multiple sources?
+	# yes: error (d)
+	# no:  copy file, overwrite existing file (e)
+	#
+
+	foreach s $src {
+	    if {![my scp_test_exists $s]} {
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "$s: No such file or directory"
+	    }
+	}
+
+	if {[file isfile $dst]} {
+	    # destination exists, is a file.
+	    # must have single source, must be a file.
+
+	    if {[llength $src] > 1} {
+		# (Ad a)
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "copying multiple files, but last argument `$dst' is not a directory"
+	    }
+
+	    set src [lindex $src 0]
+	    if {[my scp_test_dir $src]} {
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "cannot overwrite non-directory `$dst' with directory `$src'"
+
+	    }
+
+	    # (Ad b)
+	    my scp_rl_ff $src $dst
+	    return
+	}
+
+	if {[file isdirectory $dst]} {
+	    # (Ad c)
+	    my scp_rl_md $src $dst
+	    return
+	}
+
+	# destination doesn't exist.
+	# single source: copy file to file.
+	# single source: copy directory to directory.
+	# multiple sources: error, can't copy to missing directory.
+
+	if {[llength $src] == 1} {
+	    # (Ad d)
+
+	    set src [lindex $src 0]
+	    if {[my scp_test_dir $src]} {
+		# single directory to non-existing destination.
+		# destination is created as directory, then src
+		# contents are streamed.
+		my scp_rl_dd $src $dst
+	    } else {
+		my scp_rl_ff $src $dst
+	    }
+	    return
+	}
+
+	# (Ad e)
+	return -code error \
+	    -errorcode {STACKATO CLIENT CLI} \
+	    "`$dst': specified destination directory does not exist"
+	return
+    }
+
+    method scp_xfer_receive {dst} {
+	Debug.cli/apps {}
+
+	fconfigure stdin -encoding binary -translation binary
+	#file mkdir            $dst
+	tar::untar stdin -dir $dst -chan
+	return
+    }
+
+    method scp_xfer_transmit {args} {
+	Debug.cli/apps {}
+
+	fconfigure  stdout -encoding binary -translation binary
+	tar::create stdout $args -chan
+	close stdout
+	return
+    }
+
+    method scp_xfer_receive1 {dst} {
+	Debug.cli/apps {}
+
+	file mkdir [file dirname $dst]
+	set c [open $dst w]
+
+	fconfigure stdin -encoding binary -translation binary
+	fconfigure $c    -encoding binary -translation binary
+
+	fcopy stdin $c
+	close $c
+	close stdin
+	return
+    }
+
+    method scp_xfer_transmit1 {src} {
+	Debug.cli/apps {}
+
+	set c [open $src r]
+
+	fconfigure stdout -encoding binary -translation binary
+	fconfigure $c     -encoding binary -translation binary
+
+	fcopy $c stdout
+	close $c
+	close stdout
+	return
+    }
+
+    method appself {} {
+	variable ::stackato::client::cli::usage::wrapped
+	set noe [info nameofexecutable]
+	if {$wrapped} {
+	    return [list $noe]
+	} else {
+	    global argv0
+	    return [list $noe $argv0]
+	}
+    }
+
+    method PClass {path cvar} {
+	upvar 1 $cvar class
+	if {[string match :* $path]} {
+	    set class remote
+	    set path [string range $path 1 end]
+	} else {
+	    set class local
+	}
+	return $path
     }
 
     method ssh {args} {
@@ -617,7 +1085,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
 
-    method run_ssh {args appname instance {bg 0}} {
+    method run_ssh {args appname instance {bg 0} {eincmd {}} {eocmd {}}} {
+	# eincmd = External INput Command.
 	Debug.cli/apps {}
 	global env
 
@@ -626,7 +1095,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set token   [config auth_token]
 	set keyfile [config keyfile $token]
 	if {![file exists $keyfile]} {
-	    if {$bg} {
+	    if {$bg == 1} {
 		say [color yellow "\nDisabled real-time view of staging, no ssh key available for target \[$target\]"]
 		return {}
 	    } else {
@@ -644,8 +1113,17 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# -o IdentitiesOnly=yes : ignore keys offered by ssh-agent
 	# -t                    : Force pty allocation, to allow the use of
 	#                         full curses/screen based commands.
+	#
+	# (bg == 3) => no pty, for 8bit clean data transfer (scp)
 
-	lappend cmd -i $keyfile -o IdentitiesOnly=yes -t {*}$opts stackato@$target stackato-ssh
+	lappend cmd -i $keyfile -o IdentitiesOnly=yes
+	if {$bg == 3} {
+	    # no pty, and handle as plain sync child process.
+	    set bg 0
+	} else {
+	    lappend cmd -t
+	}
+	lappend cmd {*}$opts stackato@$target stackato-ssh
 
 	if {[my group] ne {}} {
 	    lappend cmd -G [my group]
@@ -653,7 +1131,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	lappend cmd $token $appname $instance {*}$args
 
-	return [my InvokeSSH $cmd $bg]
+	return [my InvokeSSH $cmd $bg $eincmd $eocmd]
     }
 
     method SSHKeyOptions {ov} {
@@ -703,13 +1181,32 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
 
-    method InvokeSSH {cmd {bg 0}} {
+    method InvokeSSH {cmd {bg 0} {eincmd {}} {eocmd {}}} {
+	# eincmd = External INput Command.
+	# eocmd = External Output Command.
 	Debug.cli/apps {}
 	global env
 
 	if {[dict get [my options] dry]} {
 	    display [join [my Quote {*}$cmd] { }]
 	    return
+	}
+
+	if {$bg == 2} {
+	    try {
+		exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
+	    } trap {CHILDSTATUS} {e o} {
+		set status [lindex [dict get $o -errorcode] end]
+
+		Debug.cli/apps {status = $status}
+		if {$status == 255} {
+		    err "Server closed connection."
+		} else {
+		    return $status
+		}
+	    }
+	    Debug.cli/apps {status = OK}
+	    return 0
 	}
 
 	if {$bg} {
@@ -725,7 +1222,15 @@ oo::class create ::stackato::client::cli::command::Apps {
 	}
 
 	try {
-	    exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
+	    if {[llength $eincmd] && [llength $eocmd]} {
+		exec 2>@ stderr >@ stdout {*}$eincmd | {*}$cmd | {*}$eocmd
+	    } elseif {[llength $eocmd]} {
+		exec 2>@ stderr >@ stdout {*}$cmd | {*}$eocmd
+	    } elseif {[llength $eincmd]} {
+		exec 2>@ stderr >@ stdout {*}$eincmd | {*}$cmd
+	    } else {
+		exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
+	    }
 	} trap {CHILDSTATUS} {e o} {
 	    set status [lindex [dict get $o -errorcode] end]
 	    if {$status == 255} {
@@ -787,7 +1292,176 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method logs {{appname {}}} {
 	Debug.cli/apps {}
-	manifest 1app $appname [callback logsit]
+
+	if {[package vsatisfies [my ServerVersion] 2.3]} {
+	    # Legal options:
+	    # --json --follow --num --source --instance
+	    # --newer --filename --text
+	    my ValidateOptions {
+		--json --follow --num --source --instance
+		--newer --filename --text --no-timestamps
+	    } {
+		if {![llength [my CheckOptions {--instance --all}]]} {
+		    set res {Are you possibly expecting server version 2.2 or lower?}
+		} else {
+		    set res {}
+		}
+	    }
+	    manifest 1app $appname [callback fastlogsit]
+	} else {
+	    # Legal options:
+	    # --instance --all
+	    my ValidateOptions {--instance --all} {
+		if {![llength [my CheckOptions {
+		    --json --follow --num --source --instance
+		    --newer --filename --text --no-timestamps
+		}]]} {
+		    set res {Are you possibly expecting server version 2.4 or higher?}
+		} else {
+		    set res {}
+		}
+	    }
+	    manifest 1app $appname [callback logsit]
+	}
+	return
+    }
+
+    method fastlogsit {appname} {
+	Debug.cli/apps {}
+
+	if {[dict get [my options] follow]} {
+	    # Disable 'Interupted' output for ^C
+	    config smalltrap
+
+	    # Tail the logs, forever...  Data accumulates in the
+	    # 'filter' dictionary ensuring that previously seen lines
+	    # are not printed multiple times.
+	    set filter {}
+	    while {1} {
+		my ShowLogs $appname 100 1
+		after 1000
+	    }
+	    return
+	}
+
+	# Single-shot log retrieval...
+	set n [dict get' [my options] numrecords 100]
+	my ShowLogs $appname $n
+	return
+    }
+
+    method GetLast {appname} {
+	Debug.cli/apps {}
+	set last [[my client] logs $appname 1]
+	set last [lindex [split [string trim $last] \n] end]
+
+	Debug.cli/apps {last = $last}
+
+	if {$last eq {}} {
+	    Debug.cli/apps { last = everything }
+	    return 0
+	}
+
+	set last [json::json2dict $last]
+	dict with last {} ; # => timestamp, instance, source, text, filename
+
+	Debug.cli/apps { last = $timestamp}
+	return $timestamp
+    }
+
+    method ShowLogs {appname n {follow 0}} {
+	if {$follow} {
+	    # We use our calling context for persistence across calls
+	    upvar 1 filter filter
+	}
+
+	set json [my GenerateJson]
+
+	set sts       [dict get [my options] logtimestamps]
+	set pattern   [dict get' [my options] logsrcfilter *]
+	set pinstance [dict get' [my options] instance {}]
+	set pnewer    [dict get' [my options] lognewer 0]
+	set plogfile  [dict get' [my options] logfile *]
+	set plogtext  [dict get' [my options] logtext *]
+
+	Debug.cli/apps { Filter Source    |$pattern| }
+	Debug.cli/apps { Filter Instance  |$pinstance| }
+	Debug.cli/apps { Filter Timestamp |$pnewer| }
+	Debug.cli/apps { Filter Filename  |$plogfile| }
+	Debug.cli/apps { Filter Text      |$plogtext| }
+
+	foreach line [split [[my client] logs $appname $n] \n] {
+	    # Ignore empty lines.
+	    if {[string trim $line] eq {}} continue
+
+	    # Filter for tailing, ignore previously seen lines.
+	    if {$follow} {
+		if {[dict exists $filter $line]} continue
+		dict set filter $line .
+	    }
+
+	    Debug.cli/apps { $line }
+
+	    # Parse the json...
+	    set record [json::json2dict $line]
+	    dict with record {} ; # => timestamp, instance, source, text, filename
+
+	    # Filter for time.
+	    if {$pnewer >= $timestamp} {
+		Debug.cli/apps { Timestamp '$timestamp' rejected by '$pnewer' }
+		continue
+	    }
+
+	    # Filter for filename
+	    if {![string match $plogfile $filename]} {
+		Debug.cli/apps { Filename '$filename' rejected by '$plogfile' }
+		continue
+	    }
+	    # Filter for text
+	    if {![string match $plogtext $text]} {
+		Debug.cli/apps { Text '$text' rejected by '$plogtext' }
+		continue
+	    }
+
+	    # Filter for instance.
+	    if {($pinstance ne {}) && ($instance ne $pinstance)} {
+		Debug.cli/apps { Instance '$instance' rejected by '$pinstance' }
+		continue
+	    }
+
+	    # Filter for log source...
+	    if {![string match $pattern $source]} {
+		Debug.cli/apps { Source '$source' rejected by '$pattern' }
+		continue
+	    }
+
+	    # Format for display, and print.
+
+	    if {$json} {
+		# Raw JSON as it came from the server.
+		display $line
+	    } else {
+		if {$instance >= 0} { append source .$instance }
+
+		# colors: red green yellow white blue cyan bold
+		if {$sts} {
+		    set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
+		} else {
+		    # --no-timestamps
+		    set date ""
+		}
+		set date     [color yellow $date]
+		set source   [color blue    $source]
+		#set instance [color blue   $instance]
+		if {$filename eq "stderr.log"} {
+		    set errormark "stderr"
+		    set errormark [color red $errormark]
+		    display "$date$source $errormark $text"
+		} else {
+		    display "$date$source $text"
+		}
+	    }
+	}
 	return
     }
 
@@ -868,6 +1542,29 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method crashlogs {{appname {}}} {
 	Debug.cli/apps {}
+
+	if {[package vsatisfies [my ServerVersion] 2.3]} {
+	    # Legal options:
+	    # --json --follow --num --source --instance
+	    # --newer --filename --text
+	    my ValidateOptions {
+		--json --follow --num --source --instance
+		--newer --filename --text --no-timestamps
+	    }
+	} else {
+	    # Legal options:
+	    # --instance
+	    my ValidateOptions {--instance} {
+		if {![llength [my CheckOptions {
+		    --json --follow --num --source --instance
+		    --newer --filename --text
+		}]]} {
+		    set res {Are you possibly expecting server version 2.4 or higher?}
+		} else {
+		    set res {}
+		}
+	    }
+	}
 	manifest 1app $appname [callback crashlogsit]
 	return
     }
@@ -1333,7 +2030,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    [$frameobj prompt_for_runtime?] &&
 	    [my promptok]
 	} {
-   	    set runtime [term ask/choose "Select Runtime: " \
+   	    set runtime [term ask/menu "What runtime?" "Select Runtime: " \
 			[lsort -dict [dict keys $runtimes]] \
 			[$frameobj default_runtime [manifest current]]]
 	}
@@ -1576,7 +2273,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set df [$frameobj key]
 	    }
 
-	    set fn [term ask/choose "Select Application Type: " \
+	    set fn [term ask/menu "What framework?" "Select Application Type: " \
 			[lsort -dict [framework known $supported]] $df]
 
 	    catch { $frameobj destroy }
@@ -3004,7 +3701,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set content [[my client] app_files $appname $path $instance]
 		my display_logfile $path $content $instance
 	    } trap {STACKATO CLIENT NOTFOUND} {e o} {
-		display [color red "$e for path $path"]
+		display [color red $e]
 	    } trap {STACKATO CLIENT TARGETERROR} {e o} {
 		if {[string match *retrieving*404* $e]} {
 		    display [color red "($instance)$path: No such file or directory"]
@@ -3021,6 +3718,13 @@ oo::class create ::stackato::client::cli::command::Apps {
 	if {!$was_staged} {
 	    my crashinfo $appname false
 	}
+
+	if {[package vsatisfies [my ServerVersion] 2.3]} {
+	    # Like s logs...
+	    my fastlogsit $appname
+	    return
+	}
+
 	if {$instance eq {}} { set instance 0 }
 
 	set map [config instances]
@@ -3035,7 +3739,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set content [[my client] app_files $appname $path $instance]
 		my display_logfile $path $content $instance
 	    } trap {STACKATO CLIENT NOTFOUND} {e o} {
-		display [color red "$e for path $path"]
+		display [color red $e]
 	    } trap {STACKATO CLIENT TARGETERROR} {e o} {
 		if {[string match *retrieving*404* $e]} {
 		    display [color red "($instance)$path: No such file or directory"]
@@ -3051,12 +3755,16 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	try {
 	    set new_lines 0
-	    set path "logs/startup.log"
+	    set path "logs/stderr.log"
 	    set content [[my client] app_files $appname $path]
 
 	    if {$content ne {}} {
+		if {$since < 0} {
+		    # Late file appearance, start actual tailing.
+		    set since 0
+		}
 		if {!$since} {
-		    display "\n==== displaying startup log ====\n\n"
+		    display "\n==== displaying stderr log ====\n\n"
 		}
 
 		set response_lines [split $content \n]
@@ -3071,6 +3779,13 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    incr since $new_lines
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    # do not modify 'since' (== 0)
+	    # ignore error, hope that this is a transient condition
+	} trap {STACKATO CLIENT NOTFOUND} {e o} {
+	    if {$since >= 0} {
+		display [color red $e]
+		display "Continuing to watch for its appearance..."
+	    }
+	    return -1
 	}
 
 	return $since

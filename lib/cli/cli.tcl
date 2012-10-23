@@ -10,7 +10,6 @@ package require Tcl 8.5
 package require TclOO
 package require try                           ;# I want try/catch/finally
 package require Tclx                          ;# Signal handling.
-package require stackato::client::cli::config ;# Global configuration.
 package require stackato::client::cli::usage  ;# Global usage texts
 package require stackato::color
 package require stackato::log
@@ -19,6 +18,21 @@ package require stackato::readline
 package require struct::list
 package require lambda
 package require exec
+
+try {
+    package require stackato::client::cli::config ;# Global configuration.
+
+} trap {POSIX ENOENT} {e o} {
+    if {[string match {*error getting working directory name*} $e]} {
+	if {[stackato::readline tty]} {
+	    stackato::color colorize
+	}
+	stackato::log to stdout
+	stackato::log say [stackato::color red {Unable to run client from a deleted directory}]
+	::exit 1
+    }
+    return {*}$o $e
+}
 
 namespace eval ::stackato::client::cli {}
 
@@ -47,7 +61,11 @@ oo::class create ::stackato::client::cli {
 	# group - initially undefined
 	# stackato-debug - initially undefined
 	# reset - initially undefined
+	# numrecords - initially undefined
+	# lognewer - initially undefined
 	array set myoptions {
+	    logtimestamps 1
+	    follow 0
 	    copyunsafe 0
 	    email {}
 	    password {}
@@ -106,19 +124,7 @@ oo::class create ::stackato::client::cli {
 	Debug.cli {}
 	global tcl_platform
 	try {
-	    if {$tcl_platform(platform) eq "windows"} {
-		signal trap {TERM INT} {
-		    ::stackato::log::say! "\nInterrupted\n"
-		    ::exec::clear
-		    exit 1
-		}
-	    } else {
-		signal -restart trap {TERM INT} {
-		    ::stackato::log::say! "\nInterrupted\n"
-		    ::exec::clear
-		    exit 1
-		}
-	    }
+	    config fulltrap
 
 	    my ParseOptions
 
@@ -171,6 +177,12 @@ oo::class create ::stackato::client::cli {
  	} trap {OPTION INVALID} {e} - trap {OPTION AMBIGOUS} {e} {
 
 	    say! [color red "$e"]\n[usage::Basic]
+	    set myexitstatus false
+
+	} trap {STACKATO USAGE} {e} {
+	    Debug.cli {Syntax error}
+	    set myusageerror $e
+	    usage::Display
 	    set myexitstatus false
 
 	} trap {STACKATO SERVER DATA ERROR} {e} {
@@ -377,6 +389,10 @@ oo::class create ::stackato::client::cli {
 		}
 		0 break
 		1 {
+		    if {$o ni {-debug t -trace}} {
+			lappend myoptions(__options) -$o
+		    }
+
 		    switch -exact -- $o {
 			-copy-unsafe-links { set myoptions(copyunsafe) 1 }
 			-email     -
@@ -384,6 +400,13 @@ oo::class create ::stackato::client::cli {
 			-passwd    -
 			-pass      -
 			-password  { set myoptions(password) $v }
+			-num       { set myoptions(numrecords) $v }
+			-source    { set myoptions(logsrcfilter) $v }
+			-follow    { set myoptions(follow) 1 }
+			-no-timestamps { set myoptions(logtimestamps) 0 }
+			-newer     { set myoptions(lognewer) $v }
+			-text      { set myoptions(logtext) $v }
+			-filename  { set myoptions(logfile) $v }
 			-app       -
 			-name      { set myoptions(name) $v }
 			-bind      { set myoptions(bind) $v }
@@ -564,6 +587,10 @@ oo::class create ::stackato::client::cli {
 		my Usage {debug-columns}
 		my SetNamedCommand misc columns debug-columns 0
 	    }
+	    debug-revision {
+		my Usage {debug-revision}
+		my SetNamedCommand misc revision debug-revision 0
+	    }
 	    debug-user {
 		my Usage {debug-user}
 		my SetNamedCommand user allinfo debug-user 0
@@ -674,7 +701,7 @@ oo::class create ::stackato::client::cli {
 	    }
 	    usage {
 		my Usage {usage [--all] [user|group]} \
-		    {System usage information}
+		    {Shows the current memory allocation and usage of the active or specified user/group.}
 		my SetCommandMinMax misc usage 0 1
 	    }
 	    runtimes {
@@ -815,8 +842,33 @@ oo::class create ::stackato::client::cli {
 		    {ssh to a running instance (or target), or run an arbitrary command.}
 		my SetCommand apps ssh [llength $myargs]
 	    }
+	    scp {
+		my Usage {scp [--instance N] [appname] src... dst} \
+		    {Copy source files and directories to the destination.}
+		my SetCommandMinMax apps scp 2 [llength $myargs]
+	    }
+	    scp-xfer-transmit {
+		my Usage {scp-xfer-transmit src...} \
+		    Internal
+		my SetCommand apps scp_xfer_transmit [llength $myargs]
+	    }
+	    scp-xfer-receive {
+		my Usage {scp-xfer-receive dst} \
+		    Internal
+		my SetCommand apps scp_xfer_receive 1
+	    }
+	    scp-xfer-transmit1 {
+		my Usage {scp-xfer-transmit1 dst} \
+		    Internal
+		my SetCommand apps scp_xfer_transmit1 1
+	    }
+	    scp-xfer-receive1 {
+		my Usage {scp-xfer-receive1 dst} \
+		    Internal
+		my SetCommand apps scp_xfer_receive1 1
+	    }
 	    logs {
-		my Usage {logs <appname> [--instance N] [--all] [--prefix]} \
+		my Usage {logs [appname] [--instance N] [--follow] [--num N] [--source S] [--filename F] [--text T]} \
 		    {Display log information for the application}
 		my SetCommandMinMax apps logs 0 1
 	    }
@@ -831,7 +883,7 @@ oo::class create ::stackato::client::cli {
 		my SetCommandMinMax apps crashes 0 1
 	    }
 	    crashlogs {
-		my Usage {crashlogs [appname]} \
+		my Usage {crashlogs [appname] [--instance N] [--follow] [--num N] [--source S] [--filename F] [--text T]} \
 		    {Display log information for crashed applications}
 		my SetCommandMinMax apps crashlogs 0 1
 	    }
@@ -1121,6 +1173,13 @@ oo::class create ::stackato::client::cli {
 	    {-sudo.arg        {target dependent} {Applications can use sudo}}
 	    {-stackato-debug.arg {no defaults} {Host:Port for debugging the user app}}
 	    {-reset           {Reset current group}}
+	    {-num.arg         100 {Number of log records to retrieve}}
+	    {-follow          {Tail the logs}}
+	    {-no-timestamps   {Do not display the log entry timestamps}}
+	    {-source.arg      * {Glob pattern to filter logs by (source field)}}
+	    {-text.arg        * {Glob pattern to filter logs by (text field)}}
+	    {-filename.arg    * {Glob pattern to filter logs by (filename field)}}
+	    {-newer.arg       0 {Seconds since epoch to filter logs by (timestamp field)}}
 	}
     }
 
@@ -1150,4 +1209,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.4.4
+package provide stackato::client::cli 1.5

@@ -211,7 +211,7 @@ proc ::stackato::client::cli::manifest::urls {} {
     if {[FindInDict $currentappinfo ulist url] ||
 	[FindInDict $currentappinfo ulist urls]} {
 	Debug.cli/manifest/core {Found = $ulist}
-	lassign [Tags! {scalar sequence} $ulist url(s)] tag data
+	lassign [Tags! {scalar sequence} $ulist {key "url(s)"}] tag data
 	switch -exact -- $tag {
 	    scalar   { return [list $data] }
 	    sequence { return [StripTags $ulist] }
@@ -227,7 +227,30 @@ proc ::stackato::client::cli::manifest::urls {} {
 
 proc ::stackato::client::cli::manifest::p-web {} {
     variable currentappinfo
-    return [DictGet' $currentappinfo stackato processes web {}]
+    if {[FindInDictionary $currentappinfo result \
+	     stackato processes web]} {
+	# Check for explicit null value, translate to empty.
+	# (for the purposes of 'generic').
+	if {$result in {null Null NULL ~}} { return {} }
+	return $result
+    } else {
+	# undefined, empty for the purposes of 'generic'.
+	return {}
+    }
+}
+
+proc ::stackato::client::cli::manifest::standalone {} {
+    variable currentappinfo
+    # A defined processes/web key which is empty, or null means 'standalone'.
+    # An undefined key is _not_ standalone, but default serverside handling.
+    if {[FindInDictionary $currentappinfo result \
+	     stackato processes web] &&
+	($result in {{} null Null NULL ~})} {
+	return 1
+    } else {
+	# undefined, or not empty. NOT standalone.
+	return 0
+    }
 }
 
 proc ::stackato::client::cli::manifest::env {} {
@@ -246,7 +269,7 @@ proc ::stackato::client::cli::manifest::ignorePatterns {} {
 	*.svn/
 	.hg/
 	*CVS/
-	_FOSSIL_ .fos
+	_FOSSIL_ .fos .fslckout
 	*.bzr
 	*.cdv
 	*.pc
@@ -499,7 +522,7 @@ proc ::stackato::client::cli::manifest::recurrent {} {
     Debug.cli/manifest/core {  currentapp     = $currentapp}
 
     FindInDict $manifest allapps applications
-    set allapps [Tag! mapping $allapps applications]
+    set allapps [Tag! mapping $allapps {key "applications"}]
 
     set ok 0
     foreach {path config} $allapps {
@@ -540,7 +563,7 @@ proc ::stackato::client::cli::manifest::foreach_app {nv body {panic 1}} {
 	# that the user's CWD is in that application's directory, or
 	# deeper, and that we must operate on only this application.
 
-	set allapps [Tag! mapping $allapps applications]
+	set allapps [Tag! mapping $allapps {key "applications"}]
 
 	Debug.cli/manifest/core {    manifest - apps /[llength $allapps]}
 
@@ -676,7 +699,7 @@ proc ::stackato::client::cli::manifest::load_structure {rootfile {already {}}} {
 
     if {[dict exists $already $rootfile]} {
 	return -code error -errorcode {STACKATO CLIENT CLI MANIFEST INHERITANCE CYCLE} \
-	    "Circular manifest inheritance detected involving:\n\t[join [dict keys $already] \n\t]"
+	    "Manifest error: Circular manifest inheritance detected involving:\n\t[join [dict keys $already] \n\t]"
     }
     dict set already $rootfile .
 
@@ -691,7 +714,7 @@ proc ::stackato::client::cli::manifest::load_structure {rootfile {already {}}} {
 	Debug.cli/manifest/core {=== PROCESSING FILE INHERITANCE ===========}
 
 	lassign [Tags! {scalar sequence} \
-		     [dict get $manifest inherit] inheritance] \
+		     [dict get $manifest inherit] {key "inherit"}] \
 	    itag inherit
 
 	switch -exact -- $itag {
@@ -725,7 +748,7 @@ proc ::stackato::client::cli::manifest::load_structure {rootfile {already {}}} {
     # for the upcoming symbol resolution.
 
     if {[dict exists $manifest applications]} {
-	set avalue [Tag! mapping [dict get $manifest applications] applications]
+	set avalue [Tag! mapping [dict get $manifest applications] {key "applications"}]
 
 	foreach {apath aconfig} $avalue {
 	    Debug.cli/manifest/core {=== PROCESSING INTERNAL INHERITANCE =======}
@@ -762,7 +785,7 @@ proc ::stackato::client::cli::manifest::resolve_manifest {manifestvar} {
     set context [list $manifest]
 
     if {[dict exists $manifest applications]} {
-	set avalue [Tag! mapping [dict get $manifest applications] applications]
+	set avalue [Tag! mapping [dict get $manifest applications] {key "applications"}]
 
 	foreach {apath aconfig} $avalue {
 	    resolve_lexically aconfig $context
@@ -1008,7 +1031,7 @@ proc ::stackato::client::cli::manifest::ResolveSymbol {contextlist already symbo
 
     if {[dict exists $already $symbol]} {
 	return -code error -errorcode {STACKATO CLIENT CLI MANIFEST SYMBOL CYCLE} \
-	    "Circular symbol definition detected involving:\n\t[join [dict keys $already] \n\t]"
+	    "Manifest error: Circular symbol definition detected involving:\n\t[join [dict keys $already] \n\t]"
     }
     dict set already $symbol .
 
@@ -1026,7 +1049,7 @@ proc ::stackato::client::cli::manifest::ResolveSymbol {contextlist already symbo
 	    if {![FindSymbol $symbol $contextlist symvalue]} {
 		return -code error \
 		    -errorcode {STACKATO CLIENT CLI MANIFEST UNKNOWN SYMBOL} \
-		    "Unknown symbol in manifest: $symbol"
+		    "Manifest error: Unknown symbol in manifest: $symbol"
 	    }
 	    # Note: symvalue is plain string here, not tagged.
 
@@ -1071,11 +1094,17 @@ proc ::stackato::client::cli::manifest::DictGet {dict args} {
 }
 
 proc ::stackato::client::cli::manifest::DictGet' {dict args} {
+    Debug.cli/manifest/core {DictGet ($dict) ($args)}
     set default [lindex $args end]
     set args [lrange $args 0 end-1]
     set found [FindInDictionary $dict result {*}$args]
     if {!$found} { return $default }
     return $result
+}
+
+proc ::stackato::client::cli::manifest::DictExists {dict args} {
+    Debug.cli/manifest/core {DictExists ($dict) ($args)}
+    return [FindInDictionary $dict __dummy__ {*}$args]
 }
 
 proc ::stackato::client::cli::manifest::FindInDictionary {context resultvar args} {
@@ -1404,12 +1433,12 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 
     # (Ad 3)
     if {[dict exists $value services]} {
-	lassign [Tags! {scalar mapping} [dict get $value services] services] t services
+	lassign [Tags! {scalar mapping} [dict get $value services] {key "services"}] t services
 	if {$t eq "scalar"} {
 	    set services [string trim $services]
 	    if {$services ne {}} {
 		return -code error -errorcode {STACKATO CLIENT CLI MANIFEST SYNTAX} \
-		    "Manifest: Bad syntax, expected a mapping for services, got a non-empty string."
+		    "Manifest error: Bad syntax, expected a yaml mapping for key \"services\", got a non-empty string instead."
 	    }
 	}
 
@@ -1440,11 +1469,11 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 		    } elseif {($outer ni $choices) && ($innervalue ni $choices)} {
 			# Neither value is a proper vendor.
 			return -code error  -errorcode {STACKATO CLIENT CLI MANIFEST BAD SERVICE} \
-			    "Bad service definition \"$outer: $innervalue\" in manifest. Neither \[$outer\] nor \[$innervalue\] are supported system services.\nPlease use '[usage::me] services' to see the list of system services supported by the target."
+			    "Manifest error: Bad service definition \"$outer: $innervalue\" in manifest. Neither \[$outer\] nor \[$innervalue\] are supported system services.\nPlease use '[usage::me] services' to see the list of system services supported by the target."
 		    } else {
 			# Both values are proper vendors.
 			return -code error  -errorcode {STACKATO CLIENT CLI MANIFEST BAD SERVICE} \
-			    "Bad service definition \"$outer: $innervalue\" in manifest. Both \[$outer\] and \[$innervalue\] are supported system services. Unable to decide which is the service name."
+			    "Manifest error: Bad service definition \"$outer: $innervalue\" in manifest. Both \[$outer\] and \[$innervalue\] are supported system services. Unable to decide which is the service name."
 		    }
 		}
 		mapping {
@@ -1505,23 +1534,23 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 
     foreach {path value} $value {
 	ValidateMap $value application {
-	    name      { Tag! scalar $value name }
-	    instances { Tag! scalar $value instances }
-	    mem       { Tag! scalar $value mem }
-	    runtime   { Tag! scalar $value runtime }
+	    name      { Tag! scalar $value {key "name"} }
+	    instances { Tag! scalar $value {key "instances"} }
+	    mem       { Tag! scalar $value {key "mem"} }
+	    runtime   { Tag! scalar $value {key "runtime"} }
 	    services  {
 		ValidateGlobMap $value services {
 		    * {
 			ValidateMap $value $key {
-			    type { Tag! scalar $value type }
+			    type { Tag! scalar $value {key "type"} }
 			}
 		    }
 		}
 	    }
 	    framework {
 		ValidateMap $value framework {
-		    name    { Tag! scalar $value framework:name }
-		    runtime { Tag! scalar $value framework:runtime }
+		    name    { Tag! scalar $value {key "framework:name"} }
+		    runtime { Tag! scalar $value {key "framework:runtime"} }
 		}
 	    }
 	    stackato {
@@ -1529,73 +1558,73 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 		    min_version {
 			ValidateMap $value min_version {
 			    server {
-				set v [Tag! scalar $value min_version:server]
+				set v [Tag! scalar $value {key "min_version:server"}]
 				if {[catch {
 				    package vcompare 0 $v
 				}]} {
 				    return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-					"Manifest: Expected version number for min_version:server, got \"$v\""
+					"Manifest error: Expected version number for key \"min_version:server\", got \"$v\""
 				}
 			    }
 			    client {
-				set v [Tag! scalar $value min_version:client]
+				set v [Tag! scalar $value {key "min_version:client"}]
 				if {[catch {
 				    package vcompare 0 $v
 				}]} {
 				    return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-					"Manifest: Expected version number for min_version:client, got \"$v\""
+					"Manifest error: Expected version number for key \"min_version:client\", got \"$v\""
 				}
 			    }
 			}
 		    }
 		    processes {
 			ValidateMap $value processes {
-			    web { Tag! scalar $value processes:web }
+			    web { Tag! scalar $value {key "processes:web"} }
 			}
 		    }
 		    requirements {
 			ValidateMap $value requirements {
-			    pypm   { Tag! sequence $value requirements:pypm }
-			    ppm    { Tag! sequence $value requirements:ppm  }
-			    cpan   { Tag! sequence $value requirements:cpan }
-			    pip    { Tag! sequence $value requirements:pip  }
-			    ubuntu { Tag! sequence $value requirements:staging:ubuntu }
-			    redhat { Tag! sequence $value requirements:staging:redhat }
-			    unix   { Tag! sequence $value requirements:staging:unix   }
+			    pypm   { Tags! {scalar sequence} $value {key "requirements:pypm"} }
+			    ppm    { Tags! {scalar sequence} $value {key "requirements:ppm "} }
+			    cpan   { Tags! {scalar sequence} $value {key "requirements:cpan"} }
+			    pip    { Tags! {scalar sequence} $value {key "requirements:pip "} }
+			    ubuntu { Tags! {scalar sequence} $value {key "requirements:ubuntu"} }
+			    redhat { Tags! {scalar sequence} $value {key "requirements:redhat"} }
+			    unix   { Tags! {scalar sequence} $value {key "requirements:unix  "} }
 			    staging {
 				ValidateMap $value staging {
-				    ubuntu { Tag! sequence $value requirements:staging:ubuntu }
-				    redhat { Tag! sequence $value requirements:staging:redhat }
-				    unix   { Tag! sequence $value requirements:staging:unix   }
+				    ubuntu { Tags! {scalar sequence} $value {key "requirements:staging:ubuntu"} }
+				    redhat { Tags! {scalar sequence} $value {key "requirements:staging:redhat"} }
+				    unix   { Tags! {scalar sequence} $value {key "requirements:staging:unix  "} }
 				}
 			    }
 			    running {
 				ValidateMap $value running {
-				    ubuntu { Tag! sequence $value requirements:staging:ubuntu }
-				    redhat { Tag! sequence $value requirements:staging:redhat }
-				    unix   { Tag! sequence $value requirements:staging:unix   }
+				    ubuntu { Tags! {scalar sequence} $value {key "requirements:running:ubuntu"} }
+				    redhat { Tags! {scalar sequence} $value {key "requirements:running:redhat"} }
+				    unix   { Tags! {scalar sequence} $value {key "requirements:running:unix  "} }
 				}
 			    }
 			}
 		    }
 		    env {
 			ValidateGlobMap $value env {
-			    * { Tag! scalar $value $key }
+			    * { Tag! scalar $value "key \"$key\"" }
 			}
 		    }
 		    hooks {
 			Tag! mapping $value hooks
 			ValidateMap $value hooks {
-			    ppre-staging { Tags! {scalar sequence} $value ppre-staging }
-			    post-staging { Tags! {scalar sequence} $value post-staging }
-			    pre-running  { Tags! {scalar sequence} $value pre-running  }
+			    pre-staging  { Tags! {scalar sequence} $value {key "pre-staging" } }
+			    post-staging { Tags! {scalar sequence} $value {key "post-staging"} }
+			    pre-running  { Tags! {scalar sequence} $value {key "pre-running "} }
 			}
 		    }
 		    cron {
-			Tag! sequence $value cron
+			Tags! {scalar sequence} $value {key "cron"}
 		    }
 		    ignores {
-			Tag! sequence $value ignores
+			Tag! sequence $value {key "ignores"}
 		    }
 		}
 	    }
@@ -1608,7 +1637,7 @@ proc ::stackato::client::cli::manifest::ValidateMap {value label switch} {
     Debug.cli/manifest/core {ValidateMap $label = $value}
 
     lappend switch default {}
-    set value [Tag! mapping $value $label]
+    set value [Tag! mapping $value "key \"$label\""]
     foreach {key value} $value {
 	Debug.cli/manifest/core {ValidateMap $label :: $key}
 	switch -exact -- $key $switch
@@ -1620,7 +1649,7 @@ proc ::stackato::client::cli::manifest::ValidateGlobMap {value label switch} {
     Debug.cli/manifest/core {ValidateMap $label = $value}
 
     lappend switch default {}
-    set value [Tag! mapping $value $label]
+    set value [Tag! mapping $value "key \"$label\""]
     foreach {key value} $value {
 	Debug.cli/manifest/core {ValidateMap $label :: $key}
 	switch -glob -- $key $switch
@@ -1667,7 +1696,7 @@ proc ::stackato::client::cli::manifest::DependencyOrdered {dict} {
     foreach a [array names users] {
 	if {[info exists required($a)]} continue
 	return -code error -errorcode {STACKATO CLIENT CLI MANIFEST APP-DEPENDENCY UNKNOWN} \
-		"depends-on reference '$a' is unknown."
+		"Manifest error: Reference '$a' in key \"depends-on\" is unknown."
     }
 
     # Iteratively move the applications without dependencies into the
@@ -1709,7 +1738,7 @@ proc ::stackato::client::cli::manifest::DependencyOrdered {dict} {
 	    # that all the remaining elements are in at least one
 	    # dependency cycle (could be several).
 	    return -code error -errorcode {STACKATO CLIENT CLI MANIFEST APP-DEPENDENCY CYCLE} \
-		"Circular application dependency detected involving:\n\t[join $remainder \n\t]"
+		"Manifest error: Circular application dependency detected involving:\n\t[join $remainder \n\t]"
 	}
 
 	# Prepare for the next round, if any.
@@ -1779,14 +1808,14 @@ proc ::stackato::client::cli::manifest::Tag! {tag yml {label structure}} {
     lassign $yml thetag thevalue
     if {$thetag eq $tag} { return $thevalue }
     return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-	"Manifest: Expected $tag for $label, got $thetag"
+	"Manifest validation error: Expected a yaml $tag for $label, got a $thetag"
 }
 
 proc ::stackato::client::cli::manifest::Tags! {tags yml {label structure}} {
     lassign $yml thetag _
     if {$thetag in $tags} { return $yml }
     return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-	"Manifest: Expected [linsert [join $tags {, }] end-1 or] for $label, got $thetag"
+	"Manifest validation error: Expected a yaml [linsert [join $tags {, }] end-1 or] for $label, got a $thetag"
 }
 
 # # ## ### ##### ######## ############# #####################

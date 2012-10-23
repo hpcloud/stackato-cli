@@ -112,7 +112,8 @@ namespace eval ::stackato::client::cli::usage {
 		System and account information
 
 	    usage [--all] [user|group]
-		System usage information
+		Shows the current memory allocation and usage of the active or
+		specified user/group.
 
 	  Applications
 	    apps
@@ -184,11 +185,28 @@ namespace eval ::stackato::client::cli::usage {
 	    crashes [appname]
 		List recent application crashes
 
-	    crashlogs [appname]
-		Display log information for crashed applications
-
-	    logs [appname] [--all]
+	    crashlogs [appname] [options...]
+	    logs      [appname] [options...]
 		Display log information for the application
+
+	    (crash)logs --follow
+		Tail the stream of log entries...
+
+	    (crash)logs --num N
+		Show the last N log entries. Default: 100.
+		N == 0 ==> Show the whole log.
+
+	    (crash)logs --source S
+		Show only log entries coming from source S (glob pattern).
+
+	    (crash)logs --instance N
+		Show only log entries coming from instance N.
+
+	    (crash)logs --filename F
+		Show only log entries coming from file F (glob pattern).
+
+	    (crash)logs --text T
+		Show only log entries matching the glob pattern T.
 
 	    files [appname] [path] [--all]
 		Display directory listing or file download for [path]
@@ -199,8 +217,16 @@ namespace eval ::stackato::client::cli::usage {
 	    ssh [--instance N] [appname] [cmd...]
 		 Run interactive ssh to a running instance
 
-	    ssh api [cmd...]
-		 Run interactive ssh to target
+	    ssh api [command...]
+		Opens an ``ssh`` session to the Stackato VM (Cloud Controller)
+		as the 'stackato' system user. Available to Admin users only.
+		Prompts for the 'stackato' user password.
+
+	    scp [--instance N] [appname] [:]source... [:]destination
+		Copy files and directories to and from application containers.
+		The colon ":" character preceding a specified source or
+		destination indicates a remote file or path. Sources and
+		destinations can be file names, directory names, or full paths.
 
 	    stats [appname]
 		Display resource usage for the application

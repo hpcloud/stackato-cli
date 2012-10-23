@@ -145,6 +145,14 @@ oo::class create ::stackato::client {
 	return $si
     }
 
+    method logs {name n} {
+	Debug.client {}
+	my check_login_status
+
+	set url $stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_logs?num=$n
+	return [lindex [my http_get $url] 1]
+    }
+
     method report {} {
 	Debug.client {}
 	my check_login_status
@@ -265,23 +273,34 @@ oo::class create ::stackato::client {
 	# When a zipfile is present however the upload has to use
 	# multipart/form-data to convey the form.
 
-	set data {}
-	form field data _method put
-	form field data resources $resources
+	form start   data
+	form field   data _method put
+	form field   data resources $resources
+	form zipfile data application $zipfile
 
-	set file [open $zipfile rb]
-	set zipdata [read $file]
-	close $file
+	lassign [form compose data] contenttype data dlength
 
-	form zip data application [file tail $zipfile] $zipdata
+	if {0} {
+	    # Debugging ... Stream to temp file for review, and stream
+	    # upload from the same file because the cat and subordinates
+	    # are destroyed by the fcopy.
+	    set c [open UPLOAD_FORM w]
+	    fconfigure $c -translation binary
+	    fcopy $data $c
+	    close $data
+	    close $c
+	    set data [open UPLOAD_FORM r]
+	    fconfigure $data -translation binary
 
-	lassign [form compose data] contenttype data
+	    set dlength [file size UPLOAD_FORM]
+	}
 
-	#puts [color cyan **************************************************************]
-	#puts [color yellow $contenttype]
-	#puts [color cyan **************************************************************]
-	#puts [color yellow $data]
-	#puts [color cyan **************************************************************]
+	Debug.client {$contenttype | $dlength := $data}
+
+	# Provide rest/http with the content-length information for
+	# the non-seekable channel
+	dict set myheaders content-length $dlength
+	my configure -headers $myheaders
 
 	set myprogress 1
 	while {$tries} {
@@ -300,6 +319,10 @@ oo::class create ::stackato::client {
 		}
 	    break
 	}
+
+	dict unset myheaders content-length
+	my configure -headers $myheaders
+
 	set myprogress 0
 	return
     }

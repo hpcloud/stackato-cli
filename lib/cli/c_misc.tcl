@@ -293,6 +293,19 @@ oo::class create ::stackato::client::cli::command::Misc {
 	return
     }
 
+    method revision {} {
+	Debug.cli/misc {}
+
+	if {[catch {
+	    set revfile $::starkit::topdir/lib/application/revision.txt
+	}] || ![file exists $revfile]} {
+	    say "local: [exec git describe]"
+	} else {
+	    say "wrapped: [fileutil::cat $revfile]"
+	}
+	return
+    }
+
     method columns {} {
 	Debug.cli/misc {}
 

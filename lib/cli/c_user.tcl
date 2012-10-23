@@ -201,6 +201,13 @@ oo::class create ::stackato::client::cli::command::User {
 
     method change_password {{password {}}} {
 	Debug.cli/user {}
+
+	if {$password eq {}} {
+	    set password [dict get [my options] password]
+	}
+
+	Debug.cli/user {password = "$password"}
+
 	set info  [my client_info]
 	#checker -scope line exclude badOption
 	set email [dict get' $info user {}]

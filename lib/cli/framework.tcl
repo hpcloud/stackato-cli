@@ -10,12 +10,13 @@ package require Tcl 8.5
 package require try            ;# I want try/catch/finally
 package require TclOO
 package require dictutil
+package require fileutil::traverse
 package require cd
 package require zipfile::decode
 package require stackato::log
 package require stackato::client::cli::manifest
-package require fileutil::traverse
 package require stackato::client::cli::framework::base
+package require stackato::client::cli::framework::sabase
 package require stackato::client::cli::framework::standalone
 
 namespace eval ::stackato::client::cli::framework {}
@@ -310,10 +311,13 @@ proc ::stackato::client::cli::framework::create {args} {
 
     if {[lindex $args 0] eq "standalone"} {
 	set class standalone
+    } elseif {[::stackato::client::cli::manifest standalone]} {
+	set class sabase
     } else {
 	set class base
     }
 
+    Debug.cli/framework {class = $class}
     return [$class new {*}$args]
 }
 

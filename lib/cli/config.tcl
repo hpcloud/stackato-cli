@@ -19,6 +19,40 @@ debug prefix config {[::debug::snit::call] | }
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::client::cli::config::fulltrap {} {
+    global tcl_platform
+
+    if {$tcl_platform(platform) eq "windows"} {
+	signal trap {TERM INT} {
+	    ::stackato::log::say! "\nInterrupted\n"
+	    ::exec::clear
+	    exit 1
+	}
+    } else {
+	signal -restart trap {TERM INT} {
+	    ::stackato::log::say! "\nInterrupted\n"
+	    ::exec::clear
+	    exit 1
+	}
+    }
+}
+
+proc ::stackato::client::cli::config::smalltrap {} {
+    global tcl_platform
+
+    if {$tcl_platform(platform) eq "windows"} {
+	signal trap {TERM INT} {
+	    ::exec::clear
+	    exit 1
+	}
+    } else {
+	signal -restart trap {TERM INT} {
+	    ::exec::clear
+	    exit 1
+	}
+    }
+}
+
 proc ::stackato::client::cli::config::minmem {} {
     Debug.config {}
     variable minmem
@@ -555,7 +589,7 @@ namespace eval ::stackato::client::cli::config {
 	all_tokens auth_token remove_token_file store_token \
 	instances store_instances targets base_of reset_group \
 	aliases store_aliases urlcanon topdir remove_group_file \
-	remove_token_for
+	remove_token_for fulltrap smalltrap
 
     namespace ensemble create
 }

@@ -13,9 +13,9 @@ Prerequisites
 
 3. Run the command ``INSTALLDIR/bin/teacup install <package>`` for the following packages (may require sudo privileges depending on platform)
 
-	* TclOO
-	* Tclx
-	* Trf
+    * TclOO
+    * Tclx
+    * Trf
     * autoproxy
     * base64
     * cmdline
@@ -36,6 +36,11 @@ Prerequisites
     * snit 2
     * struct::list
     * struct::matrix
+    * tar
+    * tcl::chan::cat
+    * tcl::chan::core
+    * tcl::chan::events
+    * tcl::chan::string
     * tcllibc ; # to speed up md5, sha1, crc32, base64
     * tclyaml
     * term::ansi::code

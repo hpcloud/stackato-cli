@@ -501,11 +501,18 @@ proc ::stackato::readline::platform-columns {} {
     # aix/os x:     "... 205 columns ..."
     # hpux/solaris: "... columns = 205 ..."
 
-    regexp {([0-9]+)} \
-	[lsearch -inline -glob \
-	     [split [exec stty -a] ";\n"] \
-	     *columns*] \
-	-> c
+    if {![catch {
+	exec stty -a
+    } data]} {
+	regexp {([0-9]+)} \
+	    [lsearch -inline -glob \
+		 [split $data ";\n"] \
+		 *columns*] \
+	    -> c
+    } else {
+	# Bug 95647: stty failure of some kind, force the fallbacks below.
+	set c 0
+    }
 
     # Some situations, like an emacs subshell cause stty to provide us
     # with bogus information. We try a few other ways before going to
