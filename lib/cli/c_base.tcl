@@ -211,13 +211,19 @@ oo::class create ::stackato::client::cli::command::Base {
 	Debug.cli/base {}
 	if {$myauthtoken ne {}} { return $myauthtoken }
 
-	Debug.cli/base {Read auth token from file}
+	if {[dict exists $myoptions token_value]} {
+	    Debug.cli/base {Read auth token from command line}
 
-	if {[dict exists $myoptions token_file]} {
+	    set myauthtoken [dict get $myoptions token_value]
+	} elseif {[dict exists $myoptions token_file]} {
+	    Debug.cli/base {Read auth token from custom file}
+
 	    set myauthtoken \
 		[config auth_token \
 		     [dict get $myoptions token_file]]
 	} else {
+	    Debug.cli/base {Read auth token from standard file}
+
 	    set myauthtoken [config auth_token]
 	}
 	return $myauthtoken
@@ -319,6 +325,17 @@ oo::class create ::stackato::client::cli::command::Base {
 	    lappend illegal $specified
 	}
 	return $illegal
+    }
+
+    method appself {} {
+	variable ::stackato::client::cli::usage::wrapped
+	set noe [info nameofexecutable]
+	if {$wrapped} {
+	    return [list $noe]
+	} else {
+	    global argv0
+	    return [list $noe $argv0]
+	}
     }
 
     # # ## ### ##### ######## #############

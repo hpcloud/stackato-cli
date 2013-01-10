@@ -325,7 +325,8 @@ oo::class create ::stackato::client::cli::command::ServiceHelp {
 	} else {
 	    # Check for duplicates, if we are pushing something new.
 
-	    if {[my app_exists? $appname]} {
+	    if {[my app_exists? $appname] &&
+		![dict get' [my options] nocreate 0]} {
 		err "Application '$appname' already exists, use update" 
 	    }
 

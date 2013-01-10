@@ -209,8 +209,16 @@ oo::class create ::stackato::client {
 
 	    # We ignore the redirection the server is sending is us in
 	    # its response.
-	} trap {REST REDIRECT} {e o} {}
-	return
+	} trap {REST REDIRECT} {e o} {
+	    try {
+		set response [json::json2dict [lindex $e end]]
+	    } on error {e o} {
+		return -code error -errorcode {STACKATO SERVER DATA ERROR} \
+		    "Received invalid JSON from server; Error: $e"
+	    }
+
+	    return $response
+	}
     }
 
     method update_app {name manifest} {
@@ -402,6 +410,40 @@ oo::class create ::stackato::client {
 	return [lindex [my http_get $url] 1]
     }
 
+    ######################################################
+    ## Application, log drains - log forwarding management.
+
+    method app_drain_list {name} {
+	Debug.client {}
+	my check_login_status
+
+	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
+	set url [string map {// /} $url]
+	return [my json_get $url]
+    }
+
+    method app_drain_create {name drain uri} {
+	Debug.client {}
+	my check_login_status
+
+	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
+	set url [string map {// /} $url]
+
+	set manifest [jmap map dict [dict create drain $drain uri $uri]]
+
+	my http_post $url $manifest application/json
+	return
+    }
+
+    method app_drain_delete {name drain} {
+	Debug.client {}
+	my check_login_status
+
+	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains/[ncgi::encode $drain]"
+	set url [string map {// /} $url]
+	my http_delete $url
+	return
+    }
 
     ######################################################
     # Services

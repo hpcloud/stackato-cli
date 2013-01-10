@@ -208,6 +208,16 @@ namespace eval ::stackato::client::cli::usage {
 	    (crash)logs --text T
 		Show only log entries matching the glob pattern T.
 
+	    drain add [appname] <drain> <uri>
+		Add a named log drain to the application.
+		<uri> specifies the log destination.
+
+	    drain delete [appname] <drain>
+		Delete the named log drain from the application.
+
+	    drain list [appname]
+		List all log drains defined for the application.
+
 	    files [appname] [path] [--all]
 		Display directory listing or file download for [path]
 

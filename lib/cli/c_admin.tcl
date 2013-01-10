@@ -309,7 +309,7 @@ oo::class create ::stackato::client::cli::command::Admin {
 
 	try {
 	    fileutil::writeFile -translation binary $tmp \
-		[lindex [[my client] http_get_raw $url] 1]
+		[lindex [[my client] http_get_raw $url application/octet-stream] 1]
 	} on error {e o} {
 	    # Ensure removal of the now unused tempfile
 	    file delete $tmp

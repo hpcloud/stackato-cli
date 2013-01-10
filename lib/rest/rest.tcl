@@ -72,7 +72,7 @@ oo::class create ::REST {
 		return [http::code $tok],[http::data $tok]
 	}
 
-	method OnRedirect {tok location} {
+	method OnRedirect {tok location response} {
 		Debug.rest {}
 		upvar 1 url url
 		set url $location
@@ -92,10 +92,10 @@ oo::class create ::REST {
 
 		if {[string equal -length [string length $base/] $location $base/]} {
 			set where [string range $where [string length $base/] end]
-			return -code error -errorcode {REST REDIRECT} [list $code [split $where /] $hdrs]
+			return -code error -errorcode {REST REDIRECT} [list $code [split $where /] $hdrs $response]
 		}
 
-		return -code error -errorcode {REST REDIRECT} [list $code $where $hdrs]
+		return -code error -errorcode {REST REDIRECT} [list $code $where $hdrs $response]
 	}
 
 	method LogWADL url {
@@ -139,6 +139,13 @@ oo::class create ::REST {
 		}
 
 		lappend req_options -method $method -type $type $query $value
+
+		if {$method eq "GET"} {
+			if {$type eq "application/octet-stream"} {
+				Debug.rest {Forced binary by type $type}
+				lappend req_options -binary 1
+			}
+		}
 
 		if {[llength $options(-headers)]} {
 			lappend req_options -headers $options(-headers)
@@ -246,7 +253,8 @@ oo::class create ::REST {
 					http::cleanup $tok
 					error "missing a location header!"
 				}
-				my OnRedirect $tok $location
+				set data [http::data $tok]
+				my OnRedirect $tok $location $data
 			} else {
 				set code [http::ncode $tok]
 				set data [http::data  $tok]

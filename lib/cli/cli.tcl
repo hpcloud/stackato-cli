@@ -41,6 +41,13 @@ debug prefix cli {[::debug::snit::call] | }
 
 # # ## ### ##### ######## ############# #####################
 
+# Hack the cmdline package internals. Force it to use the proper name
+# for the wrapped executable when generating help output
+# (-> cmdline::usage).
+proc ::cmdline::getArgv0 {} { ::stackato::client::cli::usage::me }
+
+# # ## ### ##### ######## ############# #####################
+
 oo::class create ::stackato::client::cli {
     # # ## ### ##### ######## #############
 
@@ -63,6 +70,7 @@ oo::class create ::stackato::client::cli {
 	# reset - initially undefined
 	# numrecords - initially undefined
 	# lognewer - initially undefined
+	# tail - initially undefined
 	array set myoptions {
 	    logtimestamps 1
 	    follow 0
@@ -96,8 +104,6 @@ oo::class create ::stackato::client::cli {
 	    framework {}
 	    canary 0
 	}
-
-	set myoptions(tail) [expr {$::tcl_platform(platform) ne "windows"}]
 
 	if {[info exists env(STACKATO_TARGET)]} {
 	    set myoptions(target) $env(STACKATO_TARGET)
@@ -221,8 +227,9 @@ oo::class create ::stackato::client::cli {
 	} trap {STACKATO CLIENT CLI GRACEFUL-EXIT} e {
 	    # Redirected commands end up generating this exception (kind of goto)
  	} trap {STACKATO CLIENT CLI} e - trap {BROWSE FAIL} e {
-
-	    say! [color red "$e"]
+	    if {$e ne {}} {
+		say! [color red "$e"]
+	    }
 	    set myexitstatus false
 
  	} trap {REST HTTP} {e o} {
@@ -421,6 +428,7 @@ oo::class create ::stackato::client::cli {
 			-path      { set myoptions(path) $v }
 			m          -
 			-manifest  { set myoptions(manifest) $v }
+			-no-create { set myoptions(nocreate) 1 }
 			-no-start  -
 			-nostart   { set myoptions(nostart) 1 }
 			-force     { set myoptions(force) 1 }
@@ -434,6 +442,9 @@ oo::class create ::stackato::client::cli {
 			-stackato-debug { set myoptions(stackato-debug) $v }
 			-token-file {
 			    set myoptions(token_file) $v
+			}
+			-token {
+			    set myoptions(token_value) $v
 			}
 			t          -
 			-trace     {
@@ -680,6 +691,22 @@ oo::class create ::stackato::client::cli {
 		    }
 		}
 	    }
+	    drain {
+		lappend cmds {drain add [appname] <drainname> <uri>}
+		lappend cmds {drain delete [appname] <drainname>}
+		lappend cmds {drain list [appname]}
+		my Usage [join $cmds "\n\t "] {Log forwarding management}
+
+		# Switch per sub-method
+		switch -exact -- [set sub [lindex $myargs 0]] {
+		    add    { my SetNamedCommandMinMax apps drain_add    {drain add}    3 4 }
+		    delete { my SetNamedCommandMinMax apps drain_delete {drain delete} 2 3 }
+		    list   { my SetNamedCommandMinMax apps drain_list   {drain list}   1 2 }
+		    default {
+			my UsageError "Unknown admin command \[$sub\]"
+		    }
+		}
+	    }
 	    tunnel {
 		my Usage {tunnel [servicename] [clientcmd] [--port port] [--url URL] [--passwd PASS] [--allow-http]} \
 		    {Create a local tunnel to a service, possibly start a local client as well}
@@ -720,7 +747,7 @@ oo::class create ::stackato::client::cli {
 		my SetNamedCommand user info user
 	    }
 	    login {
-		my Usage {login [email] [--passwd PASS] [--token-file TOKENFILE] [--group GROUP]} \
+		my Usage {login [email] [--passwd PASS] [--token-file TOKENFILE] [--token TOKENVALUE] [--group GROUP]} \
 		    {Log into the current target}
 		if {[llength $myargs] == 1} {
 		    my SetCommand user login 1
@@ -884,7 +911,7 @@ oo::class create ::stackato::client::cli {
 	    }
 	    crashlogs {
 		my Usage {crashlogs [appname] [--instance N] [--follow] [--num N] [--source S] [--filename F] [--text T]} \
-		    {Display log information for crashed applications}
+		    {Display log information for the application. An alias of 'logs'.}
 		my SetCommandMinMax apps crashlogs 0 1
 	    }
 	    push {
@@ -929,6 +956,11 @@ oo::class create ::stackato::client::cli {
 		my Usage {env-del [appname] <variable>} \
 		    {Delete an environment variable to an application}
 		my SetNamedCommandMinMax apps environment_del env-del 1 2
+	    }
+	    create-app {
+		my Usage {create-app [appname]} \
+		    {Create an empty application}
+		my SetNamedCommandMinMax apps create-app create_app 0 1
 	    }
 	    create-service - create_service {
 		my Usage {create-service [service] [servicename] [appname] [--name servicename] [--bind appname]} \
@@ -1120,6 +1152,7 @@ oo::class create ::stackato::client::cli {
 	    {-mem.arg         {Default is framework dependent} {Memory requirement of pushed application}}
 	    {-path.arg        {Default is working directory} {directory the application files to push are in}}
 	    {-manifest.arg    {Default is stackato.yml/manifest.yml in --path directory} {Location of the manifest file to use}}
+	    {-no-create       {If specified assume that the application was created already. push is a super-update.}}
 	    {-no-start        {If specified do not start the pushed application}}
 	    {-nostart         {Alias of --no-start}}
 	    {-force           {Force deletion}}
@@ -1127,6 +1160,7 @@ oo::class create ::stackato::client::cli {
 	    {t                {Activate tracing of http requests and responses. OPTIONAL argument!}}
 	    {-trace           {Alias of -t}}
 	    {-token-file.arg  {~/.stackato/client/tokens} {File with login tokens to use}}
+	    {-token.arg       {} {Value of the login token to use}}
 	    {-timeout.arg     {No timeout} {Timeout in seconds for the 'run' command.}}
 	    {-target.arg      {Configuration files} {Target server to use for this command, instead of configured default.}}
 	    {-group.arg       {} {Group to use for this command, instead of default.}}
@@ -1209,4 +1243,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.5
+package provide stackato::client::cli 1.6.3

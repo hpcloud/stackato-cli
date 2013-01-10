@@ -10,8 +10,8 @@
 # This is specialized (slimmed down and adapted) to VMC protocol
 # idiosyncrasies.
 
-package require tcl::chan::string
-package require tcl::chan::cat 1.0.2 ;# read method bug fixes
+package require tcl::chan::string 1.0.1 ; # need constructor/next bug fix.
+package require tcl::chan::cat    1.0.2 ; # read method bug fixes
 
 #puts [package ifneeded tcl::chan::string [package present tcl::chan::string]]
 #puts [package ifneeded tcl::chan::cat    [package present tcl::chan::cat]]

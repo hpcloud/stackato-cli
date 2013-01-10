@@ -25,6 +25,7 @@ proc ::stackato::jmap::manifest {m} {
 	env       array
 	staging   {dict {
 	    runtime nstring
+	    stack   nstring
 	}}
 	resources dict
 	services  array

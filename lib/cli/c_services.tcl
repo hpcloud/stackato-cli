@@ -13,6 +13,7 @@ package require uuid
 package require TclOO
 package require stackato::client::cli::command::TunnelHelp
 package require stackato::client::cli::command::Apps
+package require stackato::client::cli::command::LogStream
 package require stackato::jmap
 package require stackato::term
 
@@ -24,7 +25,8 @@ debug prefix cli/services {[::debug::snit::call] | }
 # # ## ### ##### ######## ############# #####################
 
 oo::class create ::stackato::client::cli::command::Services {
-    superclass ::stackato::client::cli::command::TunnelHelp
+    superclass ::stackato::client::cli::command::TunnelHelp \
+	::stackato::client::cli::command::LogStream
     # tunnel-help inherits servicehelp
 
     # # ## ### ##### ######## #############
@@ -151,7 +153,9 @@ oo::class create ::stackato::client::cli::command::Services {
     }
 
     method bindit {service appname} {
+	my TailStart $appname
 	my bind_service_banner $service $appname
+	my TailStop $appname
 	return
     }
 
@@ -162,7 +166,9 @@ oo::class create ::stackato::client::cli::command::Services {
     }
 
     method unbindit {service appname} {
+	my TailStart $appname
 	my unbind_service_banner $service $appname
+	my TailStop $appname
 	return
     }
 

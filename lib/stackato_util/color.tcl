@@ -44,6 +44,10 @@ proc ::stackato::color::cyan {text} {
     Colorize sda_bgcyan $text
 }
 
+proc ::stackato::color::cyanfg {text} {
+    Colorize sda_fgcyan $text
+}
+
 proc ::stackato::color::bold {text} {
     Colorize sda_bold $text
 }
@@ -64,7 +68,7 @@ proc ::stackato::color::Colorize {code text} {
 namespace eval ::stackato::color {
     variable colorize 0
 
-    namespace export colorize red green yellow bold white blue cyan
+    namespace export colorize red green yellow bold white blue cyan cyanfg
     namespace ensemble create
 }
 

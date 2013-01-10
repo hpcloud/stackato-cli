@@ -14,6 +14,7 @@ package require TclOO
 package require stackato::client::cli::command::ServiceHelp
 package require stackato::client::cli::command::MemHelp
 package require stackato::client::cli::command::ManifestHelp
+package require stackato::client::cli::command::LogStream
 package require stackato::client::cli::config
 package require stackato::client::cli::framework
 package require stackato::log
@@ -41,7 +42,8 @@ debug prefix cli/apps {[::debug::snit::call] | }
 oo::class create ::stackato::client::cli::command::Apps {
     superclass ::stackato::client::cli::command::ServiceHelp \
 	::stackato::client::cli::command::MemHelp \
-	::stackato::client::cli::command::ManifestHelp
+	::stackato::client::cli::command::ManifestHelp \
+	::stackato::client::cli::command::LogStream
 
     # # ## ### ##### ######## #############
 
@@ -94,47 +96,31 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    return
 	}
 
-	set banner "Staging Application \[$appname\]: "
-	display $banner false
+	# The regular client messages are disabled if we are
+	# displaying the app log stream side-by-side. This stream also
+	# includes staging/starting events (among others)
 
-	set fastlog 0
-	Debug.cli/apps {tail = [dict get [my options] tail]}
-	if {[dict get [my options] tail]} {
-	    # Tail the operation of the stager...
-	    if {[package vsatisfies [my ServerVersion] 2.3]} {
-		set fastlog 1
-
-		# For a fast-log enabled stackato simply use a
-		# suitably filtered log --follow as sub-process.
-
-		set newer [my GetLast $appname]
-		set pid [exec::bgrun 2>@ stderr >@ stdout \
-			     {*}[my appself] logs $appname \
-			     --follow --no-timestamps \
-			     --newer $newer
-			    ]
-	    } else {
-		# Stackato pre 2.3: Launch a ssh sub-process going
-		# through stackato-ssh with special arguments.
-		set pid [my run_ssh {} $appname - 1]
-	    }
-
-	    Debug.cli/apps {Tail PID = $pid}
+	if {![my TailUse]} {
+	    set banner "Staging Application \[$appname\]: "
+	    display $banner false
 	}
+
+	my TailStart $appname any ; # The one place where a non-fast log stream is ok.
 
 	Debug.cli/apps {REST request STARTED...}
 	dict set app state STARTED
 	[my client] update_app $appname $app
 
-	display [color green OK]
-
-	if {!$fastlog && [dict get [my options] tail] && ($pid ne {})} {
-	    Debug.cli/apps {Kill PID = $pid}
-	    ::exec::drop $pid
+	if {![my TailUse]} {
+	    display [color green OK]
 	}
 
-	set banner  "Starting Application \[$appname\]: "
-	display $banner false
+	my TailStop $appname slow
+
+	if {![my TailUse]} {
+	    set banner	"Starting Application \[$appname\]: "
+	    display $banner false
+	}
 
 	set count 0
 	set log_lines_displayed 0
@@ -142,7 +128,10 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set start_time [clock seconds]
 
 	while {1} {
-	    if {!$fastlog && ($count <= $TICKER_TICKS)} { display . false }
+	    if {![my TailActive $appname] &&
+		($count <= $TICKER_TICKS)} {
+		display . false
+	    }
 
 	    after [expr {1000 * $SLEEP_TIME}];# @todo ping into the helper thread?
 
@@ -152,11 +141,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 		if {[llength [my crashinfo $appname false $start_time]]} {
 		    # Check for the existance of crashes
-		    if {$fastlog} {
-			if {[dict get [my options] tail] && ($pid ne {})} {
-			    Debug.cli/apps {Kill PID = $pid}
-			    ::exec::drop $pid
-			}
+		    if {[my TailActive $appname]} {
+			my TailStop $appname
 			display [color red "\nError: Application \[$appname\] failed to start, see log above.\n"]
 		    } else {
 			display [color red "\nError: Application \[$appname\] failed to start, logs information below.\n"]
@@ -207,19 +193,18 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    }
 	} ;# while 1
 
-	if {$fastlog && [dict get [my options] tail] && ($pid ne {})} {
-	    Debug.cli/apps {Kill PID = $pid}
-	    ::exec::drop $pid
-	}
+	if {[my TailActive $appname]} { my TailStop $appname }
 
-	if {$failed} { exit 1 }
-	if {[log feedback]} {
-	    clear $LINE_LENGTH
-	    display "$banner[color green OK]"
+	if {$failed} { quit }
+
+	if {![my TailUse]} {
+	    if {[log feedback]} {
+		clear $LINE_LENGTH
+		display "$banner[color green OK]"
+	    } else {
+		display [color green OK]
+	    }
 	} else {
-	    display [color green OK]
-	}
-	if {[dict get [my options] tail]} {
 	    set targeturl [my target_url]
 	    set url [lindex [dict get $app uris] 0]
 	    if {$url ne {}} {
@@ -249,7 +234,12 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	display "Stopping Application \[$appname\]: " false
 	dict set app state STOPPED
+
+	my TailStart $appname
+
 	[my client] update_app $appname $app
+
+	my TailStop $appname
 	display [color green OK]
 	return
     }
@@ -257,8 +247,16 @@ oo::class create ::stackato::client::cli::command::Apps {
     method restart {{appname {}}} {
 	Debug.cli/apps {}
 	manifest rememberapp
-	manifest 1orall $appname [callback stopit] 1
-	manifest 1orall $appname [callback startit]
+
+	manifest 1orall $appname [callback TailStart]
+	try {
+	    manifest 1orall $appname [callback stopit] 1
+	    manifest 1orall $appname [callback startit]
+	} finally {
+	    manifest 1orall $appname [callback TailStop]
+	}
+
+	Debug.cli/apps {done}
 	return
     }
 
@@ -357,15 +355,21 @@ oo::class create ::stackato::client::cli::command::Apps {
 	if {$mem != $current_mem} {
 	    Debug.cli/apps {reservation/instance changed $current_mem ==> $mem}
 
+	    if {[my TailUse]} { display "" }
+
+	    my TailStart $appname
+
 	    dict set app resources memory $mem
 	    [my client] update_app $appname $app
-	    display [color green OK]
 
-	    if {[dict getit $app state] ne "STARTED"} return
+	    if {![my TailUse]} { display [color green OK] }
 
-	    Debug.cli/apps {restart application}
+	    if {[dict getit $app state] eq "STARTED"} {
+		Debug.cli/apps {restart application}
+		my restart $appname
+	    }
 
-	    my restart $appname
+	    my TailStop $appname
 	} else {
 	    Debug.cli/apps {reservation unchanged}
 
@@ -1013,17 +1017,6 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
 
-    method appself {} {
-	variable ::stackato::client::cli::usage::wrapped
-	set noe [info nameofexecutable]
-	if {$wrapped} {
-	    return [list $noe]
-	} else {
-	    global argv0
-	    return [list $noe $argv0]
-	}
-    }
-
     method PClass {path cvar} {
 	upvar 1 $cvar class
 	if {[string match :* $path]} {
@@ -1297,9 +1290,12 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    # Legal options:
 	    # --json --follow --num --source --instance
 	    # --newer --filename --text
+	    # Global options to accept:
+	    # --target --group --token(-file) --debug-group -u
 	    my ValidateOptions {
 		--json --follow --num --source --instance
 		--newer --filename --text --no-timestamps
+		--target --group --token --token-file --debug-group -u
 	    } {
 		if {![llength [my CheckOptions {--instance --all}]]} {
 		    set res {Are you possibly expecting server version 2.2 or lower?}
@@ -1311,7 +1307,12 @@ oo::class create ::stackato::client::cli::command::Apps {
 	} else {
 	    # Legal options:
 	    # --instance --all
-	    my ValidateOptions {--instance --all} {
+	    # Global options to accept:
+	    # --target --group --token(-file) --debug-group -u
+	    my ValidateOptions {
+		--instance --all
+		--target --group --token --token-file --debug-group -u
+	    } {
 		if {![llength [my CheckOptions {
 		    --json --follow --num --source --instance
 		    --newer --filename --text --no-timestamps
@@ -1348,25 +1349,6 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set n [dict get' [my options] numrecords 100]
 	my ShowLogs $appname $n
 	return
-    }
-
-    method GetLast {appname} {
-	Debug.cli/apps {}
-	set last [[my client] logs $appname 1]
-	set last [lindex [split [string trim $last] \n] end]
-
-	Debug.cli/apps {last = $last}
-
-	if {$last eq {}} {
-	    Debug.cli/apps { last = everything }
-	    return 0
-	}
-
-	set last [json::json2dict $last]
-	dict with last {} ; # => timestamp, instance, source, text, filename
-
-	Debug.cli/apps { last = $timestamp}
-	return $timestamp
     }
 
     method ShowLogs {appname n {follow 0}} {
@@ -1443,23 +1425,25 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    } else {
 		if {$instance >= 0} { append source .$instance }
 
+		# the color of stackato.* (source) messages differ from app
+		# messages.
 		# colors: red green yellow white blue cyan bold
+		if {[string match "stackato*" $source]} {
+			set linecolor yellow
+		} else {
+			set linecolor cyanfg
+		}
+		
 		if {$sts} {
 		    set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
 		} else {
 		    # --no-timestamps
 		    set date ""
 		}
-		set date     [color yellow $date]
-		set source   [color blue    $source]
+		set date     [color $linecolor $date]
+		set source   [color $linecolor $source]
 		#set instance [color blue   $instance]
-		if {$filename eq "stderr.log"} {
-		    set errormark "stderr"
-		    set errormark [color red $errormark]
-		    display "$date$source $errormark $text"
-		} else {
-		    display "$date$source $text"
-		}
+	    display "$date$source: $text"
 	    }
 	}
 	return
@@ -1578,6 +1562,66 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
 
+    method drain_list {_ args} {
+	Debug.cli/apps {}
+	# args = ?appname?
+	switch -exact [llength $args] {
+	    0 { set appname {} }
+	    1 { lassign $args appname }
+	}
+	manifest 1app $appname [callback drainlistit]
+	return
+    }
+    method drainlistit {appname} {
+	set json [[my client] app_drain_list $appname]
+
+	if {[my GenerateJson]} {
+	    puts [jmap map dict $json]
+	    return
+	}
+
+	table::do t {Name Url} {
+	    foreach {n u} $json {
+		$t add $n $u
+	    }
+	}
+
+	$t show display
+	return
+    }
+
+    method drain_add {_ args} {
+	Debug.cli/apps {}
+	# args = ?appname? drain uri
+	switch -exact [llength $args] {
+	    2 { set appname {} ; lassign $args drain uri }
+	    3 { lassign $args appname drain uri }
+	}
+	manifest 1app $appname [callback drainaddit $drain $uri]
+	return
+    }
+    method drainaddit {drain uri appname} {
+	[my client] app_drain_create $appname $drain $uri
+	display [color green OK]
+	return
+    }
+
+    method drain_delete {_ args} {
+	Debug.cli/apps {}
+	# args = ?appname? drain
+	switch -exact [llength $args] {
+	    1 { set appname {} ; lassign $args drain }
+	    2 { lassign $args appname drain }
+	}
+	manifest 1app $appname [callback draindeleteit $drain]
+	return
+    }
+    method draindeleteit {drain appname} {
+	[my client] app_drain_delete $appname $drain
+	display [color green OK]
+	return
+    }
+
     method open_browser {{appname {}}} {
 	Debug.cli/apps {}
 
@@ -1658,7 +1702,6 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method statsit {appname} {
 	Debug.cli/apps {}
-	display $appname
 
 	set stats   [[my client] app_stats $appname]
 	#@type stats = list (dict (*/string, usage/dict)) /@todo
@@ -1669,6 +1712,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    display [jmap stats $stats]
 	    return
 	}
+
+	display $appname
 
 	if {![llength $stats]} {
 	    display [color yellow "No running instances for \[$appname\]"]
@@ -1781,6 +1826,68 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
 
+    method create-app {{appname {}}} {
+	Debug.cli/apps {}
+
+	# Perform a simple creation when application is explicitly
+	# specified.
+
+	if {$appname ne {}} {
+	    manifest current@path
+	    my MinVersionChecks
+	    my createit $appname
+	    return
+	}
+
+	# With no application specified operate on all applications
+	# provided by the configuration.
+
+	manifest foreach_app appname {
+	    my MinVersionChecks
+	    my createit $appname
+	}
+	return
+    }
+
+    method createit {appname} {
+	# Using fake values for various parts of the app.
+	# It is expected that this is followed by a
+	#
+	#     push --no-create
+	#
+	# which will fill the missing pieces in.
+
+	if {[my app_exists? $appname]} {
+	    err "Application '$appname' already exists, use update" 
+	}
+
+	set response [my CreateApp $appname nodejs node {} 0 0 {}]
+
+	if {[my GenerateJson]} {
+	    puts [jmap map dict $response]
+	}
+	return
+    }
+
+    method CreateApp {appname framework runtime urls instances mem {command {}}} {
+	# Create the manifest and send it to the cloud controller
+	
+	set manifest [dict create \
+			  name      $appname \
+			  staging   [dict create \
+					 framework $framework \
+					 runtime   $runtime] \
+			  uris      $urls \
+			  instances $instances  \
+			  resources [dict create memory $mem]]
+
+	if {$command ne {}} {
+	    dict set manifest staging command $command
+	}
+
+	return [[my client] create_app $appname $manifest]
+    }
+
     method push {{appname {}}} {
 	Debug.cli/apps {}
 	# Have to be properly logged into the target.
@@ -1867,25 +1974,33 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set ignores [manifest ignorePatterns]
 	Debug.cli/apps {ignores      = $ignores}
 
-	# Create the manifest and send it to the cloud controller
-	display "Creating Application \[$appname\]: " false
+	if {![dict get' [my options] nocreate 0]} {
+	    display "Creating Application \[$appname\]: " false
 
-	set manifest [dict create \
-			  name      $appname \
-			  staging   [dict create \
-					 framework [$frameobj name] \
-					 runtime   $runtime] \
-			  uris      $urls \
-			  instances $instances  \
-			  resources [dict create \
-					 memory $mem_quota]]
+	    my CreateApp $appname \
+		[$frameobj name] \
+		$runtime \
+		$urls \
+		$instances \
+		$mem_quota \
+		$command
 
-	if {$command ne {}} {
-	    dict set manifest staging command $command
+	    display [color green OK]
+
+	} else {
+	    display "Rewrite application \[$appname\]: " false
+
+	    set app [[my client] app_info $appname]
+
+	    dict set app staging model   [$frameobj name]
+	    dict set app staging stack   $runtime
+	    dict set app instances       $instances
+	    dict set app resources memory $mem_quota
+	    dict set app uris $urls
+
+	    [my client] update_app $appname $app
+	    display [color green OK]
 	}
-
-	[my client] create_app $appname $manifest
-	display [color green OK]
 
 	# Services check, and binding.
 	my AppServices $appname
@@ -2121,21 +2236,38 @@ oo::class create ::stackato::client::cli::command::Apps {
     method RuntimeMap {runtimes} {
 	Debug.cli/apps {}
 	set map {}
+	set full {}
+
+	# Remember the target names, to keep them unambigous.
+	foreach {name info} $runtimes {
+	    dict set full $name .
+	    dict lappend map $name                  $name
+	    dict lappend map [string tolower $name] $name
+	}
 
 	foreach {name info} $runtimes {
 	    set desc [dict get $info description]
 
 	    foreach p [my prefixes $name] {
-		dict lappend map $p                  $name
-		dict lappend map [string tolower $p] $name
+		if {[dict exists $full $p]} continue
+		dict lappend map $p $name
+		set p [string tolower $p]
+		if {[dict exists $full $p]} continue
+		dict lappend map $p $name
 	    }
 	    foreach p [my prefixes $desc] {
+		if {[dict exists $full $p]} continue
 		dict lappend map $p                  $name
-		dict lappend map [string tolower $p] $name
+		set p [string tolower $p]
+		if {[dict exists $full $p]} continue
+		dict lappend map $p $name
 	    }
 	    foreach p [my prefixes [string map {{ } {}} $desc]] {
+		if {[dict exists $full $p]} continue
 		dict lappend map $p                  $name
-		dict lappend map [string tolower $p] $name
+		set p [string tolower $p]
+		if {[dict exists $full $p]} continue
+		dict lappend map $p $name
 	    }
 	}
 
@@ -3003,7 +3135,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    display $upload_str false ; # See client.Upload for where
 	    # this text is used by the upload progress callback.
 
-	    if {[llength $ftp]} {
+	    if {1||[llength $ftp]} {
 		# original code uses a channel transform to
 		# count bytes read/uploaded, and drive a
 		# percentage progress bar of the upload process.
@@ -3605,11 +3737,18 @@ oo::class create ::stackato::client::cli::command::Apps {
 			      ? "up"
 			      : "down"}]
 
-	display "Scaling Application instances $up_or_down to $new_instances: " false
+	display "Scaling Application instances $up_or_down to $new_instances: " [my TailUse]
 	dict set app instances $new_instances
 
+	my TailStart $appname
+
 	[my client] update_app $appname $app
-	display [color green OK]
+
+	if {![my TailUse]} {
+	    display [color green OK]
+	}
+
+	my TailStop $appname
     }
 
     method app_started_properly {appname error_on_health} {

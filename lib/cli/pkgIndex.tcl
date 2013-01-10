@@ -18,7 +18,7 @@ if {![package vsatisfies [package provide Tcl] 8.5]} {
 # "stackato::client", see the sibling directory 'client'.
 
 #                   Vendor (VMC) version tracked: 0.3.14.
-package ifneeded stackato::client::cli                        1.5   [list source [file join $dir cli.tcl]]
+package ifneeded stackato::client::cli                        1.6.3 [list source [file join $dir cli.tcl]]
 package ifneeded stackato::client::cli::usage                 0     [list source [file join $dir usage.tcl]]
 package ifneeded stackato::client::cli::config                0     [list source [file join $dir config.tcl]]
 package ifneeded stackato::client::cli::framework             0     [list source [file join $dir framework.tcl]]
@@ -38,3 +38,4 @@ package ifneeded stackato::client::cli::command::ServiceHelp  0 [list source [fi
 package ifneeded stackato::client::cli::command::TunnelHelp   0 [list source [file join $dir c_tunhelp.tcl]]
 package ifneeded stackato::client::cli::command::MemHelp      0 [list source [file join $dir memhelp.tcl]]
 package ifneeded stackato::client::cli::command::ManifestHelp 0 [list source [file join $dir manihelp.tcl]]
+package ifneeded stackato::client::cli::command::LogStream    0 [list source [file join $dir tail.tcl]]
