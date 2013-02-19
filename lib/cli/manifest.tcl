@@ -59,7 +59,7 @@ proc ::stackato::client::cli::manifest::resetout {} {
 proc ::stackato::client::cli::manifest::name= {name} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest name [list scalar $name]
+    DictSet outmanifest name [Cscalar $name]
     return
 }
 
@@ -70,13 +70,13 @@ proc ::stackato::client::cli::manifest::url= {urls} {
     if {[llength $urls] > 1} {
 	set ts {}
 	foreach u $urls {
-	    lappend ts [list scalar $u]
+	    lappend ts [Cscalar $u]
 	}
 	DictSet outmanifest applications . url \
-	    [list sequence $ts]
+	    [Csequence {*}$ts]
     } else {
 	DictSet outmanifest applications . url \
-	    [list scalar [lindex $urls 0]]
+	    [Cscalar [lindex $urls 0]]
     }
     return
 }
@@ -84,35 +84,35 @@ proc ::stackato::client::cli::manifest::url= {urls} {
 proc ::stackato::client::cli::manifest::instances= {n} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest instances [list scalar $n]
+    DictSet outmanifest instances [Cscalar $n]
     return
 }
 
 proc ::stackato::client::cli::manifest::mem= {mem} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest mem [list scalar $mem]
+    DictSet outmanifest mem [Cscalar $mem]
     return
 }
 
 proc ::stackato::client::cli::manifest::framework= {type} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest framework type [list scalar $type]
+    DictSet outmanifest framework type [Cscalar $type]
     return
 }
 
 proc ::stackato::client::cli::manifest::runtime= {runtime} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest framework runtime [list scalar $runtime]
+    DictSet outmanifest framework runtime [Cscalar $runtime]
     return
 }
 
 proc ::stackato::client::cli::manifest::command= {command} {
     variable outmanifest
     InitializeOutManifest
-    DictSet outmanifest command [list scalar $command]
+    DictSet outmanifest command [Cscalar $command]
     return
 }
 
@@ -124,9 +124,9 @@ proc ::stackato::client::cli::manifest::services= {services} {
     set ts {}
     foreach {s v} $services {
 	# Save in order servicename -> vendor
-	lappend ts $s [list scalar $v]
+	lappend ts $s [Cscalar $v]
     }
-    DictSet outmanifest services [list mapping $ts]
+    DictSet outmanifest services [Cmapping {*}$ts]
     return
 }
 
@@ -286,6 +286,7 @@ proc ::stackato::client::cli::manifest::ignorePatterns {} {
 	*~.dot
 	*~.nib
 	*~.plst
+	~*/
     }]
     return
 }
@@ -459,9 +460,16 @@ proc ::stackato::client::cli::manifest::current {} {
 proc ::stackato::client::cli::manifest::currentInfo {dstfile} {
     variable currentappinfo
     variable currentistotal
+    variable manifest
 
     Debug.cli/manifest/core {currentInfo => $dstfile}
     Debug.cli/manifest/core {  total = $currentistotal}
+    Debug.cli/manifest/core {=== APP INFO MANIFEST =====================}
+    Debug.cli/manifest/core {[DumpX $currentappinfo]}
+    Debug.cli/manifest/core {===========================================}
+    Debug.cli/manifest/core {=== FULL MANIFEST =========================}
+    Debug.cli/manifest/core {[DumpX $manifest]}
+    Debug.cli/manifest/core {===========================================}
 
     if {$currentistotal} {
 	# app info is whole manifest, with outer container and all
@@ -469,7 +477,22 @@ proc ::stackato::client::cli::manifest::currentInfo {dstfile} {
     } else {
 	# Wrap a fake outer container around the
 	# just-one-application-data, using path ".".
-	set todump [list mapping [list applications [list mapping [list . $currentappinfo]]]]
+
+	set todump [dict create applications [Cmapping . $currentappinfo]]
+
+	# Further, copy all toplevel keys found in the manifest which
+	# are not in the appinfo. These are unknown keys (to us) we
+	# should transfer as-is, in case the server understands them.
+
+	set cai [Tag! mapping $currentappinfo {}]
+	foreach {k v} [Tag! mapping $manifest {}] {
+	    if {$k eq "applications"} continue
+	    if {[dict exists $cai $k]} continue
+	    dict set todump $k $v
+	}
+
+	# Finalize the wrapping.
+	set todump [Cmapping {*}$todump]
     }
 
     Debug.cli/manifest/core {   dump = $todump}
@@ -482,6 +505,10 @@ proc ::stackato::client::cli::manifest::currentInfo {dstfile} {
     Debug.cli/manifest/core {  dump' = $todump}
 
     tclyaml writeTags file $dstfile $todump
+
+    Debug.cli/manifest/core {=== GENERATED MANIFEST ====================}
+    Debug.cli/manifest/core {[Dump $todump]}
+    Debug.cli/manifest/core {===========================================}
     return
 }
 
@@ -981,6 +1008,14 @@ proc ::stackato::client::cli::manifest::LoadBase {path} {
     Debug.cli/manifest/core {[DumpX $stackato]}
     Debug.cli/manifest/core {===========================================}
 
+    if {[llength [lindex $manifest 1]]} {
+	set manifest [TransformM2CF1 $manifest]
+    }
+
+    Debug.cli/manifest/core {=== TRANS CF/MANIFEST STRUCTURE ==============}
+    Debug.cli/manifest/core {[DumpX $manifest]}
+    Debug.cli/manifest/core {===========================================}
+
     set data [DeepMerge $stackato $manifest]
 
     Debug.cli/manifest/core {=== CANONICAL STRUCTURE ===================}
@@ -1056,7 +1091,7 @@ proc ::stackato::client::cli::manifest::ResolveSymbol {contextlist already symbo
 	    # Recursively resolve any symbols in the current symbol's
 	    # value, converting into and out of tagged format.
 
-	    set symvalue [list scalar $symvalue]
+	    set symvalue [Cscalar $symvalue]
             resolve_lexically symvalue $contextlist $already
 	    return [lindex $symvalue 1]
 	}
@@ -1188,7 +1223,7 @@ proc ::stackato::client::cli::manifest::DictSet {dictvar args} {
 
     # Write back
     dict set dictvalue $head $child
-    set dict [list mapping $dictvalue]
+    set dict [Cmapping {*}$dictvalue]
     return
 }
 
@@ -1313,7 +1348,7 @@ proc ::stackato::client::cli::manifest::RetagMappingKeys {yml} {
 	    set new {}
 	    foreach {k v} $value {
 		lappend new \
-		    [list scalar $k] \
+		    [Cscalar $k] \
 		    [RetagMappingKeys $v]
 	    }
 	    return [list $tag $new]
@@ -1354,7 +1389,7 @@ proc ::stackato::client::cli::manifest::Decompose {yml} {
     foreach k {
 	name instances mem framework services processes
 	min_version env ignores hooks cron requirements
-	command
+	command app-dir
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -1362,7 +1397,7 @@ proc ::stackato::client::cli::manifest::Decompose {yml} {
 	lappend s $k $v
     }
 
-    return [list [list mapping $s] [list mapping $value]]
+    return [list [Cmapping {*}$s] [Cmapping {*}$value]]
 }
 
 proc ::stackato::client::cli::manifest::Vendors {} {
@@ -1386,6 +1421,18 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 
     set value [Tag! mapping $yml root]
 
+    # Pull an app directory specification out of the data first, and
+    # squash it for the rest of the conversion. It becomes important
+    # only at the very end, when we assemble the main structure, where
+    # the directory itself is a key of the applications mapping, and
+    # not specified as the value of some fixed key.
+
+    set appdir .
+    if {[dict exists $value app-dir]} {
+	set appdir [Tag! scalar [dict get $value app-dir] {key "app-dir"}]
+	dict unset value app-dir
+    }
+
     # Transform all the known stackato.yml keys to match their
     # manifest.yml counterpart. Those without counterpart move into a
     # nested 'stackato' mapping.
@@ -1394,6 +1441,7 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
     # (2) framework - handle stackato A/B variants and map.
     # (3) services - re-map
     # (4) requirements processes min_version env ignores hooks cron - move into stackato sub-map.
+    # (4a) env: Has A/B variants, normalize
 
     # (Ad 2)
     if {[dict exists $value framework]} {
@@ -1402,8 +1450,7 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 
 	if {$tag eq "scalar"} {
 	    # stackato A, f = type = CF 'name'
-	    dict set value framework [list mapping [list name [list scalar $f]]]
-
+	    dict set value framework [Cmapping name [Cscalar $f]]
 	} elseif {$tag eq "mapping"} {
 	    # stackato B f = dict (type, runtime)
 
@@ -1487,9 +1534,9 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 		}
 	    }
 
-	    lappend new $name [list mapping [list type [list scalar $vendor]]]
+	    lappend new $name [Cmapping type [Cscalar $vendor]]
 	}
-	dict set value services [list mapping $new]
+	dict set value services [Cmapping {*}$new]
     }
 
     # (Ad 4)
@@ -1499,26 +1546,113 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
     } {
 	if {![dict exists $value $k]} continue
 
+	set data [dict get $value $k]
+
+	# (Ad 4a) Normalize old/new style of env'ironment data.
+	if {$k eq "env"} {
+	    set new {}
+	    foreach {ekey evalue} [Tag! mapping $data {key "env"}] {
+		set etag [lindex [Tags! {scalar mapping} $evalue "value of key \"env:$ekey\""] 0]
+		switch -exact -- $etag {
+		    scalar {
+			# Old style. Scalar value. Transform into new
+			# style, make the value the default.
+			lappend new $ekey [Cmapping default $evalue]
+		    }
+		    mapping {
+			# New-style, mapping. Passed through unchanged.
+			lappend new $ekey $evalue
+		    }
+		    default {
+			error "Internal error, Tags! failed to block unkown tag '$etag'"
+		    }
+		}
+	    }
+	    set data [Cmapping {*}$new]
+	}
+
 	# Need the sub-map, create if not present yet.
 	if {![dict exists $value stackato]} {
 	    dict set value stackato {}
 	}
 	# Put into sub-map, untagged.
-	dict set value stackato $k [dict get $value $k]
+	dict set value stackato $k $data
 
 	# Drop from original location
 	dict unset value $k
     }
     if {[dict exists $value stackato]} {
 	# Fix the tagging.
-	dict set value stackato [list mapping [dict get $value stackato]]
+	dict set value stackato [Cmapping {*}[dict get $value stackato]]
     }
 
     # Treat the stackato data as the main application under the '.' path.
 
-    return [list mapping [list applications [list mapping [list . [list mapping $value]]]]]
+    return [Cmapping applications [Cmapping $appdir [Cmapping {*}$value]]]
 }
 
+proc ::stackato::client::cli::manifest::TransformM2CF1 {yml} {
+    Debug.cli/manifest/core {TransformM2CF1 ($yml)}
+
+    # Assumes that the input is the manifest.yml data for an
+    # application, in either CF1 or CF2 format and generates a
+    # structure matching the CF1 manifest.yml, with extensions, so
+    # that it is mergable with a transformed stackato.yml.
+
+    set value [Tag! mapping $yml root]
+
+    foreach {k v} $value {
+	# Ignore toplevel keys, but 'applications'
+	if {$k ne "applications"} continue
+
+	# Recurse into and transform each application tree.
+	foreach {a def} [Tag! mapping $v applications] {
+	    dict set new $a [TransformM2CF1App $a $def]
+	}
+	dict set value applications [Cmapping {*}$new]
+    }
+
+    return [Cmapping {*}$value]
+}
+
+proc ::stackato::client::cli::manifest::TransformM2CF1App {a yml} {
+    Debug.cli/manifest/core {TransformM2CF1App ($yml)}
+
+    # See caller (TransformM2CF1) for notes.
+    # To transform: framework+runtime, if framework value is a scalar.
+
+    set value [Tag! mapping $yml applications:$a]
+
+    if {[dict exists $value framework] && 
+	([TagOf [dict get $value framework]] eq "scalar")} {
+	# framework is scalar. Transform to mapping, with value moved to sub-key name.
+	dict set value framework \
+	    [Cmapping name [Cscalar [ValueOf [dict get $value framework]]]]
+    }
+
+    # At this point 'framework is either missing, or exists as a mapping.
+
+    if {[dict exists $value runtime]} {
+	# move the runtime information into the framework mapping.
+	set runtime [dict get $value runtime]
+
+	if {![dict exists $value framework]} {
+	    # mapping not present, create.
+	    dict set value framework [Cmapping runtime $runtime]
+	} else {
+	    # extend the mapping.
+	    set fw [ValueOf [dict get $value framework]]
+	    dict set fw runtime $runtime
+	    dict set value framework [Cmapping {*}$fw]
+	}
+
+	dict unset value runtime
+    }
+
+    #array set __ $value ; parray __ ; unset __
+
+    return [Cmapping {*}$value]
+}
 
 proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
     Debug.cli/manifest/core {ValidateStructure $yml}
@@ -1541,22 +1675,30 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 	    services  {
 		ValidateGlobMap $value services {
 		    * {
-			ValidateMap $value $key {
+			ValidateGlobMap $value $key {
 			    type { Tag! scalar $value {key "type"} }
+			    * {
+				upvar 1 key ekey
+				UnknownKey services:$ekey:$key
+			    }
 			}
 		    }
 		}
 	    }
 	    framework {
-		ValidateMap $value framework {
-		    name    { Tag! scalar $value {key "framework:name"} }
-		    runtime { Tag! scalar $value {key "framework:runtime"} }
+		ValidateGlobMap $value framework {
+		    name          { Tag! scalar $value {key "framework:name"} }
+		    runtime       { Tag! scalar $value {key "framework:runtime"} }
+		    start-file    { Tag!Warn scalar $value {key "framework:start-file"} }
+		    document-root { Tag!Warn scalar $value {key "framework:document-root"} }
+		    app-server       { Tag!Warn scalar $value {key "framework:app-server"} }
+		    *             { UnknownKey framework:$key }
 		}
 	    }
 	    stackato {
-		ValidateMap $value stackato {
+		ValidateGlobMap $value stackato {
 		    min_version {
-			ValidateMap $value min_version {
+			ValidateGlobMap $value min_version {
 			    server {
 				set v [Tag! scalar $value {key "min_version:server"}]
 				if {[catch {
@@ -1575,15 +1717,17 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 					"Manifest error: Expected version number for key \"min_version:client\", got \"$v\""
 				}
 			    }
+			    * { IllegalKey min_version:$key }
 			}
 		    }
 		    processes {
-			ValidateMap $value processes {
+			ValidateGlobMap $value processes {
 			    web { Tag! scalar $value {key "processes:web"} }
+			    *   { UnknownKey processes:$key }
 			}
 		    }
 		    requirements {
-			ValidateMap $value requirements {
+			ValidateGlobMap $value requirements {
 			    pypm   { Tags! {scalar sequence} $value {key "requirements:pypm"} }
 			    ppm    { Tags! {scalar sequence} $value {key "requirements:ppm "} }
 			    cpan   { Tags! {scalar sequence} $value {key "requirements:cpan"} }
@@ -1592,32 +1736,75 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 			    redhat { Tags! {scalar sequence} $value {key "requirements:redhat"} }
 			    unix   { Tags! {scalar sequence} $value {key "requirements:unix  "} }
 			    staging {
-				ValidateMap $value staging {
+				ValidateGlobMap $value staging {
 				    ubuntu { Tags! {scalar sequence} $value {key "requirements:staging:ubuntu"} }
 				    redhat { Tags! {scalar sequence} $value {key "requirements:staging:redhat"} }
 				    unix   { Tags! {scalar sequence} $value {key "requirements:staging:unix  "} }
+				    *      { UnknownKey requirements:staging:$key }
 				}
 			    }
 			    running {
-				ValidateMap $value running {
+				ValidateGlobMap $value running {
 				    ubuntu { Tags! {scalar sequence} $value {key "requirements:running:ubuntu"} }
 				    redhat { Tags! {scalar sequence} $value {key "requirements:running:redhat"} }
 				    unix   { Tags! {scalar sequence} $value {key "requirements:running:unix  "} }
+				    *      { UnknownKey requirements:running:$key }
 				}
 			    }
+			    * { UnknownKey requirements:$key }
 			}
 		    }
 		    env {
 			ValidateGlobMap $value env {
-			    * { Tag! scalar $value "key \"$key\"" }
+			    * {
+				# We assume normalized data here! See
+				# marker "4a" in TransformToMatch.
+				ValidateGlobMap $value "env:$key" {
+				    default {
+					upvar 1 key ekey
+					Tag! scalar $value "key \"env:${ekey}:default\""
+				    }
+				    hidden -
+				    required -
+				    inherit {
+					upvar 1 key ekey
+					set value [Tag! scalar $value "key \"env:${ekey}:$key\""]
+					if {$value ni {y Y yes Yes YES n N no No NO true True TRUE false False FALSE on On ON off Off OFF}} {
+					    return -code error  -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
+						"Manifest error: Expected boolean value for key \"env:$ekey:$key\", got \"$value\""
+					}
+				    }
+				    prompt {
+					upvar 1 key ekey
+					Tag! scalar $value "key \"env:${ekey}:prompt\""
+				    }
+				    choices {
+					upvar 1 key ekey
+					Tag! sequence $value "key \"env:${ekey}:choices\""
+				    }
+				    scope {
+					upvar 1 key ekey
+					set value [Tag! scalar $value "env:${ekey}:scope"]
+					if {$value ni {staging runtime both}} {
+					    return -code error  -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
+						"Manifest error: Expected one of 'both', 'runtime' or 'staging' for key \"env:$ekey:scope\", got \"$value\""
+					}
+				    }
+				    * {
+					upvar 1 key ekey
+					IllegalKey env:${ekey}:$key
+				    }
+				}
+			    }
 			}
 		    }
 		    hooks {
 			Tag! mapping $value hooks
-			ValidateMap $value hooks {
-			    pre-staging  { Tags! {scalar sequence} $value {key "pre-staging" } }
-			    post-staging { Tags! {scalar sequence} $value {key "post-staging"} }
-			    pre-running  { Tags! {scalar sequence} $value {key "pre-running "} }
+			ValidateGlobMap $value hooks {
+			    pre-staging  { Tags! {scalar sequence} $value {key "hooks:pre-staging" } }
+			    post-staging { Tags! {scalar sequence} $value {key "hooks:post-staging"} }
+			    pre-running  { Tags! {scalar sequence} $value {key "hooks:pre-running "} }
+			    *            { UnknownKey hooks:$key }
 			}
 		    }
 		    cron {
@@ -1626,10 +1813,29 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 		    ignores {
 			Tag! sequence $value {key "ignores"}
 		    }
+		    * {
+			UnknownKey stackato:$key
+		    }
 		}
 	    }
 	}
     }
+
+    foreach {k v} [Tag! mapping $yml root] {
+	if {$k eq "applications"} continue
+	UnknownKey $k
+    }
+    return
+}
+
+proc ::stackato::client::cli::manifest::IllegalKey {k} {
+    return -code error  -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
+	"Manifest error: Found illegal key \"$k\""
+}
+
+proc ::stackato::client::cli::manifest::UnknownKey {k} {
+    #error $k
+    stackato::log::say! [stackato::color::yellow "Manifest warning: Unknown key \"$k\""]
     return
 }
 
@@ -1802,7 +2008,24 @@ proc ::stackato::client::cli::manifest::DeepMerge {child parent} {
 }
 
 # # ## ### ##### ######## ############# #####################
+## Helpers. Construction of tagged structures.
+## Proc names chosen for composability with tag values.
+
+proc ::stackato::client::cli::manifest::Cmapping  {args}   { list mapping  $args   }
+proc ::stackato::client::cli::manifest::Csequence {args}   { list sequence $args   }
+proc ::stackato::client::cli::manifest::Cscalar   {string} { list scalar   $string }
+
+
+# # ## ### ##### ######## ############# #####################
 ## Helpers. Access with tag checking.
+
+proc ::stackato::client::cli::manifest::Tag!Warn {tag yml {label structure}} {
+    lassign $yml thetag thevalue
+    if {$thetag eq $tag} return
+    stackato::log::say! \
+	[stackato::color::yellow \
+	     "Manifest warning: Expected a yaml $tag for $label, got a $thetag"]
+}
 
 proc ::stackato::client::cli::manifest::Tag! {tag yml {label structure}} {
     lassign $yml thetag thevalue
@@ -1816,6 +2039,14 @@ proc ::stackato::client::cli::manifest::Tags! {tags yml {label structure}} {
     if {$thetag in $tags} { return $yml }
     return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
 	"Manifest validation error: Expected a yaml [linsert [join $tags {, }] end-1 or] for $label, got a $thetag"
+}
+
+proc ::stackato::client::cli::manifest::TagOf {yml} {
+    return [lindex $yml 0]
+}
+
+proc ::stackato::client::cli::manifest::ValueOf {yml} {
+    return [lindex $yml 1]
 }
 
 # # ## ### ##### ######## ############# #####################

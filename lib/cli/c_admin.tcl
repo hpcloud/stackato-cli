@@ -138,7 +138,7 @@ oo::class create ::stackato::client::cli::command::Admin {
 
 	# # ## ### Done with group-specific information
 
-	if {[config auth_token] ne {}} return
+	if {[my auth_token] ne {}} return
 	# if we are not logged in for the current target, log in as the new user
 
 	set cmd [command::User new {*}[my options] password $password]
@@ -200,12 +200,20 @@ oo::class create ::stackato::client::cli::command::Admin {
 	return
     }
 
-    method admin_report {__ {destination {stackato-report.tgz}}} {
+    method admin_report {__ {destination {}}} {
 	Debug.cli/admin {}
+
+	if {$destination eq {}} {
+	    regsub {^[^/]*//} [[my client] target] {} destination
+	    append destination -report.tgz
+	}
+
+	display "Generating report $destination:"
 
 	fileutil::writeFile -translation binary $destination \
 	    [[my client] report]
 
+	display [color green OK]
 	return
     }
 

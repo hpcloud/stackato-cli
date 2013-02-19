@@ -24,7 +24,7 @@ oo::class create ::stackato::client::cli::command::LogStream {
 
 	# fast   - true if new fast logging is possible.
 	# pid    - process id of the child doing the logging.
-	#          dictonary keyed by appname.
+	#          dictionary keyed by appname.
 
 	set active {}
 	set pid    {}
@@ -63,12 +63,25 @@ oo::class create ::stackato::client::cli::command::LogStream {
 	    # For a fast-log enabled stackato simply use a suitably
 	    # filtered log --follow as sub-process.
 
+	    # Note how we pass the current configuration (target, auth
+	    # token, group) to the child. Without these the child will
+	    # pull the config from the relevant files, and this might
+	    # be wrong, namely if this process got overrides from the
+	    # command line.
+
 	    set newer [my GetLast $appname]
-	    set child [exec::bgrun 2>@ stderr >@ stdout \
-			   {*}[my appself] logs $appname \
-			   --follow --no-timestamps \
-			   --newer $newer
-		      ]
+
+	    set cmd [list {*}[my appself] logs $appname \
+			 --follow --no-timestamps \
+			 --newer $newer \
+			 \
+			 --target [my target_url] \
+			 --token [my auth_token]]
+	    if {[my group] ne {}} {
+		lappend cmd --group [my group]
+	    }
+
+	    set child [exec::bgrun 2>@ stderr >@ stdout {*}$cmd]
 	    Debug.cli/logstream {$appname, self pid = $child}
 	} else {
 	    # Stackato pre 2.3: Launch a ssh sub-process going through

@@ -422,14 +422,14 @@ oo::class create ::stackato::client {
 	return [my json_get $url]
     }
 
-    method app_drain_create {name drain uri} {
+    method app_drain_create {name drain uri usejson} {
 	Debug.client {}
 	my check_login_status
 
 	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
 	set url [string map {// /} $url]
 
-	set manifest [jmap map dict [dict create drain $drain uri $uri]]
+	set manifest [jmap drain [dict create drain $drain uri $uri json $usejson]]
 
 	my http_post $url $manifest application/json
 	return
@@ -507,6 +507,19 @@ oo::class create ::stackato::client {
 
 	my http_delete $stackato::const::SERVICES_PATH/[ncgi::encode $name]
 	return
+    }
+
+    method get_service {name} {
+	my check_login_status
+	set svcs [my services];# || []
+
+	set names [struct::list map $svcs [lambda x {
+	    dict get $x name
+	}]]
+
+	if {$name ni $names} { my ServiceError $name }
+
+	return [my json_get $stackato::const::SERVICES_PATH/[ncgi::encode $name]]
     }
 
     method bind_service {service appname} {
@@ -708,7 +721,7 @@ oo::class create ::stackato::client {
 	my check_login_status
 	my http_post \
 	    $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/limits \
-	    [jmap map dict $limits] \
+	    [jmap limits $limits] \
 	    application/json
 	return
     }

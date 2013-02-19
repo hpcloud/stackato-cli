@@ -34,6 +34,22 @@ proc ::stackato::jmap::manifest {m} {
     }} $m
 }
 
+proc ::stackato::jmap::drain {d} {
+    map {dict {json bool}} $d
+}
+
+proc ::stackato::jmap::limits {d} {
+    map {dict {sudo bool}} $d
+}
+
+proc ::stackato::jmap::bool {_ s} {
+    if {$s} {
+	return true
+    } else {
+	return false
+    }
+}
+
 proc ::stackato::jmap::nstring {_ s} {
     if {$s eq {}} { return null }
     return [map string $s]
@@ -157,7 +173,12 @@ proc ::stackato::jmap::instancemap {is} {
 }
 
 proc ::stackato::jmap::service {s} {
-    map dict $s
+    map {dict {
+	credentials dict
+	meta {dict {
+	    tags array
+	}}
+    }} $s
 }
 
 proc ::stackato::jmap::services   {ss} {
@@ -199,13 +220,20 @@ proc ::stackato::jmap::usageinfo {ui} {
 proc ::stackato::jmap::clientinfo {ci} {
     map {dict {
 	usage  dict
-	limits dict
+	limits {dict {
+	    sudo bool
+	}}
 	frameworks {dict {
 	    * {dict {
 		appservers {array dict}
 		runtimes   {array dict}
 		detection  {narray dict}
 	    }}
+	}}
+	stackato {dict {
+	    app_store_enabled bool
+	    aok_enabled       bool
+	    license_accepted  bool
 	}}
     }} $ci
 }
@@ -226,11 +254,23 @@ proc ::stackato::jmap::fwinfo {ci} {
 ## => Extensible with user commands => Actually, the commands complex types
 ## -- would be such user commands.
 
+proc ::stackato::jmap::Quote {string} {
+    set r {}
+    foreach c [split $string {}] {
+	scan $c %c cu
+	if {$cu > 127} {
+	    set c \\u[format %04x $cu]
+	}
+	append r $c
+    }
+    return $r
+}
+
 proc ::stackato::jmap::map {type data} {
     lassign $type type detail
     switch -exact -- $type {
 	{} - string {
-	    return [json::write string $data]
+	    return [Quote [json::write string $data]]
 	}
 	array - list {
 	    set tmp {}
@@ -278,7 +318,7 @@ namespace eval ::stackato::jmap {
 	aliases target targets clientinfo runtimes frameworks \
 	services apps stats env instances service resources \
 	manifest crashed instancemap appinfo sci users dbs \
-	user1 fwinfo groups tgroups usageinfo
+	user1 fwinfo groups tgroups usageinfo drain bool limits
     namespace ensemble create
 }
 

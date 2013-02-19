@@ -36,6 +36,8 @@ namespace eval ::stackato::client::cli::command::Apps {}
 
 debug level  cli/apps
 debug prefix cli/apps {[::debug::snit::call] | }
+debug level  cli/apps/ignored
+debug prefix cli/apps/ignored {}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -481,6 +483,13 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method delete_app {appname force {rollback 0}} {
 	Debug.cli/apps {}
+
+	set bling 0
+	if {$rollback} {
+	    display [color red "Rolling back application \[$appname\]: "] false
+	    set bling 1
+	}
+
 	set service_map [my service_map]
 	set app [[my client] app_info $appname]
 	set services_to_delete {}
@@ -491,6 +500,10 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	    set del_service [expr {!$multiuse && ($force && ![my promptok])}]
 	    if                    {!$multiuse && (!$force && [my promptok])} {
+		if {$bling} {
+		    display ""
+		    set bling 0
+		}
 		set del_service \
 		    [term ask/yn "Provisioned service \[$service\] detected would you like to delete it ?: " no]
 	    }
@@ -499,9 +512,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    lappend services_to_delete $service
 	}
 
-	if {$rollback} {
-	    display [color red "Rolling back application \[$appname\]: "] false
-	} else {
+	if {!$rollback} {
 	    display "Deleting application \[$appname\]: " false
 	}
 
@@ -1084,8 +1095,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	global env
 
 	set target  [my target_url]
-
-	set token   [config auth_token]
+	set token   [my auth_token]
 	set keyfile [config keyfile $token]
 	if {![file exists $keyfile]} {
 	    if {$bg == 1} {
@@ -1385,7 +1395,17 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    Debug.cli/apps { $line }
 
 	    # Parse the json...
-	    set record [json::json2dict $line]
+
+	    if {[catch {
+		set record [json::json2dict $line]
+	    } emsg]} {
+		# Parse error, or other issue.
+		# Show the raw JSON as it came from the server, plus the error message we got.
+		# Note that this disables all filters also.
+		display "(($line)) ([color red $emsg])"
+		continue
+	    }
+
 	    dict with record {} ; # => timestamp, instance, source, text, filename
 
 	    # Filter for time.
@@ -1443,7 +1463,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set date     [color $linecolor $date]
 		set source   [color $linecolor $source]
 		#set instance [color blue   $instance]
-	    display "$date$source: $text"
+		display "$date$source: $text"
 	    }
 	}
 	return
@@ -1531,14 +1551,22 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    # Legal options:
 	    # --json --follow --num --source --instance
 	    # --newer --filename --text
+	    # Global options to accept:
+	    # --target --group --token(-file) --debug-group -u
 	    my ValidateOptions {
 		--json --follow --num --source --instance
 		--newer --filename --text --no-timestamps
+		--target --group --token --token-file --debug-group -u
 	    }
 	} else {
 	    # Legal options:
 	    # --instance
-	    my ValidateOptions {--instance} {
+	    # Global options to accept:
+	    # --target --group --token(-file) --debug-group -u
+	    my ValidateOptions {
+		--instance
+		--target --group --token --token-file --debug-group -u
+	    } {
 		if {![llength [my CheckOptions {
 		    --json --follow --num --source --instance
 		    --newer --filename --text
@@ -1576,13 +1604,16 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set json [[my client] app_drain_list $appname]
 
 	if {[my GenerateJson]} {
-	    puts [jmap map dict $json]
+	    puts [jmap map {array {dict {json bool}}} $json]
 	    return
 	}
 
-	table::do t {Name Url} {
-	    foreach {n u} $json {
-		$t add $n $u
+	table::do t {Name Json Url} {
+	    foreach item $json {
+		set n [dict get $item name]
+		set u [dict get $item uri]
+		set j [dict get $item json]
+		$t add $n $j $u
 	    }
 	}
 
@@ -1601,7 +1632,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	return
     }
     method drainaddit {drain uri appname} {
-	[my client] app_drain_create $appname $drain $uri
+	[my client] app_drain_create $appname $drain $uri [my GenerateJson]
 	display [color green OK]
 	return
     }
@@ -2530,12 +2561,19 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set services [manifest services]
 	Debug.cli/apps {services = ($services)}
 
+	set hd [expr {
+	      [dict get' [my options] harbordebug 0] &&
+	      [package vsatisfies [my ServerVersion] 2.7]
+	}]
+	Debug.cli/apps {harbor-debug = $hd}
+
 	if {![llength $services]} {
 	    # No configuration data, do the services interactively.
 	    if {[my promptok]} {
 		my bind_services $appname
 	    }
-	} else {
+	}
+	if {[llength $services] || $hd} {
 	    # Process stackato.yml service information ...
 
 	    set known [struct::list map [[my client] services] [lambda s {
@@ -2568,6 +2606,28 @@ oo::class create ::stackato::client::cli::command::Apps {
 		    display [color green OK]
 		}
 	    }
+
+	    if {$hd} {
+		# Create and bind harbor service <appname>-debug for debugging.
+
+		set sname ${appname}-debug
+		set vendor harbor
+
+		if {$sname ni $known} {
+		    display "Creating $vendor service \[$sname\]: " false
+		    [my client] create_service $vendor $sname
+		    display [color green OK]
+		}
+
+		if {$sname ni $bound} {
+		    display "Binding service \[$sname\]: " false
+		    [my client] bind_service $sname $appname
+		    display [color green OK]
+		}
+
+		set port [dict get [[my client] get_service $sname] credentials port]
+		display "Debugging now enabled on port [color cyan $port]."
+	    }
 	}
 
 	return
@@ -2575,29 +2635,154 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method AppEnvironment {appname} {
 	Debug.cli/apps {}
+	global env
 
-	set env [manifest env]
+	set menv [manifest env]
 
 	# Inject environment variables for the Komodo debugger into
 	# the application.
 	if {[dict exists [my options] stackato-debug]} {
 	    set hp [dict get [my options] stackato-debug]
 	    lassign [split $hp :] host port
-	    lappend env STACKATO_DEBUG_PORT_NUMBER $port
-	    lappend env STACKATO_DEBUG_HOST        $host
+	    lappend menv STACKATO_DEBUG_PORT_NUMBER $port
+	    lappend menv STACKATO_DEBUG_HOST        $host
 	}
 
-	if {![llength $env]} return
+	if {![llength $menv]} return
 
-	# Process configured environment information ...
+	# Environment through options.
+	set oenv [dict get [my options] env]
+
+	# Process stackato.yml environment information ...
 
 	set appenv {}
-	foreach {k v} $env {
+	foreach {k v} $menv {
+	    Debug.cli/apps {  Aenv $k = ($v)}
+
+	    # v is a dictionary describing the variable. Due to the
+	    # normalization done by the manifest loading logic we will
+	    # never see the old-style here, where v is directly the
+	    # value of the variable.
+
+	    # The keys of interest to us are:
+	    # - required	boolean
+	    # - inherit		boolean
+	    # - default		string, the value to use if nothing is entered
+	    # - prompt		string, label to use when prompting entry
+	    # - choices		list of strings, allowed values for the variable
+	    # - hidden		boolean, true => choices not allowed
+
+	    # Step 1. Determine the (default) value from the various places.
+
+	    unset -nocomplain value ;# start with NULL, aka 'undefined'.
+
+	    set required [dict get' $v required 0]
+	    set inherit  [dict get' $v inherit  0]
+	    set hidden   [dict get' $v hidden   0]
+
+	    if {![dict exists $v default] && !$required} {
+		err "Bad description of variable \"$k\", not required, default value missing."
+	    }
+	    if {$hidden && [dict exists $v choices]} {
+		err "Bad description of variable \"$k\", hidden forbids use of choices."
+	    }
+	    if {[dict exists $v default]} {
+		set value [dict get $v default]
+	    }
+	    if {$inherit && [info exists env($k)]} {
+		set value $env($k)
+	    }
+	    if {[dict exists $oenv $k]} {
+		set value [dict get $oenv $k]
+	    }
+
+            # Select action based on the decision table below, for the
+            # various properties of the variable's value (D here)
+            #
+            #    Specified      Required        Interactive     Action
+            #    ---------      --------        -----------     ------
+            # A  no             no              no              ignore
+            # B  no             no              yes                     prompt, empty string is default
+            # C  no             yes             no              fail
+            # D  no             yes             yes                     prompt, empty string is default
+            # E  yes            no              no              use
+            # F  yes            no              yes                     prompt, D is default
+            # G  yes            yes             no              use
+            # H  yes            yes             yes                     prompt, D is default
+            #    ---------      --------        -----------     -------
+
+	    if {![info exists value] &&
+		![my promptok]} {
+		if {$required} {
+		    # (C) Not specified, required, non-interactive.
+		    err "Required variable \"$k\" not set"
+		} else {
+		    # (A) Not specified, not required, non-interactive.
+		    Debug.cli/apps {  Aenv /missing /not-required /no-prompt => ignore}
+		    continue
+		}
+	    }
+
+	    if {![info exists value]} {
+		# (B, D) Empty string as default for prompt.
+		Debug.cli/apps {  Aenv /default empty}
+		set value ""
+	    }
+
+	    Debug.cli/apps {  Aenv value = ($value)}
+
+	    if {[my promptok]} {
+		# (B,D,F,H) Prompt, with various defaults
+
+		Debug.cli/apps {  Aenv query user}
+
+		# (a) Get the label for the prompting out of the
+		# description, or use a standard phrase.
+		set prompt [dict get' $v prompt "Enter $k"]
+
+		# (b) Free form text, or choices from a list.
+		if {[dict exists $v choices]} {
+		    set choices [dict get $v choices]
+		    set value [term ask/choose $prompt $choices $value]
+		} else {
+		    while {1} {
+			if {$hidden} {
+			    set response [term ask/string* "$prompt: "]
+			} else {
+			    set response [term ask/string "$prompt \[$value\]: "]
+			}
+			if {$required && ($response eq "") && ($value eq "")} {
+			    display [color red "$k requires a value"]
+			    continue
+			}
+			break
+		    }
+		    if {$response ne {}} { set value $response }
+		}
+	    } ; # else (E, G) non-interactive, simply use our value.
+
+	    # Validate value regardless of source.
+	    if {[dict exists $v choices]} {
+		set choices [dict get $v choices]
+		if {$value ni $choices} {
+		    set choices [linsert '[join $choices {', '}]' end-1 or]
+		    err "Expected one of $choices for \"$k\", got \"$value\""
+		}
+	    }
+
+	    # ===========================================================
 	    # inlined method 'environment_add', see this file.
-	    set item ${k}=$v
+	    set item ${k}=$value
 
 	    #set appenv [lsearch -inline -all -not -glob $appenv ${k}=*]
 	    lappend appenv $item
+
+	    if {$hidden} {
+		# Reformat for display to prevent us from showing the
+		# hidden value now.
+		regsub -all . $value * value
+		set item ${k}=$value
+	    }
 
 	    display "  Adding Environment Variable \[$item\]"
 	}
@@ -2813,6 +2998,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    set ps [[my client] services]
 	    Debug.cli/apps {provisioned = [jmap services [dict create provisioned $ps]]}
 
+	    # XXX see also c_sebrvices.tcl, method tunnel, ProcessService. Refactor and share.
 	    # Extract the name->vendor map
 	    set map {}
 	    foreach p $ps {
@@ -2829,6 +3015,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 		lappend supported $service
 	    }
 	    set services $supported
+
+	    # end XXX
 
 	    if {[llength $services] > 1} {
 		err "More than one service found; you must specify the service name.\nWe have: [join $services {, }]"
@@ -3082,6 +3270,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 		    #@type appcloud_resources = list (dict (size, sha1, fn| */string))
 		    again+ {                                           }
 		    again+ {}
+		} else {
+		    again+ "$total_size < 64K, skip"
 		}
 
 		display " [color green OK]"
@@ -3325,7 +3515,10 @@ oo::class create ::stackato::client::cli::command::Apps {
 	file mkdir $dst
 	foreach f $args {
 	    if {[file type $f] ni {file directory link}} continue
-	    if {[my IsIgnored $ignorepatterns $root $f]} continue
+	    if {[my IsIgnored $ignorepatterns $root $f]} {
+		Debug.cli/apps/ignored {Excluding $f}
+		continue
+	    }
 
 	    if {[file isfile $f]} {
 		again+ [incr nfiles]

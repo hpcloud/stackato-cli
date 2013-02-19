@@ -601,24 +601,37 @@ oo::class create ::stackato::client::cli::command::Misc {
 	    set groupname [dict get [my client_info] user]
 	}
 
+	set oldlimits [[my client] group_limits_get $groupname]
+
 	set changed 0
+	set unsupported 0
 	foreach {o key validatecmd} {
 	    mem             memory   {my mem_choice_to_quota}
 	    limit-apps      apps     {my Integer {Bad application limit} {LIMIT APPS}}
 	    limit-appuris   app_uris {my Integer {Bad app uri limit}     {LIMIT APPURIS}}
 	    limit-services  services {my Integer {Bad services limit}    {LIMIT SERVICES}}
 	    limit-sudo      sudo     {my Boolean {Bad sudo flag}         {LIMIT SUDO}}
+	    limit-drains    drains   {my Integer {Bad drains limit}      {LIMIT DRAINS}}
 	} {
 	    if {![dict exists [my options] $o]} continue
+	    if {![dict exists $oldlimits $key]} {
+		display [color yellow "Warning: Unable to modify unsupported limit \"$key\"."]
+		set unsupported 1
+		continue
+	    }
 	    lappend limits $key [{*}$validatecmd [dict get [my options] $o]]
 	    set changed 1
 	}
 
+	if {!$changed && $unsupported} {
+	    return
+	}
+
 	if {!$changed} {
-	    set limits [[my client] group_limits_get $groupname]
+	    set limits $oldlimits
 
 	    if {[my GenerateJson]} {
-		display [jmap map dict $limits]
+		display [jmap limits $limits]
 		return
 	    }
 

@@ -298,7 +298,7 @@ oo::class create ::stackato::client::cli::command::Base {
     method ServerVersion {} {
 	Debug.cli/services/support {}
 
-	set v [dict get [[my client] info] vendor_version]
+	set v [dict get' [[my client] info] vendor_version 0.0]
 	regsub -- {-g.*$} $v {} v
 	set v [string map {v {} - .} $v]
 	return $v

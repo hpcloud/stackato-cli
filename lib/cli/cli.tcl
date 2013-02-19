@@ -71,7 +71,9 @@ oo::class create ::stackato::client::cli {
 	# numrecords - initially undefined
 	# lognewer - initially undefined
 	# tail - initially undefined
+	# harbordebug - initially undefined, -d => 1
 	array set myoptions {
+	    env {}
 	    logtimestamps 1
 	    follow 0
 	    copyunsafe 0
@@ -401,6 +403,16 @@ oo::class create ::stackato::client::cli {
 		    }
 
 		    switch -exact -- $o {
+			d {
+			    set myoptions(harbordebug) 1
+			}
+			-env       {
+			    if {![regexp {^([^=]*)=(.*)$} $v -> key value]} {
+				return -code error "Bad syntax of option value, expected 'a=b'"
+			    } else {
+				lappend myoptions(env) $key $value
+			    }
+			}
 			-copy-unsafe-links { set myoptions(copyunsafe) 1 }
 			-email     -
 			-user      { set myoptions(email) $v }
@@ -425,6 +437,7 @@ oo::class create ::stackato::client::cli {
 			-appuris   { set myoptions(limit-appuris) $v }
 			-services  { set myoptions(limit-services) $v }
 			-sudo      { set myoptions(limit-sudo) $v }
+			-drains    { set myoptions(limit-drains) $v }
 			-path      { set myoptions(path) $v }
 			m          -
 			-manifest  { set myoptions(manifest) $v }
@@ -653,7 +666,7 @@ oo::class create ::stackato::client::cli {
 		lappend cmds {groups add-user <group> <user>}
 		lappend cmds {groups delete-user <group> <user>}
 		lappend cmds {groups users <group>}
-		lappend cmds {groups limits [group|user] [--mem SIZE] [--services N] [--apps N] [--appuris N] [--sudo BOOL]}
+		lappend cmds {groups limits [group|user] [--drains N] [--mem SIZE] [--services N] [--apps N] [--appuris N] [--sudo BOOL]}
 		my Usage [join $cmds "\n\t "] {Manage groups}
 
 		if {[llength $myargs] == 0} {
@@ -674,12 +687,12 @@ oo::class create ::stackato::client::cli {
 		}
 	    }
 	    limits {
-		my Usage {limits [group|user] [--mem SIZE] [--services N] [--apps N] [--appuris N] [--sudo BOOL]} \
+		my Usage {limits [group|user] [--mem SIZE] [--drains N] [--services N] [--apps N] [--appuris N] [--sudo BOOL]} \
 		    {Show and modify user/group limits}
 		my SetNamedCommandMinMax misc group_limits1 limits 0 1
 	    }
 	    admin {
-		lappend cmds {admin report <destinationfile>}
+		lappend cmds {admin report [destinationfile]}
 		lappend cmds {admin patch  <patchfile>|<name>|<url>}
 		my Usage [join $cmds "\n\t "] {Administrative operations}
 		# Switch per sub-method
@@ -777,7 +790,7 @@ oo::class create ::stackato::client::cli {
 	    }
 	    add-user - add_user - create_user - create-user - register {
 		my Usage {add-user [email] [--passwd PASS]} \
-		    {Register a new user (requires admin privileges)}
+		    {Register a new user (requires admin privileges, except if allow_registration is set server-side)}
 		if {[llength $myargs] == 1} {
 		    my SetNamedCommand admin add_user $verb 1
 		} else {
@@ -931,6 +944,11 @@ oo::class create ::stackato::client::cli {
 		} else {
 		    my SetCommand apps update 0
 		}
+	    }
+	    service {
+		my Usage {service servicename} \
+		    {Show data about the named service}
+		my SetCommand services service 1
 	    }
 	    services {
 		my Usage {services} \
@@ -1138,7 +1156,9 @@ oo::class create ::stackato::client::cli {
 	Debug.cli {}
 	return {
 	    {-copy-unsafe-links {For push, links pointing outside are copied into the application.}}
+	    {d {Create and bind an app-specific harbor service for debugging}}
             {-email.arg       {no default} {User name, identified by email address}}
+	    {-env.arg         {no default} {Environment setting}}
 	    {-user.arg        {no default} {Alias of --email}}
 	    {-passwd.arg      {no default} {Password for the account}}
 	    {-pass.arg        {no default} {Alias of --passwd}}
@@ -1205,6 +1225,7 @@ oo::class create ::stackato::client::cli {
 	    {-appuris.arg     {target dependent} {Limit for number of mapped uris per app}}
 	    {-services.arg    {target dependent} {Limit for number of services in group}}
 	    {-sudo.arg        {target dependent} {Applications can use sudo}}
+	    {-drains.arg      {target dependent} {Limit for number of drains in group}}
 	    {-stackato-debug.arg {no defaults} {Host:Port for debugging the user app}}
 	    {-reset           {Reset current group}}
 	    {-num.arg         100 {Number of log records to retrieve}}
@@ -1243,4 +1264,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.6.3
+package provide stackato::client::cli 1.7.0

@@ -51,6 +51,43 @@ oo::class create ::stackato::client::cli::command::Services {
     # # ## ### ##### ######## #############
     ## API
 
+    method service {name} {
+	Debug.cli/services {}
+
+	set s [[my client] get_service $name]
+
+	if {[my GenerateJson]} {
+	    display [jmap service $s]
+	    return
+	}
+
+	table::do t {What Value} {
+	    foreach k [lsort -dict [dict keys $s]] {
+		set v [dict get $s $k]
+
+		if {$k eq "name"} continue
+		if {$k in {meta credentials}} {
+		    $t add $k {}
+
+		    foreach k [lsort -dict [dict keys $v]] {
+			set vx [dict get $v $k]
+			if {$k in {created updated}} {
+			    set vx [clock format $vx]
+			}
+			$t add "- $k" $vx
+		    }
+		    $t add {} {}
+		    continue
+		}
+		$t add $k $v
+	    }
+	}
+
+	display \n$name
+	$t show display
+	return
+    }
+
     method create_service {{service {}} {name {}} {appname {}}} {
 	Debug.cli/services {}
 
@@ -237,7 +274,6 @@ oo::class create ::stackato::client::cli::command::Services {
 	# restarting it is used: delete it and then fully push again.
 
 	if {![my tunnel_healthy? $auth]} {
-
 	    #
 	    # XXX XXX XXXX
 	    # A bad password from the user will arrive here as well,
@@ -292,17 +328,31 @@ oo::class create ::stackato::client::cli::command::Services {
     method ProcessService {service} {
 	Debug.cli/services {}
 
-	set ps [[my client] services]
-	#@type ps = list (services?)
+	set services [[my client] services]
+	#@type services = list (service)
 
-	if {![llength $ps]} {
+	# XXX see also c_apps.tcl, method dbshellit. Refactor and share.
+
+	# services - provisioned, array.
+	# service - A service name.
+
+	if {![llength $services]} {
 	    err "No services available to tunnel to"
 	}
 
 	if {$service eq {}} {
 	    set choices {}
-	    foreach s $ps {
+	    foreach s $services {
+		set vendor [dict get $s vendor]
+		# (x$x)
+		if {$vendor ni {
+		    mysql redis mongodb postgresql
+		}} continue
 		lappend choices [dict getit $s name]
+	    }
+
+	    if {![llength $services]} {
+		err "No services available to tunnel to"
 	    }
 	    set service [term ask/menu "" \
 			     "Which service to tunnel to: " \
@@ -310,14 +360,26 @@ oo::class create ::stackato::client::cli::command::Services {
 	}
 
 	set info {}
-	foreach s $ps {
+	foreach s $services {
 	    if {[dict get $s name] ne $service} continue
 	    set info $s
 	    break
 	}
 	if {$info eq {}} {
-	    err "Unknown service '$service'"
+	    err "Unknown service '$service'."
 	}
+
+	# Service is found. Now check if it supports tunneling.
+
+	set vendor [dict get $info vendor]
+	# (x$x)
+	if {$vendor ni {
+	    mysql redis mongodb postgresql
+	}} {
+	    err "Service '$service' does not accept tunnels."
+	}
+
+	# end XXX
 
 	return [list $service $info]
     }

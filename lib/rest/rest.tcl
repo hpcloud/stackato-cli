@@ -126,6 +126,11 @@ oo::class create ::REST {
 	method DoRequest {method url {type ""} {value ""}} {
 		Debug.rest {}
 
+		set theheaders $options(-headers)
+		if {$method eq "DELETE"} {
+			lappend theheaders Content-Length 0
+		}
+
 		if {$value in [file channels]} {
 			set query -querychannel
 		} else {
@@ -147,8 +152,8 @@ oo::class create ::REST {
 			}
 		}
 
-		if {[llength $options(-headers)]} {
-			lappend req_options -headers $options(-headers)
+		if {[llength $theheaders]} {
+			lappend req_options -headers $theheaders
 		}
 
 		# Show request
@@ -162,8 +167,8 @@ oo::class create ::REST {
 			} else {
 				puts "\nRequest  $method, $type: $url"
 			}
-			if {[llength $options(-headers)]} {
-				foreach {k v} $options(-headers) {
+			if {[llength $theheaders]} {
+				foreach {k v} $theheaders {
 					puts "Header $k:\t$v"
 				}
 			}
@@ -179,7 +184,9 @@ oo::class create ::REST {
 			#if {$method ne "GET"} { error dont-write-yet }
 
 			if {[catch {
+				Debug.rest {http::geturl ...}
 				set tok [http::geturl $url {*}$req_options]
+				Debug.rest {http::geturl ... $tok}
 			} e o]} {
 				if {[string match *refused* $e]} {
 					set host [join [lrange [split $url /] 0 2] /]
@@ -210,7 +217,7 @@ oo::class create ::REST {
 				http::cleanup $tok
 				return -code error \
 					-errorcode [list REST HTTP BROKEN] \
-					
+					$msg
 			}
 
 			# Bug 9034, 90337. For a time we treated errors in range

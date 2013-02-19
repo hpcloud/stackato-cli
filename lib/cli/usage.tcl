@@ -267,6 +267,9 @@ namespace eval ::stackato::client::cli::usage {
 	    services
 		Lists of services available and provisioned
 
+	    service <service>
+		Show the information we have about the named service.
+
 	    create-service <service> [--name,--bind]
 		Create a provisioned service
 
@@ -379,7 +382,7 @@ namespace eval ::stackato::client::cli::usage {
 		List users belonging to the named group
 		Without group, list for the current group
 
-	    limits [groupname|username] [--mem MEM] [--apps N] [--appuris N] [--services N] [--sudo BOOL]
+	    limits [groupname|username] [--mem MEM] [--apps N] [--drains N] [--appuris N] [--services N] [--sudo BOOL]
 		Set or retrieve limits for a group or user.
 		Without group/user use current group.
 		Without current group use current user.
