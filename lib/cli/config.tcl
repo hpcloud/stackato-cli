@@ -24,20 +24,39 @@ proc ::stackato::client::cli::config::fulltrap {} {
 
     if {$tcl_platform(platform) eq "windows"} {
 	signal trap {TERM INT} {
-	    ::stackato::log::say! "\nInterrupted\n"
-	    ::exec::clear
-	    exit 1
+	    if {[catch {
+		::stackato::log::say! "\nInterrupted\n"
+		::exec::clear
+		exit 1
+	    }]} {
+		# A problem here indicates that the user managed to
+		# trigger ^C while we in a child interp. Throw it as
+		# regular error to be caught and processed in cli.tcl
+		error Interrupted error SIGTERM
+	    }
 	}
     } else {
 	signal -restart trap {TERM INT} {
-	    ::stackato::log::say! "\nInterrupted\n"
-	    ::exec::clear
-	    exit 1
+	    if {[catch {
+		::stackato::log::say! "\nInterrupted\n"
+		::exec::clear
+		exit 1
+	    }]} {
+		# A problem here indicates that the user managed to
+		# trigger ^C while we in a child interp. Throw it as
+		# regular error to be caught and processed in cli.tcl
+		error Interrupted error SIGTERM
+	    }
 	}
     }
 }
 
 proc ::stackato::client::cli::config::smalltrap {} {
+    # Only for logging (fastlogsit) --follow.
+    # At that point we have no child interps, so we can call on
+    # various things without fear of them undefined (which can happen
+    # for the fulltrap, if interupted during cmdclass load and setup).
+
     global tcl_platform
 
     if {$tcl_platform(platform) eq "windows"} {
@@ -193,10 +212,15 @@ proc ::stackato::client::cli::config::remove_token_for {target} {
     set tokens [all_tokens $token_file]
 
     if {![dict exists $tokens $target]} {
+	Debug.config {unknown target}
 	stackato::log::err "Unable to log out of unknown target \[$target\]"
     }
 
+    Debug.config {cleaning up}
+
     set thetoken [dict get $tokens $target]
+
+    Debug.config {token = $thetoken}
 
     dict unset tokens $target
 
@@ -207,11 +231,17 @@ proc ::stackato::client::cli::config::remove_token_for {target} {
 
     set todelete {}
     foreach stem [configfiles key] {
-	if {![string match key_${thetoken}* $stem]} continue
-	lappend todelete {*}[glob -nocomplain ${stem}*]
-
+	foreach kf [glob -nocomplain ${stem}*] {
+	    Debug.config {candidate: $kf}
+	    if {![string match key_${thetoken}* [file tail $kf]]} continue
+	    Debug.config {schedule for delete: $kf}
+	    lappend todelete $kf
+	}
     }
     if {![llength $todelete]} return
+
+    Debug.config {delete [join $todelete "\ndelete "]}
+
     file delete -- {*}$todelete
     return
 }

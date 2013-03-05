@@ -352,7 +352,8 @@ oo::class create ::stackato::client::cli::command::ServiceHelp {
 
 	    manifest setup [self] \
 		[dict get' [my options] path [pwd]] \
-		{} reset
+		[dict get' [my options] manifest {}] \
+		reset
 
 	    manifest recurrent
 	}

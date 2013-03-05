@@ -34,6 +34,23 @@ try {
     return {*}$o $e
 }
 
+proc bgerror {msg} {
+    global errorCode errorInfo
+
+    # Handle signal trap diverted into bgerror path.
+    if {$errorCode eq "SIGTERM"} {
+	::stackato::log::say! "\n$msg (BG)\n"
+	::exec::clear
+	exit 1
+    }
+
+    # Regular bgerror output. And make clear where we are.
+    set prefix {Background error: }
+    ::stackato::log::say! $prefix$msg
+    ::stackato::log::say! $prefix[join [split $errorInfo \n] \n$prefix]
+    exit 1
+}
+
 namespace eval ::stackato::client::cli {}
 
 debug level  cli
@@ -72,6 +89,7 @@ oo::class create ::stackato::client::cli {
 	# lognewer - initially undefined
 	# tail - initially undefined
 	# harbordebug - initially undefined, -d => 1
+	# envmode - initially undefined
 	array set myoptions {
 	    env {}
 	    logtimestamps 1
@@ -180,6 +198,12 @@ oo::class create ::stackato::client::cli {
 	    # Done with main actions, below is the error capture
 	} trap {TERM INTERUPT} {e o} {
 	    say! "\nInterrupted\n"
+	    exec::clear
+	    exit 1
+
+ 	} trap {SIGTERM} {e o} {
+	    say! "\nInterrupted\n"
+	    exec::clear
 	    exit 1
 
  	} trap {OPTION INVALID} {e} - trap {OPTION AMBIGOUS} {e} {
@@ -321,10 +345,20 @@ oo::class create ::stackato::client::cli {
 	}
 
 	say! [color red "Stackato client has encountered an internal error."]
+
+	set trace "TRACE:\t[join [split $trace \n] \nTRACE:\t]"
+
+	set out ERROR:\t$msg\nECODE:\t$code\n$trace\n
+
+	if {$myoptions(verbose)} {
+	    say! $out
+	    return
+	}
+
 	say! "Error: [color red $msg]"
 
 	set f [fileutil::tempfile stackato-]
-	fileutil::writeFile $f $msg\n$code\n$trace\n
+	fileutil::writeFile $f $out
 
 	say! "Full traceback stored at: [file nativename $f]"
 
@@ -406,9 +440,15 @@ oo::class create ::stackato::client::cli {
 			d {
 			    set myoptions(harbordebug) 1
 			}
+			-env-mode {
+			    if {$v ni {replace append preserve}} {
+				return -code error -errorcode {OPTION INVALID} "Expected one of append, preserve, or replace, got \"$v\""
+			    }
+			    set myoptions(envmode) $v
+			}
 			-env       {
 			    if {![regexp {^([^=]*)=(.*)$} $v -> key value]} {
-				return -code error "Bad syntax of option value, expected 'a=b'"
+				return -code error -errorcode {OPTION INVALID} "Bad syntax of option value, expected 'a=b'"
 			    } else {
 				lappend myoptions(env) $key $value
 			    }
@@ -1159,6 +1199,7 @@ oo::class create ::stackato::client::cli {
 	    {d {Create and bind an app-specific harbor service for debugging}}
             {-email.arg       {no default} {User name, identified by email address}}
 	    {-env.arg         {no default} {Environment setting}}
+	    {-env-mode.arg    preserve     {How to manipulate the environment on application update}}
 	    {-user.arg        {no default} {Alias of --email}}
 	    {-passwd.arg      {no default} {Password for the account}}
 	    {-pass.arg        {no default} {Alias of --passwd}}
@@ -1264,4 +1305,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.7.0
+package provide stackato::client::cli 1.7.1

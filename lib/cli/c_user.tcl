@@ -287,6 +287,20 @@ oo::class create ::stackato::client::cli::command::User {
 	Debug.cli/user {token     = '$token'}
 	Debug.cli/user {sshkey    = '$sshkey'}
 
+	# We remove a pre-existing token, this also removes the
+	# associated ssh key file. This ensures that a token change on
+	# this login (expired token) does not cause us to leave the
+	# ssh key file for the old token behind, never to be removed
+	# (except through running 'logout --all').
+	try {
+	    config remove_token_for [my target_url]
+	} trap {STACKATO CLIENT CLI CLI-EXIT} {e o} {
+	    Debug.cli/user {ignore failure of remove-token-for}
+	    # Ignore attempt to exit. This may be the first login
+	    # where the token is not known yet, making the operation
+	    # superfluous.
+	}
+
 	config store_token $token $tokenfile $sshkey
 	return
     }

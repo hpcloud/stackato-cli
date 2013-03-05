@@ -701,8 +701,9 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    remote/remote {
 		# Copying is purely on the remote side. This is done
 		# using the unix 'cp' we can expect to exist there.
-
-		my run_ssh [list cp -r {*}$src $dst] $appname $instance
+		my run_ssh \
+		    [list "cp -r [join [my Quote {*}$src]] [my Quote1 $dst]"] \
+		    $appname $instance
 	    }
 	}
 
@@ -803,7 +804,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	Debug.cli/apps {local/remote file/file}
 
-	my run_ssh [list [list cat > $dst]] \
+	my run_ssh [list "cat > [my Quote1 $dst]"] \
 	    $appname $instance 3 \
 	    [list {*}[my appself] scp-xfer-transmit1 $src]
 	return
@@ -818,7 +819,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	Debug.cli/apps {local/remote */dir}
 
-	my run_ssh [list mkdir -p $dst \; cd $dst \; tar xf -] \
+	set dst [my Quote1 $dst]
+	my run_ssh [list "mkdir -p $dst ; cd $dst ; tar xf -"] \
 	    $appname $instance 3 \
 	    [list {*}[my appself] scp-xfer-transmit {*}$srclist]
 	return
@@ -830,7 +832,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	Debug.cli/apps {remote/local file/file}
 
-	my run_ssh [list cat $src] \
+	my run_ssh [list "cat [my Quote1 $src]"] \
 	    $appname $instance 3 \
 	    {} [list {*}[my appself] scp-xfer-receive1 $dst]
 	return
@@ -843,7 +845,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	upvar 1 appname appname instance instance
 
-	my run_ssh [list tar cf - {*}$srclist] \
+	my run_ssh [list "tar cf - [join [my Quote {*}$srclist]]"] \
 	    $appname $instance 3 \
 	    {} [list {*}[my appself] scp-xfer-receive $dst]
 	return
@@ -856,7 +858,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	upvar 1 appname appname instance instance
 
-	my run_ssh [list cd $src \; tar cf - .] \
+	my run_ssh [list "cd [my Quote1 $src] ; tar cf - ."] \
 	    $appname $instance 3 \
 	    {} [list {*}[my appself] scp-xfer-receive $dst]
 	return
@@ -867,7 +869,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# test uses standard unix stati to communicate its result:
 	# (0)    == false ==> OK
 	# (!= 0) == true  ==> FAIL
-	if {![my run_ssh [list test -f $path] $appname $instance 2]} {
+	set path [my Quote1 $path]
+	if {![my run_ssh [list "test -f $path"] $appname $instance 2]} {
 	    return 1
 	} else {
 	    return 0
@@ -879,7 +882,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# test uses standard unix stati to communicate its result:
 	# (0)    == false ==> OK
 	# (!= 0) == true  ==> FAIL
-	if {![my run_ssh [list test -d $path] $appname $instance 2]} {
+	set path [my Quote1 $path]
+	if {![my run_ssh [list "test -d $path"] $appname $instance 2]} {
 	    return 1
 	} else {
 	    return 0
@@ -891,7 +895,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# test uses standard unix stati to communicate its result:
 	# (0)    == false ==> OK
 	# (!= 0) == true  ==> FAIL
-	if {![my run_ssh [list test -e $path] $appname $instance 2]} {
+	set path [my Quote1 $path]
+	if {![my run_ssh [list "test -e $path"] $appname $instance 2]} {
 	    return 1
 	} else {
 	    return 0
@@ -1279,18 +1284,23 @@ oo::class create ::stackato::client::cli::command::Apps {
 	Debug.cli/apps {}
 	set cmd ""
 	foreach w $args {
-	    if {
-		[string match "*\[ \"'()\$\|\{\}\]*" $w] ||
-		[string match "*\]*"                 $w] ||
-		[string match "*\[\[\]*"             $w]
-	    } {
-		set map [list \" \\\"]
-		lappend cmd \"[string map $map $w]\"
-	    } else {
-		lappend cmd $w
-	    }
+	    lappend cmd [my Quote1 $w]
 	}
 	return $cmd
+    }
+
+    method Quote1 {w} {
+	Debug.cli/apps {}
+	if {
+	    [string match "*\[ \"'()\$\|\{\}\]*" $w] ||
+	    [string match "*\]*"                 $w] ||
+	    [string match "*\[\[\]*"             $w]
+	} {
+	    set map [list \" \\\"]
+	    return \"[string map $map $w]\"
+	} else {
+	    return $w
+	}
     }
 
     method logs {{appname {}}} {
@@ -1803,10 +1813,32 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# With no application specified operate on all applications
 	# provided by the configuration.
 
-	manifest foreach_app appname {
+	set have 0
+	manifest foreach_app name {
 	    my MinVersionChecks
-	    my update_core $appname
+	    incr have
+	} 0 ; # don't panic if no applications are found.
+
+	if {$appname ne {} && ($have > 1)} {
+	    err "Unable to update $have applications using the same name '$appname'"
 	}
+
+	set updated 0
+	manifest foreach_app name {
+	    if {$appname ne {}} { set name $appname }
+	    my update_core $name
+	    incr updated
+	} 0 ; # don't panic if no applications are found.
+
+	if {$updated} return
+
+	# The configuration did not supply anything. Update the
+	# deployment directory as is, with proper interaction asking
+	# for any missing pieces (if allowed).
+
+	manifest current@path
+	my MinVersionChecks
+	my update_core $appname
 	return
     }
 
@@ -2046,8 +2078,10 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    # Bug 93955. Reload manifest. See also file manifest.tcl,
 	    # proc 'LoadBase'. This is where the collected outmanifest
 	    # data is merged in during this reload.
-	    manifest setup [self] [dict get' [my options] path [pwd]] \
-		{} reset
+	    manifest setup [self] \
+		[dict get' [my options] path [pwd]] \
+		[dict get' [my options] manifest {}] \
+		reset
 	    manifest recurrent
 	}
 
@@ -2130,7 +2164,8 @@ oo::class create ::stackato::client::cli::command::Apps {
 	my check_deploy_directory $path
 
 	# May reload manifest structures
-	manifest setup [self] $path {}
+	manifest setup [self] $path \
+	    [dict get' [my options] manifest {}]
 	return
     }
 
@@ -2650,14 +2685,41 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	if {![llength $menv]} return
 
+	set mode [dict get' [my options] envmode preserve]
+	# modes: preserve, append, replace.
+
+	Debug.cli/apps {append   = $append}
+	Debug.cli/apps {preserve = $preserve}
+
 	# Environment through options.
 	set oenv [dict get [my options] env]
 
 	# Process stackato.yml environment information ...
+	set app [[my client] app_info $appname]
 
 	set appenv {}
+
+	if {$mode ne "replace"} {
+	    # append|preserve
+	    Debug.cli/apps {A|P: Baseline = [dict get $app env]}
+
+	    # Use existing environment as baseline
+	    foreach item [dict get $app env] {
+		regexp {^([^=]*)=(.*)$} $item -> key value
+		dict set appenv $key $value
+	    }
+	}
+
 	foreach {k v} $menv {
 	    Debug.cli/apps {  Aenv $k = ($v)}
+
+	    if {($mode eq "preserve") && [dict exists $appenv $k]} {
+		# In preserve mode, stronger than append, we do NOT
+		# overwrite existing variables with manifest
+		# information.
+		display "  Preserving Environment Variable \[$k\]"
+		continue
+	    }
 
 	    # v is a dictionary describing the variable. Due to the
 	    # normalization done by the manifest loading logic we will
@@ -2772,25 +2834,28 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	    # ===========================================================
 	    # inlined method 'environment_add', see this file.
-	    set item ${k}=$value
-
 	    #set appenv [lsearch -inline -all -not -glob $appenv ${k}=*]
-	    lappend appenv $item
+
+	    set cmd Adding
+	    if {($mode eq "append") && [dict exists $appenv $k]} {
+		set cmd Overwriting
+	    }
+	    dict set appenv $k $value
 
 	    if {$hidden} {
 		# Reformat for display to prevent us from showing the
 		# hidden value now.
 		regsub -all . $value * value
-		set item ${k}=$value
 	    }
-
-	    display "  Adding Environment Variable \[$item\]"
+	    set item ${k}=$value
+	    display "  $cmd Environment Variable \[$item\]"
 	}
 
 	display "Updating environment: " 0
 
-	set app [[my client] app_info $appname]
-	dict set app env $appenv
+	set ae {}
+	dict for {k v} $appenv { lappend ae ${k}=$v }
+	dict set app env $ae
 	[my client] update_app $appname $app
 	display [color green OK]
 
