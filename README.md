@@ -28,6 +28,7 @@ Prerequisites
     * fileutil::traverse
     * json
     * json::write
+    * linenoise
     * logger
     * md5
     * ncgi

@@ -317,6 +317,10 @@ oo::class create ::stackato::client::cli::command::ServiceHelp {
 	    err "Application Name required."
 	}
 
+	if {[string first . $appname] >= 0} {
+	    err "Bad Application Name (Illegal character \".\")."
+	}
+
 	if {$update} {
 	    # Check for existence, talking to something which should be present.
 	    if {![my app_exists? $appname]} {

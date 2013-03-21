@@ -44,6 +44,11 @@ if {[info exists ::env(STACKATO_APP_ROOT)]} {
 # Pseudo-package dict of Tcl 8.5, not defined on some platforms, it seems 
 catch { package provide dict 8.5.3.1 }
 
+if {![info exists ::env(HOME)]} {
+    puts stderr "Could not determine HOME environment."
+    ::exit 1
+}
+
 package require debug
 package require debug::snit
 package require stackato::client::cli

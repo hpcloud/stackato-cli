@@ -24,6 +24,7 @@ proc ::cd::indir {path script} {
 	    -errorinfo $::errorInfo $result
     }
 
+    cd $here
     return $result
 }
 

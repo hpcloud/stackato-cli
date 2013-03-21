@@ -334,6 +334,15 @@ namespace eval ::stackato::client::cli::usage {
 		Upload and execute patchfile (via ssh) to modify the server.
 		Will ask for the stackato password.
 
+	    admin grant email
+		Make user identified by email an administrator.
+
+	    admin revoke email
+		Revoke the administrator privileges of the user identified by email.
+
+	    admin list
+		List all users with administrator privileges.
+
 	  System
 	    runtimes
 		Display the supported runtimes of the target system

@@ -216,7 +216,7 @@ proc ::stackato::client::cli::manifest::urls {} {
 	    scalar   { return [list $data] }
 	    sequence { return [StripTags $ulist] }
 	    default {
-		error "Internal error, Tags! failed to block unkown tag '$tag'"
+		error "Internal error, Tags! failed to block unknown tag '$tag'"
 	    }
 	}
     } else {
@@ -282,6 +282,9 @@ proc ::stackato::client::cli::manifest::ignorePatterns {} {
 	*autom4te.cache
 	*blib
 	*cover_db
+	*~
+	\#*\#
+	*.log
 	*~.dep
 	*~.dot
 	*~.nib
@@ -744,6 +747,11 @@ proc ::stackato::client::cli::manifest::load_structure {rootfile {already {}}} {
 		     [dict get $manifest inherit] {key "inherit"}] \
 	    itag inherit
 
+	# Keep the inheritance information out of the in-memory
+	# representation, not relevant now that it resolved.
+	dict unset manifest inherit
+	set m [Cmapping {*}$manifest]
+
 	switch -exact -- $itag {
 	    scalar {
 		set ifile [repath $inherit $rootfile]
@@ -758,7 +766,7 @@ proc ::stackato::client::cli::manifest::load_structure {rootfile {already {}}} {
 		}
 	    }
 	    default {
-		error "Internal error, Tags! failed to block unkown tag '$itag'"
+		error "Internal error, Tags! failed to block unknown tag '$itag'"
 	    }
 	}
 
@@ -1009,6 +1017,7 @@ proc ::stackato::client::cli::manifest::LoadBase {path} {
     Debug.cli/manifest/core {===========================================}
 
     if {[llength [lindex $manifest 1]]} {
+	# Bug 97113.
 	set manifest [TransformM2CF1 $manifest]
     }
 
@@ -1049,7 +1058,6 @@ proc ::stackato::client::cli::manifest::LoadBase {path} {
     }
 
     ValidateStructure $data
-
     return $data
 }
 
@@ -1382,14 +1390,19 @@ proc ::stackato::client::cli::manifest::Decompose {yml} {
 
     set value [Tag! mapping $yml root]
 
-    # Pull all the known stackato.yml keys out of the structure.
-    # The remainder is considered to be manifest.yml data.
+    # Pull all the known stackato.yml keys (toplevel!) out of the
+    # structure. The remainder is considered to be manifest.yml data.
+
+    # Bug 98145. For the purposes of the transform the m.yml
+    # _application_ keys "url", "urls", and "depends-on" are
+    # recognized as s.yml _toplevel_ keys also, and later moved into
+    # the correct place.
 
     set s {}
     foreach k {
 	name instances mem framework services processes
 	min_version env ignores hooks cron requirements
-	command app-dir
+	command app-dir url urls depends-on
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -1530,7 +1543,7 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 		    set vendor [Tag! scalar $type type]
 		}
 		default {
-		    error "Internal error, Tags! failed to block unkown tag '$tag'"
+		    error "Internal error, Tags! failed to block unknown tag '$tag'"
 		}
 	    }
 
@@ -1564,7 +1577,7 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 			lappend new $ekey $evalue
 		    }
 		    default {
-			error "Internal error, Tags! failed to block unkown tag '$etag'"
+			error "Internal error, Tags! failed to block unknown tag '$etag'"
 		    }
 		}
 	    }
@@ -1594,6 +1607,7 @@ proc ::stackato::client::cli::manifest::TransformToMatch {yml} {
 proc ::stackato::client::cli::manifest::TransformM2CF1 {yml} {
     Debug.cli/manifest/core {TransformM2CF1 ($yml)}
 
+    # Bug 97113.
     # Assumes that the input is the manifest.yml data for an
     # application, in either CF1 or CF2 format and generates a
     # structure matching the CF1 manifest.yml, with extensions, so
@@ -1632,7 +1646,8 @@ proc ::stackato::client::cli::manifest::TransformM2CF1App {a yml} {
 
     # At this point 'framework is either missing, or exists as a mapping.
 
-    if {[dict exists $value runtime]} {
+    # Bug 97958: Moving runtime to framework:runtime seems to be wrong. Disabled.
+    if {0&&[dict exists $value runtime]} {
 	# move the runtime information into the framework mapping.
 	set runtime [dict get $value runtime]
 
@@ -1667,11 +1682,19 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
     set value [lindex [dict get' [Tag! mapping $yml root] applications {mapping {}}] 1]
 
     foreach {path value} $value {
-	ValidateMap $value application {
+	ValidateGlobMap $value application {
 	    name      { Tag! scalar $value {key "name"} }
 	    instances { Tag! scalar $value {key "instances"} }
 	    mem       { Tag! scalar $value {key "mem"} }
 	    runtime   { Tag! scalar $value {key "runtime"} }
+	    command   { Tag! scalar $value {key "command"} }
+	    url -
+	    urls {
+		Tags! {scalar sequence} $value {key "url"}
+	    }
+	    depends-on {
+		Tags! {scalar sequence} $value {key "depends-on"}
+	    }
 	    services  {
 		ValidateGlobMap $value services {
 		    * {
@@ -1689,9 +1712,10 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 		ValidateGlobMap $value framework {
 		    name          { Tag! scalar $value {key "framework:name"} }
 		    runtime       { Tag! scalar $value {key "framework:runtime"} }
-		    start-file    { Tag!Warn scalar $value {key "framework:start-file"} }
+		    app-server    { Tag!Warn scalar $value {key "framework:app-server"} }
 		    document-root { Tag!Warn scalar $value {key "framework:document-root"} }
-		    app-server       { Tag!Warn scalar $value {key "framework:app-server"} }
+		    home-dir      { Tag!Warn scalar $value {key "framework:home-dir"} }
+		    start-file    { Tag!Warn scalar $value {key "framework:start-file"} }
 		    *             { UnknownKey framework:$key }
 		}
 	    }
@@ -1818,11 +1842,15 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 		    }
 		}
 	    }
+	    * {
+		UnknownKey $key
+	    }
 	}
     }
 
     foreach {k v} [Tag! mapping $yml root] {
 	if {$k eq "applications"} continue
+	if {$k eq "inherit"}      continue
 	UnknownKey $k
     }
     return

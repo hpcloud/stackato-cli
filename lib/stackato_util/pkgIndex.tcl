@@ -19,4 +19,5 @@ package ifneeded stackato::yaml     0 [list source [file join $dir yaml.tcl]]
 package ifneeded stackato::log      0 [list source [file join $dir log.tcl]]
 package ifneeded stackato::string   0 [list source [file join $dir string.tcl]]
 package ifneeded stackato::term     0 [list source [file join $dir term.tcl]]
-package ifneeded stackato::readline 0 [list source [file join $dir rl.tcl]]
+
+package ifneeded tty                0 [list source [file join $dir tty.tcl]]

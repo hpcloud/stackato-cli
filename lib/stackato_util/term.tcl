@@ -15,7 +15,8 @@
 package provide stackato::term 0
 package require Tcl 8.5
 package require stackato::color
-package require stackato::readline
+package require linenoise
+package require try
 
 namespace eval ::stackato::term {
     namespace import ::stackato::color
@@ -24,9 +25,53 @@ namespace eval ::stackato::term {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::term::ask/string {query {default {}}} {
-    puts -nonewline stdout $query
-    flush stdout
-    set response [stackato::readline::gets]
+    try {
+	set response [linenoise prompt -prompt $query]
+    } on error {e o} {
+	if {$e eq "aborted"} {
+	    error Interrupted error SIGTERM
+	}
+	return {*}${o} $e
+    }
+    if {($response eq {}) && ($default ne {})} {
+	set response $default
+    }
+    return $response
+}
+
+proc ::stackato::term::ask/string/extended {query args} {
+    # accept  -history, -hidden, -complete
+    # plus    -default
+    # but not -prompt
+
+    # for history ... integrate history load/save from file here?
+    # -history is then not boolean, but path to history file.
+
+    set default {}
+    set config {}
+    foreach {o v} $args {
+	switch -exact -- $o {
+	    -history -
+	    -hidden -
+	    -complete {
+		lappend config $o $v
+	    }
+	    -default {
+		set default $v
+	    }
+	    default {
+		return -code error "Bad option \"$o\", expected one of -history, -hidden, -prompt, or -default"
+	    }
+	}
+    }
+    try {
+	set response [linenoise prompt {*}$config -prompt $query]
+    } on error {e o} {
+	if {$e eq "aborted"} {
+	    error Interrupted error SIGTERM
+	}
+	return {*}${o} $e
+    }
     if {($response eq {}) && ($default ne {})} {
 	set response $default
     }
@@ -34,9 +79,15 @@ proc ::stackato::term::ask/string {query {default {}}} {
 }
 
 proc ::stackato::term::ask/string* {query} {
-    puts -nonewline stdout $query
-    flush stdout
-    return [stackato::readline::gets*]
+    try {
+	set response [linenoise prompt -hidden 1 -prompt $query]
+    } on error {e o} {
+	if {$e eq "aborted"} {
+	    error Interrupted error SIGTERM
+	}
+	return {*}${o} $e
+    }
+    return $response
 }
 
 proc ::stackato::term::ask/yn {query {default yes}} {
@@ -44,9 +95,18 @@ proc ::stackato::term::ask/yn {query {default yes}} {
 			? " \[[color green Y]n\]: "
 			: " \[y[color green N]\]: "}]
     while {1} {
-	puts -nonewline stdout $query
-	flush stdout
-	set response [stackato::readline::gets]
+	try {
+	    set response \
+		[linenoise prompt \
+		     -prompt $query \
+		     -complete {::stackato::term::Complete {yes no false true on off 0 1} 1}]
+	} on error {e o} {
+	    if {$e eq "aborted"} {
+		error Interrupted error SIGTERM
+	    }
+	    return {*}${o} $e
+	}
+
 	if {$response eq {}} { set response $default }
 	if {[string is bool $response]} break
 	puts stdout "You must choose \"yes\" or \"no\""
@@ -65,9 +125,17 @@ proc ::stackato::term::ask/choose {query choices {default {}}} {
 
     append query " ($lc): "
     while {1} {
-	puts -nonewline stdout $query
-	flush stdout
-	set response [stackato::readline::gets]
+	try {
+	    set response \
+		[linenoise prompt \
+		     -prompt $query \
+		     -complete [list ::stackato::term::Complete $choices 0]]
+	} on error {e o} {
+	    if {$e eq "aborted"} {
+		error Interrupted error SIGTERM
+	    }
+	    return {*}${o} $e
+	}
 	if {($response eq {}) && $hasdefault} {
 	    set response $default
 	}
@@ -81,6 +149,11 @@ proc ::stackato::term::ask/choose {query choices {default {}}} {
 proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
     set hasdefault [expr {$default in $choices}]
 
+    # Full list of choices is the choices themselves, plus the numeric
+    # indices we can address them by. This is for the prompt
+    # completion callback below.
+    set fullchoices $choices
+
     set n 1
     table::do t {{} Choices} {
 	foreach c $choices {
@@ -89,6 +162,7 @@ proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
 	    } else {
 		$t add ${n}. $c
 	    }
+	    lappend fullchoices $n
 	    incr n
 	}
     }
@@ -97,10 +171,18 @@ proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
     while {1} {
 	if {$header ne {}} {puts stdout $header}
 	$t show* {puts stdout}
-	puts -nonewline stdout $prompt
-	flush stdout
 
-	set response [stackato::readline::gets]
+	try {
+	set response \
+	    [linenoise prompt \
+		 -prompt $prompt \
+		 -complete [list ::stackato::term::Complete $fullchoices 0]]
+	} on error {e o} {
+	    if {$e eq "aborted"} {
+		error Interrupted error SIGTERM
+	    }
+	    return {*}${o} $e
+	}
 	if {($response eq {}) && $hasdefault} {
 	    set response $default
 	}
@@ -118,6 +200,23 @@ proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
 
     $t destroy
     return $response
+}
+
+proc ::stackato::term::Complete {choices nocase buffer} {
+    if {$buffer eq {}} {
+	return $choices
+    }
+
+    if {$nocase} {
+	set buffer [string tolower $buffer]
+    }
+
+    set candidates {}
+    foreach c $choices {
+	if {![string match ${buffer}* $c]} continue
+	lappend candidates $c
+    }
+    return $candidates
 }
 
 # # ## ### ##### ######## ############# #####################

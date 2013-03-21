@@ -206,6 +206,7 @@ proc ::stackato::jmap::services   {ss} {
 	    meta {dict {
 		tags array
 	    }}
+	    credentials dict
 	}}}
     }} $ss
 }
@@ -246,6 +247,12 @@ proc ::stackato::jmap::fwinfo {ci} {
 	    detection  {array dict}
 	}}
     }} $ci
+}
+
+proc ::stackato::jmap::cc_config {data} {
+    map {dict {
+	admins {array}
+    }} $data
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -318,7 +325,8 @@ namespace eval ::stackato::jmap {
 	aliases target targets clientinfo runtimes frameworks \
 	services apps stats env instances service resources \
 	manifest crashed instancemap appinfo sci users dbs \
-	user1 fwinfo groups tgroups usageinfo drain bool limits
+	user1 fwinfo groups tgroups usageinfo drain bool limits \
+	cc_config
     namespace ensemble create
 }
 

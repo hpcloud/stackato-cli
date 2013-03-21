@@ -176,7 +176,7 @@ oo::class create ::stackato::client::cli::command::Services {
 		continue
 	    }
 
-	    display "Deleting service \[$service\]: " false
+	    display "Deleting service \[$service\] ... " false
 	    [my client] delete_service $service
 	    display [color green OK]
 	}
@@ -346,7 +346,7 @@ oo::class create ::stackato::client::cli::command::Services {
 		set vendor [dict get $s vendor]
 		# (x$x)
 		if {$vendor ni {
-		    mysql redis mongodb postgresql
+		    oracledb mysql redis mongodb postgresql
 		}} continue
 		lappend choices [dict getit $s name]
 	    }

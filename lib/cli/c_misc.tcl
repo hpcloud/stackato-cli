@@ -16,7 +16,7 @@ package require stackato::log
 package require stackato::term
 package require stackato::client
 package require stackato::jmap
-package require stackato::readline
+package require linenoise
 package require table
 package require dictutil
 
@@ -309,7 +309,7 @@ oo::class create ::stackato::client::cli::command::Misc {
     method columns {} {
 	Debug.cli/misc {}
 
-	say [stackato::readline::columns]
+	say [linenoise columns]
 	return
     }
 

@@ -8,14 +8,15 @@
 
 package require Tcl 8.5
 package require textutil::adjust
-package require stackato::readline
+package require linenoise
+package require tty
 
 namespace eval ::stackato::log {}
 
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::log::wrap {text {down 0}} {
-    set  c [stackato::readline columns]
+    set  c [linenoise columns]
     incr c -$down
 
     return [textutil::adjust::adjust $text \
@@ -53,7 +54,7 @@ proc ::stackato::log::wrapl {text {down 0}} {
 
 proc ::stackato::log::to {chan} {
     variable log $chan
-    if {($chan ne "stdout") || ![stackato::readline tty]} {
+    if {($chan ne "stdout") || ![tty stdout]} {
 	# No feedback when not logging to stdout,
 	# or stdout is not a tty.
 	variable feedback 0

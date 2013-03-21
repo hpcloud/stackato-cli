@@ -115,6 +115,7 @@ oo::class create ::stackato::client::cli::command::Base {
     }
 
     method clientinfo_reset {} {
+	Debug.cli/base {}
 	set myclientinfo {}
 	[my client] info_reset
 	return
@@ -145,12 +146,16 @@ oo::class create ::stackato::client::cli::command::Base {
     }
 
     method confer-group {{check 1}} {
+	Debug.cli/base {}
 	if {$check} { my CheckLogin }
 	[my client] group [my group]
+	# Squash client information we got without a group set.
+	my clientinfo_reset
 	return
     }
 
     method no-group {} {
+	Debug.cli/base {}
 	$myclient group {}
 	return
     }

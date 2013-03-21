@@ -69,4 +69,12 @@ lib/
 			var substitution core
 
 tunnel/
-	The server side tunnel application. Ruby.
+	The server side tunnel code. Ruby application.  The wrapped
+	client has this baked in and will push this application
+	automatically when a tunnel is used for the first time.
+
+vendor/
+	Binaries and sources of various packages used by the client.
+	Ignore it. Until it interferes with whatever external package
+	got an update, by choosing the old vendor/ supplied package.
+

@@ -103,7 +103,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	# includes staging/starting events (among others)
 
 	if {![my TailUse]} {
-	    set banner "Staging Application \[$appname\]: "
+	    set banner "Staging Application \[$appname\] ... "
 	    display $banner false
 	}
 
@@ -120,7 +120,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	my TailStop $appname slow
 
 	if {![my TailUse]} {
-	    set banner	"Starting Application \[$appname\]: "
+	    set banner	"Starting Application \[$appname\] ... "
 	    display $banner false
 	}
 
@@ -234,7 +234,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    return
 	}
 
-	display "Stopping Application \[$appname\]: " false
+	display "Stopping Application \[$appname\] ... " false
 	dict set app state STOPPED
 
 	my TailStart $appname
@@ -342,7 +342,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	Debug.cli/apps {requested quota/instance = $memsize}
 	Debug.cli/apps {current   quota/instance = $current_mem}
 
-	display "Updating Memory Reservation \[$appname\] to [my mem_quota_to_choice $memsize]: " false
+	display "Updating Memory Reservation \[$appname\] to [my mem_quota_to_choice $memsize] ... " false
 
 	Debug.cli/apps {instances            = [dict getit $app instances]}
 	Debug.cli/apps {quota delta/instance = [expr {($memsize - $mem)}]}
@@ -486,7 +486,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	set bling 0
 	if {$rollback} {
-	    display [color red "Rolling back application \[$appname\]: "] false
+	    display [color red "Rolling back application \[$appname\] ... "] false
 	    set bling 1
 	}
 
@@ -513,14 +513,14 @@ oo::class create ::stackato::client::cli::command::Apps {
 	}
 
 	if {!$rollback} {
-	    display "Deleting application \[$appname\]: " false
+	    display "Deleting application \[$appname\] ... " false
 	}
 
 	[my client] delete_app $appname
 	display [color green OK]
 
 	foreach s $services_to_delete {
-	    display "Deleting service \[$s\]: " false
+	    display "Deleting service \[$s\] ... " false
 	    [my client] delete_service $s
 	    display [color green OK]
 	}
@@ -2038,7 +2038,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	Debug.cli/apps {ignores      = $ignores}
 
 	if {![dict get' [my options] nocreate 0]} {
-	    display "Creating Application \[$appname\]: " false
+	    display "Creating Application \[$appname\] ... " false
 
 	    my CreateApp $appname \
 		[$frameobj name] \
@@ -2051,7 +2051,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    display [color green OK]
 
 	} else {
-	    display "Rewrite application \[$appname\]: " false
+	    display "Rewrite application \[$appname\] ... " false
 
 	    set app [[my client] app_info $appname]
 
@@ -2181,6 +2181,11 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    set instances [manifest instances]
 	}
 
+	if {$instances < 1} {
+	    display "Forcing use of minimum instances requirement: 1"
+	    set instances 1
+	}
+
 	manifest instances= $instances
 	return $instances
     }
@@ -2280,7 +2285,12 @@ oo::class create ::stackato::client::cli::command::Apps {
 	}
 
 	if {$command eq {}} {
-	    err "Start command required, but not specified"
+	    set basic "The framework \[[$frameobj name]\] requires a non-empty start command."
+	    if {[my promptok]} {
+		err $basic
+	    } else {
+		err "$basic\nPlease add a \"command\" key to your stackato.yml"
+	    }
 	}
 
 	manifest command= $command
@@ -2629,14 +2639,14 @@ oo::class create ::stackato::client::cli::command::Apps {
 		    # Unknown, create
 		    # Similar to create_service_banner
 
-		    display "Creating $vendor service \[$sname\]: " false
+		    display "Creating $vendor service \[$sname\] ... " false
 		    [my client] create_service $vendor $sname
 		    display [color green OK]
 		}
 
 		if {$sname ni $bound} {
 		    # Similar to bind_service_banner
-		    display "Binding service \[$sname\]: " false
+		    display "Binding service \[$sname\] ... " false
 		    [my client] bind_service $sname $appname
 		    display [color green OK]
 		}
@@ -2649,13 +2659,13 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set vendor harbor
 
 		if {$sname ni $known} {
-		    display "Creating $vendor service \[$sname\]: " false
+		    display "Creating $vendor service \[$sname\] ... " false
 		    [my client] create_service $vendor $sname
 		    display [color green OK]
 		}
 
 		if {$sname ni $bound} {
-		    display "Binding service \[$sname\]: " false
+		    display "Binding service \[$sname\] ... " false
 		    [my client] bind_service $sname $appname
 		    display [color green OK]
 		}
@@ -2972,7 +2982,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	set newenv [lsearch -inline -all -not -glob $env ${varname}=*]
 
-	display "Deleting Environment Variable \[$varname\]: " false
+	display "Deleting Environment Variable \[$varname\] ... " false
 
 	if {$newenv ne $env} {
 	    dict set app env $newenv
@@ -3063,7 +3073,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    set ps [[my client] services]
 	    Debug.cli/apps {provisioned = [jmap services [dict create provisioned $ps]]}
 
-	    # XXX see also c_sebrvices.tcl, method tunnel, ProcessService. Refactor and share.
+	    # XXX see also c_services.tcl, method tunnel, ProcessService. Refactor and share.
 	    # Extract the name->vendor map
 	    set map {}
 	    foreach p $ps {
@@ -3075,7 +3085,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		set vendor [dict get $map $service]
 		# (x$x)
 		if {$vendor ni {
-		    mysql redis mongodb postgresql
+		    oracledb mysql redis mongodb postgresql
 		}} continue
 		lappend supported $service
 	    }
@@ -3216,7 +3226,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	try {
 	    Debug.cli/apps {**************************************************************}
-	    display "Uploading Application \[$appname\]:"
+	    display "Uploading Application \[$appname\] ... "
 
 	    set tmpdir      [fileutil::tempdir]
 	    set upload_file [file normalize "$tmpdir/$appname.zip"]
@@ -3269,7 +3279,14 @@ oo::class create ::stackato::client::cli::command::Apps {
 			file copy $ear_file  $explode_dir
 		    } elseif {$war_file ne {}} {
 			# Its an archive, unpack to treat as app directory.
-			zipfile::decode::unzipfile $war_file $explode_dir
+			if {[file isdirectory $war_file]} {
+			    # Actually its a directory, plain copy is good enough.
+			    cd::indir $war_file {
+				my MakeACopy $explode_dir [pwd] {}
+			    }
+			} else {
+			    zipfile::decode::unzipfile $war_file $explode_dir
+			}
 		    } else {
 			if {!$copyunsafe} {
 			    set outside [my get_unreachable_links [pwd] $ignorepatterns]
@@ -3544,13 +3561,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method GetFilesToPack {path} {
 	Debug.cli/apps {}
-	return [struct::list map [fileutil::find $path [lambda x {
-	    set base [file tail $x]
-	    foreach pattern {*~ \#*\# *.log} {
-		if {[string match $pattern $base]} { return 0 }
-	    }
-	    return [file exists $x]
-	}]] [lambda {p x} {
+	return [struct::list map [fileutil::find $path {file exists}] [lambda {p x} {
 	    fileutil::stripPath $p $x
 	} $path]]
     }
@@ -3763,6 +3774,9 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set ci [my client_info]
 	set usage  [dict get' $ci usage  {}]
 	set limits [dict get' $ci limits {}]
+
+	Debug.cli/apps {usage  = $usage}
+	Debug.cli/apps {limits = $limits}
 
 	if {($usage  eq {}) ||
 	    ($limits eq {}) ||

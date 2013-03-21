@@ -14,7 +14,7 @@ package require stackato::client::cli::usage  ;# Global usage texts
 package require stackato::color
 package require stackato::log
 package require stackato::term
-package require stackato::readline
+package require tty
 package require struct::list
 package require lambda
 package require exec
@@ -24,7 +24,7 @@ try {
 
 } trap {POSIX ENOENT} {e o} {
     if {[string match {*error getting working directory name*} $e]} {
-	if {[stackato::readline tty]} {
+	if {tty stdout]} {
 	    stackato::color colorize
 	}
 	stackato::log to stdout
@@ -106,6 +106,7 @@ oo::class create ::stackato::client::cli {
 	    nostart 0
 	    force 0
 	    all 0
+	    admin 0
 	    dry 0
 	    trace {}
 	    quiet 0
@@ -154,7 +155,7 @@ oo::class create ::stackato::client::cli {
 
 	    my ParseOptions
 
-	    if {![stackato::readline tty]} {
+	    if {![tty stdout]} {
 		set myoptions(colorize) 0
 	    }
 
@@ -486,6 +487,7 @@ oo::class create ::stackato::client::cli {
 			-nostart   { set myoptions(nostart) 1 }
 			-force     { set myoptions(force) 1 }
 			-all       { set myoptions(all) 1 }
+			-admin     { set myoptions(admin) 1 }
 			-dry-run   { set myoptions(dry) 1 }
 			-reset     { set myoptions(reset) 1 }
 			-timeout   { set myoptions(timeout) $v }
@@ -734,11 +736,18 @@ oo::class create ::stackato::client::cli {
 	    admin {
 		lappend cmds {admin report [destinationfile]}
 		lappend cmds {admin patch  <patchfile>|<name>|<url>}
+		lappend cmds {admin grant  <email>}
+		lappend cmds {admin revoke <email>}
+		lappend cmds {admin list}
 		my Usage [join $cmds "\n\t "] {Administrative operations}
 		# Switch per sub-method
 		switch -exact -- [set sub [lindex $myargs 0]] {
 		    report  { my SetNamedCommandMinMax admin admin_report {admin report} 1 2 }
-		    patch   { my SetNamedCommand       admin admin_patch  {admin patch} 2 }
+		    patch   { my SetNamedCommand       admin admin_patch  {admin patch}  2 }
+		    grant   { my SetNamedCommand       admin admin_grant  {admin grant}  2 }
+		    revoke  { my SetNamedCommand       admin admin_revoke {admin revoke} 2 }
+		    list    { my SetNamedCommand       admin admin_list   {admin list}   1 }
+
 		    default {
 			my UsageError "Unknown admin command \[$sub\]"
 		    }
@@ -946,6 +955,11 @@ oo::class create ::stackato::client::cli {
 		my Usage {scp-xfer-receive1 dst} \
 		    Internal
 		my SetCommand apps scp_xfer_receive1 1
+	    }
+	    base64 {
+		my Usage {base64 path} \
+		    Internal
+		my SetCommand admin base64 1
 	    }
 	    logs {
 		my Usage {logs [appname] [--instance N] [--follow] [--num N] [--source S] [--filename F] [--text T]} \
@@ -1218,6 +1232,7 @@ oo::class create ::stackato::client::cli {
 	    {-nostart         {Alias of --no-start}}
 	    {-force           {Force deletion}}
 	    {-all             {Operation is for all applications, files, or logs}}
+	    {-admin           {Make the new user an admin}}
 	    {t                {Activate tracing of http requests and responses. OPTIONAL argument!}}
 	    {-trace           {Alias of -t}}
 	    {-token-file.arg  {~/.stackato/client/tokens} {File with login tokens to use}}
@@ -1305,4 +1320,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.7.1
+package provide stackato::client::cli 1.7.2

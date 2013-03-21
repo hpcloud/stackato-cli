@@ -168,7 +168,12 @@ proc ::stackato::client::cli::framework::detect_from_dir {path {available {}}} {
 	    Debug.cli/framework Java/War
 	    Debug.cli/framework {[package ifneeded zipfile::decode [package present zipfile::decode]]}
 
-	    return [detect_framework_from_war $warfile]
+	    if {[file isdirectory $warfile]} {
+		# Recurse. Note how our .war file is actually a directory.
+		return [detect_from_dir $warfile $available]
+	    } else {
+		return [detect_framework_from_war $warfile]
+	    }
 	}
 	if {[file exists WEB-INF/web.xml]} {
 	    # Unpacked war file ...

@@ -7,6 +7,7 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tcl 8.5
+package require base64
 package require try            ;# I want try/catch/finally
 package require lambda
 package require struct::list
@@ -111,7 +112,7 @@ oo::class create ::stackato::client::cli::command::Admin {
 	    err "Need a password"
 	}
 
-	display {Creating New User: } false
+	display {Creating New User ... } false
 
 	[my client] add_user $email $password
 	display [color green OK]
@@ -137,6 +138,11 @@ oo::class create ::stackato::client::cli::command::Admin {
 	}
 
 	# # ## ### Done with group-specific information
+
+	if {[dict get [my options] admin]} {
+	    # Make the user an admin also
+	    my admin_grant __ $email
+	}
 
 	if {[my auth_token] ne {}} return
 	# if we are not logged in for the current target, log in as the new user
@@ -193,10 +199,15 @@ oo::class create ::stackato::client::cli::command::Admin {
 	    $cmd destroy
 	}
 
-	display {Deleting User: } false
+	display {Deleting User ... } false
 	[my client] proxy= {}
 	[my client] delete_user $user_email
 	display [color green OK]
+	return
+    }
+
+    method base64 {path} {
+	puts [base64::encode [fileutil::cat -translation binary $path]]
 	return
     }
 
@@ -247,19 +258,22 @@ oo::class create ::stackato::client::cli::command::Admin {
 	    set patchdir "\$HOME/patches"
 	    set dst $patchdir/[file tail $patch]
 
+	    # Convert from file to in-memory base64 encoded string.
+	    set patch [base64::encode -maxlen 0 [fileutil::cat -translation binary $patch]]
+
 	    lappend cmd	"echo Uploading..."
 	    lappend cmd	"mkdir -p \"$patchdir\""
-	    lappend cmd "cat > \"$dst\""
+	    lappend cmd "echo '$patch' | base64 -d - > \"$dst\""
 	    lappend cmd "chmod u+x \"$dst\""
 	    lappend cmd "echo Applying..."
 	    lappend cmd "\"$dst\""
 
 	    Debug.cli/admin {Command = [join $cmd "\n Command = "]}
+	    Debug.cli/admin {Transfer via "$ssh -t stackato@${target}"}
 	    #return
 
-	    exec 2>@ stderr >@ stdout < $patch \
-		{*}$ssh stackato@${target} \
-		[join $cmd { ; }]
+	    exec 2>@ stderr >@ stdout <@ stdin \
+		{*}$ssh -t stackato@${target} [join $cmd { ; }]
 	} trap {CHILDSTATUS} {e o} {
 
 	    if {$transient} { file delete $patch }
@@ -328,6 +342,76 @@ oo::class create ::stackato::client::cli::command::Admin {
 
 	return [list 1 $tmp]
     }
+
+    method admin_grant {__ email} {
+	Debug.cli/admin {}
+
+	set users [struct::list map [[my client] users] [lambda x {
+	    dict getit $x email
+	}]]
+
+	if {$email ni $users} {
+	    err "Unable to grant administrator privileges to unknown user \[$email\]"
+	}
+
+	set admins [dict get' [[my client] cc_config_get ] admins {}]
+
+	if {$email ni $admins} {
+	    display "Granting administrator privileges to \[$email\] ... " false
+	    lappend admins $email
+	    [my client] cc_config_set [dict create admins $admins]
+	    display [color green OK]
+	} else {
+	    display "User \[$email\] already has administrator privileges"
+	}
+
+	return
+    }
+
+    method admin_revoke {__ email} {
+	Debug.cli/admin {}
+
+	set users [struct::list map [[my client] users] [lambda x {
+	    dict getit $x email
+	}]]
+
+	if {$email ni $users} {
+	    err "Unable to revoke administrator privileges from unknown user \[$email\]"
+	}
+
+	set admins [dict get' [[my client] cc_config_get] admins {}]
+
+	if {[set pos [lsearch -exact $admins $email]] >= 0} {
+	    display "Revoking administrator privileges from \[$email\] ... " false
+	    set admins [lreplace $admins $pos $pos]
+	    [my client] cc_config_set [dict create admins $admins]
+	    display [color green OK]
+	} else {
+	    display "User \[$email\] is already a regular user"
+	}
+
+	return
+    }
+
+    method admin_list {__} {
+	Debug.cli/admin {}
+
+	set admins [dict get' [[my client] cc_config_get] admins {}]
+
+	if {[my GenerateJson]} {
+	    display [jmap map array $admins]
+	    return
+	}
+
+	table::do t {Email} {
+	    foreach u $admins { $t add $u }
+	}
+	#display ""
+	$t show display
+	return
+    }
+
+    # # ## ### ##### ######## #############
 
     method Expect {log password args} {
 	global expect_out

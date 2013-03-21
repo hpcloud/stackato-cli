@@ -1,0 +1,62 @@
+ASCL = ActiveState Community License
+Version numbers approximate, based on what is current.
+
+Package                         Version         License         Origin
+=======                         =======         =======         ======
+Tcl                             8.5             BSD, ASCL       ActiveTcl, http:/core.tcl.tk
+TclOO                           0.6.3           BSD             http:/core.tcl.tk
+=======                         =======         =======         ======
+tclyaml                         0.1             BSD             ActiveState, https://chiselapp.com/user/andreas_kupries/repository/tclyaml/index
+                + libyaml       1.4             MIT             http://pyyaml.org/wiki/LibYAML#Copyright
+=======                         =======         =======         ======
+Tclx                            8.4             BSD             http://sourceforge.net/projects/tclx
+Trf                             2.1.4           BSD             http://sourceforge.net/projects/tcltrf
+twapi                           3.0.32          BSD             http://twapi.magicsplat.com, https://sourceforge.net/projects/twapi
+=======                         =======         =======         ======
+tls                             1.6             BSD             http://sourceforge.net/projects/tls
+                + OpenSSL       1.0.1c          ==>             http://www.openssl.org/source/license.html
+=======                         =======         =======         ======
+zlibtcl                         1.2.5.0.3       BSD             http://sourceforge.net/projects/tkimg
+                + zlib          1.2.4           ==>             http://zlib.net/zlib_license.html
+=======                         =======         =======         ======
+tcl-linenoise                   1               BSD             http://github.com/andreas-kupries/tcl-linenoise
+                + linenoise                     BSD             http://github.com/andreas-kupries/linenoise
+=======                         =======         =======         ======
+autoproxy                       1.5.2           BSD             http://core.tcl.tk/tcllib
+base64                          2.4.2           BSD             http://core.tcl.tk/tcllib
+cmdline                         1.3.3           BSD             http://core.tcl.tk/tcllib
+control                         0.1.3           BSD             http://core.tcl.tk/tcllib
+crc32                           1.3.1           BSD             http://core.tcl.tk/tcllib
+fileutil                        1.14.4          BSD             http://core.tcl.tk/tcllib
+fileutil::decode                0.1.290963      BSD             http://core.tcl.tk/tcllib
+fileutil::magic::mimetype       1.0.2           BSD             http://core.tcl.tk/tcllib
+fileutil::magic::rt             1.0             BSD             http://core.tcl.tk/tcllib
+fileutil::traverse              0.4.2           BSD             http://core.tcl.tk/tcllib
+json                            1.1.2           BSD             http://core.tcl.tk/tcllib
+json::write                     1.0.1           BSD             http://core.tcl.tk/tcllib
+logger                          0.9.2           BSD             http://core.tcl.tk/tcllib
+md5                             2.0.7           BSD             http://core.tcl.tk/tcllib
+ncgi                            1.4             BSD             http://core.tcl.tk/tcllib
+report                          0.3.1           BSD             http://core.tcl.tk/tcllib
+sha1                            2.0.3           BSD             http://core.tcl.tk/tcllib
+snit                            2.3.2           BSD             http://core.tcl.tk/tcllib
+struct::list                    1.8.1           BSD             http://core.tcl.tk/tcllib
+struct::matrix                  2.0.2           BSD             http://core.tcl.tk/tcllib
+tar                             0.7.1           BSD             http://core.tcl.tk/tcllib
+tcl::chan::cat                  1.0.2           BSD             http://core.tcl.tk/tcllib
+tcl::chan::core                 1               BSD             http://core.tcl.tk/tcllib
+tcl::chan::events               1               BSD             http://core.tcl.tk/tcllib
+tcl::chan::string               1.0.1           BSD             http://core.tcl.tk/tcllib
+term::ansi::code                0.1             BSD             http://core.tcl.tk/tcllib
+term::ansi::code::attr          0.1             BSD             http://core.tcl.tk/tcllib
+term::ansi::code::ctrl          0.1.1           BSD             http://core.tcl.tk/tcllib
+term::ansi::ctrl::unix          0.1.1           BSD             http://core.tcl.tk/tcllib
+textutil::adjust                0.7.1           BSD             http://core.tcl.tk/tcllib
+textutil::repeat                0.7             BSD             http://core.tcl.tk/tcllib
+textutil::string                0.7.1           BSD             http://core.tcl.tk/tcllib
+uri                             1.2.2           BSD             http://core.tcl.tk/tcllib
+uuid                            1.0.1           BSD             http://core.tcl.tk/tcllib
+zipfile::decode                 0.3             BSD             http://core.tcl.tk/tcllib
+zipfile::encode                 0.2             BSD             http://core.tcl.tk/tcllib
+=======                         =======         =======         ======
+tcllibc                         0.3.9.1         BSD             http://core.tcl.tk/tcllib

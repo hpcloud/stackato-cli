@@ -178,6 +178,19 @@ oo::class create ::stackato::client {
         return [my json_get $url]
     }
 
+    method cc_config_get {} {
+	Debug.client {}
+	my check_login_status
+	return [my json_get $stackato::const::STACKATO_PATH/config/?name=cloud_controller]
+    }
+
+    method cc_config_set {data} {
+	Debug.client {}
+	my check_login_status
+	return [my http_put $stackato::const::STACKATO_PATH/config/?name=cloud_controller \
+		    [jmap cc_config $data] application/json]
+    }
+
     ######################################################
     # Apps
     ######################################################
