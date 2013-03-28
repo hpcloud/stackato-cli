@@ -18,6 +18,7 @@ package require stackato::client
 package require stackato::jmap
 package require linenoise
 package require table
+package require url
 package require dictutil
 
 namespace eval ::stackato::client::cli::command::Misc {}
@@ -362,7 +363,7 @@ oo::class create ::stackato::client::cli::command::Misc {
     method set_target {target_url} {
 	Debug.cli/misc {}
 
-	set target_url [config urlcanon $target_url]
+	set target_url [url canon $target_url]
 
 	if {![config allow-http] && [regexp {^http:} $target_url]} {
 	    err "Illegal use of $target_url.\nEither re-target to use https, or force acceptance via --allow-http"

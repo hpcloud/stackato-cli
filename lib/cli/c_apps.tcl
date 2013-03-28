@@ -10,6 +10,7 @@ package require Tcl 8.5
 package require try            ;# I want try/catch/finally
 package require lambda
 package require exec
+package require url
 package require TclOO
 package require stackato::client::cli::command::ServiceHelp
 package require stackato::client::cli::command::MemHelp
@@ -164,7 +165,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 		    set log_lines_displayed \
 			[my grab_startup_tail $appname $log_lines_displayed]
 		}
-	    } trap {TERM INTERUPT} {e o} {
+	    } trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
 		return {*}$o $e
 
 	    } trap {STACKATO CLIENT} {e o} {
@@ -210,11 +211,11 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    set targeturl [my target_url]
 	    set url [lindex [dict get $app uris] 0]
 	    if {$url ne {}} {
-		set label http://$url/
+		set label "http://$url/ deployed"
 	    } else {
-		set label $appname
+		set label "$appname deployed to [[my client] target]"
 	    }
-	    display "$label deployed to Stackato"
+	    display $label
 	}
 	return
     }
@@ -1070,7 +1071,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
 	set target [my target_url]
 	regsub ^https?:// $target {} target
-	set target [config base_of $target]
+	set target [url base $target]
 
 	my SSHCommand opts cmd
 
@@ -1682,7 +1683,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 
     method DoOpenBrowser {appname} {
 	set app [[my client] app_info $appname]
-	set uri [config urlcanon [lindex [dict get $app uris] 0]]
+	set uri [url canon [lindex [dict get $app uris] 0]]
 
 	regsub {^https} $uri http uri
 
@@ -3434,7 +3435,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    # Rethrow as client error.
 
 	    return -code error -errorcode {STACKATO CLIENT CLI CLI-ERROR} \
-		"Stackato client encountered a file name exceeding system limits, aborting\n$e"
+		"The client encountered a file name exceeding system limits, aborting\n$e"
 
 	} finally {
 	    if {$upload_file ne {}} { catch { file delete -force $upload_file } }

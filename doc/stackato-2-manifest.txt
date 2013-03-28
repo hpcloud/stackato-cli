@@ -1,0 +1,141 @@
+Mapping from stackato.yml to manifest.yml (== in-memory representation)
+=======================================================================
+
+(1)     Several keys in stackato.yml support multiple syntactical
+        variants, i.e. shorthand and full forms, or just alternates
+        (services).
+
+        These are
+        *       env:<varname>
+        *       framework
+        *       services
+
+        These keys are converted to their full and/or prefered form
+        before the mapping below is applied.
+
+(2)     The mapping is described key to key (as much as possible).
+        The entries are sorted alphabetically on the stackato.yml keys
+
+        stackato.yml                    manifest.yml
+        ------------                    ------------
+        app-dir                         Not directly repesented as key, but through the
+                                        <appdir> segment in the other keys below.
+        ------------                    ------------
+        command                         applications:<appdir>:command
+        cron                            applications:<appdir>:stackato:cron
+        depends-on                      applications:<appdir>:depends-on
+        ------------                    ------------
+        env:<varname>:choices           applications:<appdir>:stackato:env:<varname>:choices
+        env:<varname>:default           applications:<appdir>:stackato:env:<varname>:default
+        env:<varname>:hidden            applications:<appdir>:stackato:env:<varname>:hidden
+        env:<varname>:inherit           applications:<appdir>:stackato:env:<varname>:inherit
+        env:<varname>:prompt            applications:<appdir>:stackato:env:<varname>:prompt
+        env:<varname>:required          applications:<appdir>:stackato:env:<varname>:required
+        env:<varname>:scope             applications:<appdir>:stackato:env:<varname>:scope
+        ------------                    ------------
+        framework:app-server            applications:<appdir>:framework:app-server
+        framework:document-root         applications:<appdir>:framework:document-root
+        framework:home-dir              applications:<appdir>:framework:home-dir
+        framework:runtime               applications:<appdir>:runtime
+        framework:start-file            applications:<appdir>:framework:start-file
+        framework:type                  applications:<appdir>:framework:name
+        ------------                    ------------
+        hooks:post-staging              applications:<appdir>:stackato:hooks:post-staging
+        hooks:pre-running               applications:<appdir>:stackato:hooks:pre-running
+        hooks:pre-staging               applications:<appdir>:stackato:hooks:pre-staging
+        ------------                    ------------
+        ignores                         applications:<appdir>:stackato:ignores
+        inherit                         inherit
+        instances                       applications:<appdir>:instances
+        mem                             applications:<appdir>:mem
+        ------------                    ------------
+        min_version:client              applications:<appdir>:stackato:min_version:client
+        min_version:server              applications:<appdir>:stackato:min_version:server
+        ------------                    ------------
+        name                            applications:<appdir>:name
+        ------------                    ------------
+        processes:web                   applications:<appdir>:stackato:processes:web
+        ------------                    ------------
+        requirements:cpan               applications:<appdir>:stackato:requirements:cpan
+        requirements:pip                applications:<appdir>:stackato:requirements:pip
+        requirements:ppm                applications:<appdir>:stackato:requirements:ppm
+        requirements:pypm               applications:<appdir>:stackato:requirements:pypm
+        requirements:redhat             applications:<appdir>:stackato:requirements:redhat
+        requirements:running:redhat     applications:<appdir>:stackato:requirements:running:redhat
+        requirements:running:ubuntu     applications:<appdir>:stackato:requirements:running:ubuntu
+        requirements:running:unix       applications:<appdir>:stackato:requirements:running:unix
+        requirements:staging:redhat     applications:<appdir>:stackato:requirements:staging:redhat
+        requirements:staging:ubuntu     applications:<appdir>:stackato:requirements:staging:ubuntu
+        requirements:staging:unix       applications:<appdir>:stackato:requirements:staging:unix
+        requirements:ubuntu             applications:<appdir>:stackato:requirements:ubuntu
+        requirements:unix               applications:<appdir>:stackato:requirements:unix
+        ------------                    ------------
+        services:<name>                 applications:<appdir>:services:<name>:type
+        ------------                    ------------
+        url                             applications:<appdir>:url
+        urls                            applications:<appdir>:urls
+        ------------                    ------------
+
+
+(3)     The same mapping as above, inverted, with entries sorted
+        alphabetically on the manifest.yml keys
+
+        manifest.yml                                                stackato.yml
+        ------------                                                ------------
+        See (2)                                                     app-dir
+        ------------                                                ------------
+        applications:<appdir>:command                               command
+        applications:<appdir>:depends-on                            depends-on
+        ------------                                                ------------
+        applications:<appdir>:framework:app-server                  framework:app-server
+        applications:<appdir>:framework:document-root               framework:document-root
+        applications:<appdir>:framework:home-dir                    framework:home-dir
+        applications:<appdir>:framework:name                        framework:type
+        applications:<appdir>:framework:start-file                  framework:start-file
+        ------------                                                ------------
+        applications:<appdir>:instances                             instances
+        applications:<appdir>:mem                                   mem
+        applications:<appdir>:name                                  name
+        applications:<appdir>:runtime                               framework:runtime
+        ------------                                                ------------
+        applications:<appdir>:services:<name>:type                  services:<name>
+        ------------                                                ------------
+        applications:<appdir>:stackato:ignores                      ignores
+        applications:<appdir>:stackato:cron                         cron
+        ------------                                                ------------
+        applications:<appdir>:stackato:env:<varname>:choices        env:<varname>:choices
+        applications:<appdir>:stackato:env:<varname>:default        env:<varname>:default
+        applications:<appdir>:stackato:env:<varname>:hidden         env:<varname>:hidden
+        applications:<appdir>:stackato:env:<varname>:inherit        env:<varname>:inherit
+        applications:<appdir>:stackato:env:<varname>:prompt         env:<varname>:prompt
+        applications:<appdir>:stackato:env:<varname>:required       env:<varname>:required
+        applications:<appdir>:stackato:env:<varname>:scope          env:<varname>:scope
+        ------------                                                ------------
+        applications:<appdir>:stackato:hooks:post-staging           hooks:post-staging
+        applications:<appdir>:stackato:hooks:pre-running            hooks:pre-running
+        applications:<appdir>:stackato:hooks:pre-staging            hooks:pre-staging
+        ------------                                                ------------
+        applications:<appdir>:stackato:min_version:client           min_version:client
+        applications:<appdir>:stackato:min_version:server           min_version:server
+        ------------                                                ------------
+        applications:<appdir>:stackato:processes:web                processes:web
+        ------------                                                ------------
+        applications:<appdir>:stackato:requirements:cpan            requirements:cpan
+        applications:<appdir>:stackato:requirements:pip             requirements:pip
+        applications:<appdir>:stackato:requirements:ppm             requirements:ppm
+        applications:<appdir>:stackato:requirements:pypm            requirements:pypm
+        applications:<appdir>:stackato:requirements:redhat          requirements:redhat
+        applications:<appdir>:stackato:requirements:running:redhat  requirements:running:redhat
+        applications:<appdir>:stackato:requirements:running:ubuntu  requirements:running:ubuntu
+        applications:<appdir>:stackato:requirements:running:unix    requirements:running:unix
+        applications:<appdir>:stackato:requirements:staging:redhat  requirements:staging:redhat
+        applications:<appdir>:stackato:requirements:staging:ubuntu  requirements:staging:ubuntu
+        applications:<appdir>:stackato:requirements:staging:unix    requirements:staging:unix
+        applications:<appdir>:stackato:requirements:ubuntu          requirements:ubuntu
+        applications:<appdir>:stackato:requirements:unix            requirements:unix
+        ------------                                                ------------
+        applications:<appdir>:url                                   url
+        applications:<appdir>:urls                                  urls
+        ------------                                                ------------
+        inherit                                                     inherit
+        ------------                                                ------------

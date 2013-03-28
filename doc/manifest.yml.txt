@@ -1,0 +1,67 @@
+Specification of manifest.yml
+=============================
+
+This specification describes the external representation of CF's
+manifest.yml, as reverse engineered from the CF vmc client.
+
+The client's in-memory representation of any manifest, stackato or CF
+matches this representation. This means that the stackato.yml
+representation (see stackato.yml.txt) has to be and is transformed to
+this representation. The necessary mapping is described in a separate
+document.
+
+The data structure makes heavy use of nested yaml mappings. These are
+not written explicitly, but implicitly by writing the nested key names
+in a long form using the character ":" (colon, ASCII decimal 58) as
+separator between the individual parts.
+
+Key                                                     Type            Semantics
+---                                                     ----            ---------
+inherit                                                 scalar|sequence (List of) path(s) of other manifests to read and merge with.
+applications:<appdir>:name                              scalar:string   Application name
+applications:<appdir>:instances                         scalar:integer  Number of instances to spin up.
+applications:<appdir>:mem                               scalar:memory   Memory to use per instance
+applications:<appdir>:framework:name                    scalar:string   Name of the framework to use
+applications:<appdir>:framework:info:exec               scalar:string   Informational. exec command/flag? of the chosen framework
+applications:<appdir>:framework:info:description        scalar:string   Informational. Textual description of the framework
+applications:<appdir>:framework:info:mem                scalar:memory   Informational. Default per-instance memory recommended by the framework
+applications:<appdir>:runtime                           scalar:string   Name of the runtime to use, if not the default for the framework
+applications:<appdir>:exec                              scalar:string   ?? exec command/flag?
+applications:<appdir>:services:<name>:type              scalar:string   Service vendor for named service of the app
+applications:<appdir>:url                               scalar|sequence (List of) url(s) to map the application to.
+applications:<appdir>:urls                              scalar|sequence Alias of "aplications:<appdir>:url"
+applications:<appdir>:depends-on                        scalar|sequence (List of) app dirs the app depends on.
+---                                                     ----            ---------
+
+For interoperability with stackato and its stackato.yml file a number
+of its keys are accepted as well, mostly inside of the
+"applications:<appdir>:stackato" mapping. By using the "stackato" key
+for this most of our extensions are neatly segregated from the normal
+manifest.yml content.
+
+Important: Where the stackato.yml keys allow multiple syntactical
+variants, i.e. full and shorthand forms, the embedding used here
+accepts _only_ the _full_ form of the key.
+
+Key                                                     stackato.yml origin
+---                                                     -------------------
+applications:<appdir>:stackato:processes:web            processes:web
+applications:<appdir>:stackato:min_version:client       min_version:client
+applications:<appdir>:stackato:min_version:server       min_version:server
+applications:<appdir>:stackato:env:<varname>:...        env:<varname>:...
+applications:<appdir>:stackato:ignores                  ignores
+applications:<appdir>:stackato:hooks                    hooks
+applications:<appdir>:stackato:cron                     cron
+applications:<appdir>:stackato:requirements:...         requirements:...
+---                                                     -------------------
+
+Outside of the "stackato" sub key we have the following extensions:
+
+Key                                                     stackato.yml origin
+---                                                     -------------------
+applications:<appdir>:framework:start-file              framework:start-file
+applications:<appdir>:framework:app-server              framework:app-server
+applications:<appdir>:framework:document-root           framework:document-root
+applications:<appdir>:framework:home-dir                framework:home-dir
+applications:<appdir>:command                           command
+---                                                     -------------------

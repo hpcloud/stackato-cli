@@ -38,3 +38,6 @@ package ifneeded exec 0 [list source [file join $dir exec.tcl]]
 # Common code doing variable substitutions
 # @todo Should be put into textutil
 package ifneeded varsub 0 [list source [file join $dir varsub.tcl]]
+
+# Url manipulation utilities
+package ifneeded url 0 [list source [file join $dir url.tcl]]

@@ -1,0 +1,164 @@
+Specification of stackato.yml
+=============================
+
+This specification describes the external representation of
+stackato.yml. The client's in-memory representation is different and
+will be described separately.
+
+The data structure makes heavy use of nested yaml mappings. These are
+not written explicitly, but implicitly by writing the nested key names
+in a long form using the character ":" (colon, ASCII decimal 58) as
+separator between the individual parts.
+
+
+Key                             Type            Semantics
+---                             ----            ---------
+app-dir                         scalar:string   Path of the client-side app root directory.
+command                         scalar:string   Start command for standalone framework, and related.
+cron                            sequence        List of crontab entries to set up server-side.
+env:<varname>                   scalar|mapping  See (a)
+framework                       scalar|mapping  See (b)
+---                             ----            ---------
+hooks:pre-staging               sequence        List of shell commands (1)
+hooks:post-staging              sequence        List of shell commands (2)
+hooks:pre-running               sequence        List of shell commands (3)
+---                             ----            ---------
+ignores                         sequence        List of .gitignore patterns (4)
+instances                       scalar:integer  Number of instances to spin up. Default: 1.
+mem                             scalar:memory   Memory to use per instance. Default: per-framework.
+---                             ----            ---------
+min_version:client              scalar:string   Minimal version of the client required to handle this app. Optional.
+min_version:server              scalar:string   Minimal version of the target required to handle this app. Optional.
+---                             ----            ---------
+name                            scalar:string   Application name
+processes:web                   scalar:string   Web server command. Optional. Framework/Runtime specific default.
+---                             ----            ---------
+requirements:cpan               sequence        List of CPAN perl modules to install
+requirements:pip                sequence        List of python modules to install, via PIP
+requirements:ppm                sequence        List of perl modules to install via PPM
+requirements:pypm               sequence        List of python modules to install, via PyPM
+requirements:redhat             sequence        List of ?? modules to install
+requirements:ubuntu             sequence        List of ?? modules to install
+requirements:unix               sequence        List of ?? modules to install
+requirements:staging:redhat     sequence        List of ?? modules to install during staging only
+requirements:staging:ubuntu     sequence        List of ?? modules to install during staging only
+requirements:staging:unix       sequence        List of ?? modules to install during staging only
+requirements:running:redhat     sequence        List of ?? modules to install during runtime only
+requirements:running:ubuntu     sequence        List of ?? modules to install during runtime only
+requirements:running:unix       sequence        List of ?? modules to install during runtime only
+---                             ----            ---------
+services                        mapping         See (c)
+---                             ----            ---------
+url                             scalar|sequence See (d) (List of) url(s) to map the application to.
+urls                            scalar|sequence See (d) Alias of "url".
+depends-on                      scalar|sequence See (e) (List of) app dirs the app depends on.
+inherit                         scalar|sequence (List of) path(s) of other manifests to read and merge with.
+---                             ----            ---------
+
+(1) Run in the stager before general staging begins.
+(2) Run in the stager after general staging completed.
+(3) Run in the DEA before general operation begins.
+(4) Applied clients-side to the app's directory hierarchy.
+
+
+For interoperability with CF and its manifest.yml file all its keys
+are accepted as well, in the regular form, i.e. as
+
+        applications:<appdir>:...
+
+In case of conflicts the stackato.yml keys have precedence over the
+manifest.yml keys. Note that the <appdir> part should match the value
+of the stackato "appdir" key to match the stackato application. Using
+a non-matching value means that the data is for a secondary
+application.
+
+
+(Ad a) env
+==========
+
+The "env:<varname>" keys allow multiple syntactical variants. Here we
+first describe the keys used when it is a mapping, and then explain
+how the scalar form maps to the equivalent mapping.
+
+Key                     Type            Semantics
+---                     ----            ---------
+env:<varname>:default   scalar:string   Default value of the variable.
+env:<varname>:hidden    scalar:boolean  Activate client-side hidden input (password-like). Undocumented. Default no
+env:<varname>:required  scalar:boolean  Value is required or not. Default no, use default value.
+env:<varname>:inherit   scalar:boolean  Activate inheritance of value from client-side environment. Default no.
+env:<varname>:prompt    scalar:string   Text of the prompt to use when asking the user for the value.
+env:<varname>:choices   sequence        Optional list of legal variable values for client-side input
+env:<varname>:scope     scalar:enum     (runtime, staging, both) Where the definition applies server side. NOT IMPLEMENTED.
+---                     ----            ---------
+
+The scalar form of "env:<varname>" maps to the following set of keys:
+
+        env:<varname>:default
+
+
+(Ad b) Framework
+================
+
+The "framework" key allows multiple syntactical variants. Here we
+first describe the keys used when it is a mapping, and then explain
+how the scalar form maps to the equivalent mapping.
+
+Key                     Type            Semantics
+---                     ----            ---------
+framework:type          scalar:string   Name of the framework to use
+framework:runtime       scalar:string   Name of the runtime to use, if not the default for the framework
+framework:start-file    scalar:string   ??
+framework:start-command scalar:string   ??
+framework:app-server    scalar:string   ??
+framework:document-root scalar:string   Path of the server-side application web document root directory.
+framework:home-dir	scalar:string	Path of the server-side application home directory for hooks, cron, ...
+---                     ----            ---------
+
+The scalar form of "framework" maps to the following set of keys:
+
+        framework:type
+
+
+(Ad c) Services
+===============
+
+While the value of the services key is syntactically a mapping it is
+more treated as a sequence internally, or as a pseudo-mapping. Each
+pair (K -> V) of key and value either maps a service vendor/type to
+service name, or service name to vendor/type. Note how the choice is
+per pair, and not for the whole "services" key at large.
+
+The syntactical form of mapping service name to vendor/type is
+strongly prefered. In that form the data can be described as
+
+Key                     Type            Semantics
+---                     ----            ---------
+services:<name>         scalar          Vendor/type of the named service.
+---                     ----            ---------
+
+
+(Ad d) Url(s)
+=============
+
+These keys were originally manifest.yml specific, and required use as
+
+        applications:<appdir>:url
+        applications:<appdir>:urls
+
+It seems that at some point they were documented as toplevel
+stackato.yml keys, forcing the client to follow.
+
+
+(Ad e) Dependencies
+===================
+
+Given that stackato.yml is primarily a single-application manifest
+(format) dependencies specified via "depends-on" will work if and only
+if the dependent (secondary) applications are specified using the
+"applications:<somedir>:..." manifest.yml format where <somedir> does
+not match the "appdir" of the main application. And this "appdir"
+better not be "." either to avoid mixing the subdirs for the secondary
+applications with the main app.
+
+Note also that the dependencies are specified not through app names,
+but their app dirs.

@@ -157,7 +157,7 @@ oo::class create ::stackato::client::cli::command::User {
 		    ![my HAS [my options] password]} continue
 		exit 1
 
-	    } trap {TERM INTERUPT} {e o} {
+	    } trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
 		return {*}$o $e
 		# not retrying, rethrow
 		incr tries
@@ -242,7 +242,7 @@ oo::class create ::stackato::client::cli::command::User {
 		exit 1
 	    } trap {REST HTTP} {e o} {
 		return {*}$o $e
-	    } trap {TERM INTERUPT} {e o} {
+	    } trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
 		return {*}$o $e
 	    } trap {STACKATO SERVER DATA ERROR} {e o} {
 		return {*}$o $e

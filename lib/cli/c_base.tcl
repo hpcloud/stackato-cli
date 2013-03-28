@@ -13,6 +13,7 @@ package require stackato::client::cli::config
 package require stackato::client::cli::manifest
 package require stackato::client
 package require dictutil
+package require url
 
 namespace eval ::stackato::client::cli::command::Base {}
 
@@ -130,7 +131,7 @@ oo::class create ::stackato::client::cli::command::Base {
 
 	if {[dict exists $myoptions target]} {
 	    Debug.cli/base {Read target from options}
-	    set mytargeturl [config urlcanon [dict get $myoptions target]]
+	    set mytargeturl [url canon [dict get $myoptions target]]
 	    # Bug 94092. Make the config system aware of our choice so
 	    # that it will not save data based on the configured
 	    # target but the actual one, where it matters (login, for

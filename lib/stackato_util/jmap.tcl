@@ -220,6 +220,7 @@ proc ::stackato::jmap::usageinfo {ui} {
 
 proc ::stackato::jmap::clientinfo {ci} {
     map {dict {
+	all_groups array
 	usage  dict
 	limits {dict {
 	    sudo bool
@@ -229,6 +230,7 @@ proc ::stackato::jmap::clientinfo {ci} {
 		appservers {array dict}
 		runtimes   {array dict}
 		detection  {narray dict}
+		sub_frameworks array
 	    }}
 	}}
 	stackato {dict {

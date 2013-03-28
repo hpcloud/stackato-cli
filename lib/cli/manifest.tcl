@@ -8,6 +8,7 @@
 ## Requisites
 
 package require Tcl 8.5
+package require url
 package require tclyaml
 package require fileutil
 package require stackato::log
@@ -928,13 +929,13 @@ proc ::stackato::client::cli::manifest::target_base {{contextlist {}}} {
 	# NOTE how this is NOT resolved recursively.
 	# vmc: config.base_of (strip first host element (until first .)
 
-	set symvalue [stackato::client::cli::config base_of $symvalue]
+	set symvalue [url base $symvalue]
 
 	Debug.cli/manifest/core {target_base/manifest = $symvalue}
 	return  $symvalue
     }
 
-    set symvalue [stackato::client::cli::config base_of [target_url]]
+    set symvalue [url base [target_url]]
 
     Debug.cli/manifest/core {target_base/config = $symvalue}
     return $symvalue

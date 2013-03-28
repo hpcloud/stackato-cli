@@ -197,12 +197,7 @@ oo::class create ::stackato::client::cli {
 	    }
 
 	    # Done with main actions, below is the error capture
-	} trap {TERM INTERUPT} {e o} {
-	    say! "\nInterrupted\n"
-	    exec::clear
-	    exit 1
-
- 	} trap {SIGTERM} {e o} {
+	} trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
 	    say! "\nInterrupted\n"
 	    exec::clear
 	    exit 1
@@ -345,7 +340,7 @@ oo::class create ::stackato::client::cli {
 	    return
 	}
 
-	say! [color red "Stackato client has encountered an internal error."]
+	say! [color red "The client encountered an internal error."]
 
 	set trace "TRACE:\t[join [split $trace \n] \nTRACE:\t]"
 
@@ -1320,4 +1315,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.7.2
+package provide stackato::client::cli 1.7.2.1

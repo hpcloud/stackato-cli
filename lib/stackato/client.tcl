@@ -23,6 +23,7 @@ package require stackato::jmap
 package require struct::list
 package require ncgi
 package require debug
+package require url
 
 package require autoproxy 1.5.3 ; # Contains the https fixes.
 http::register https 443 autoproxy::tls_socket ; # proxy aware TLS/SSL.
@@ -59,7 +60,7 @@ oo::class create ::stackato::client {
 			    ::stackato ::stackato::client::cli ::stackato::log]
 
 	set myauth_token $auth_token
-	set mytarget     [config urlcanon $target_url]
+	set mytarget     [url canon $target_url]
 
 	set myheaders {}
 	if {$myauth_token ne {}} {
