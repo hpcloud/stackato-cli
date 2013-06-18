@@ -228,9 +228,9 @@ namespace eval ::stackato::client::cli::usage {
 		 Run interactive ssh to a running instance
 
 	    ssh api [command...]
-		Opens an ``ssh`` session to the Stackato VM (Cloud Controller)
-		as the 'stackato' system user. Available to Admin users only.
-		Prompts for the 'stackato' user password.
+		Opens an ``ssh`` session to the Cloud Controller node
+		as the system user. Available to Admin users only.
+		Prompts for the system user's password.
 
 	    scp [--instance N] [appname] [:]source... [:]destination
 		Copy files and directories to and from application containers.

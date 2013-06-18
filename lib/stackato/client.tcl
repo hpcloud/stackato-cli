@@ -22,7 +22,7 @@ package require ooutil
 package require stackato::jmap
 package require struct::list
 package require ncgi
-package require debug
+package require sdebug
 package require url
 
 package require autoproxy 1.5.3 ; # Contains the https fixes.
@@ -678,6 +678,11 @@ oo::class create ::stackato::client {
     method user_info {user} {
 	my check_login_status
 	return [my json_get $stackato::const::USERS_PATH/[ncgi::encode $user]]
+    }
+
+    method get_ssh_key {} {
+	my check_login_status
+	return [my json_get /ssh_key]
     }
 
     ######################################################

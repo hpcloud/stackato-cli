@@ -49,7 +49,7 @@ if {![info exists ::env(HOME)]} {
     ::exit 1
 }
 
-package require debug
+package require sdebug
 package require debug::snit
 package require stackato::client::cli
 set cli [stackato::client::cli new $argv]

@@ -1123,11 +1123,24 @@ proc ::stackato::client::cli::manifest::ResolveInContext {symbol context resultv
     upvar 1 $resultvar result
     set app {}
     if {[info exists currentapp]} { set app $currentapp }
-    return [expr {
-		  [FindInDictionary $context result properties $symbol] ||
-		  [FindInDictionary $context result applications $app $symbol] ||
-		  [FindInDictionary $context result $symbol]
+
+    set found [expr {
+		  [FindInDict $context localresult properties $symbol] ||
+		  [FindInDict $context localresult applications $app $symbol] ||
+		  [FindInDict $context localresult $symbol]
 	      }]
+
+    # Accept only scalar values for use in the
+    # resolution. Interpolation of structured values is fraught with
+    # peril and not supported. Of course this matters only if
+    # we actually found a definition at all.
+
+    if {!$found || ([TagOf $localresult] ne "scalar")} {
+	return 0
+    }
+
+    set result [StripTags $localresult]
+    return 1
 }
 
 proc ::stackato::client::cli::manifest::DictGet {dict args} {
@@ -1826,15 +1839,13 @@ proc ::stackato::client::cli::manifest::ValidateStructure {yml} {
 		    hooks {
 			Tag! mapping $value hooks
 			ValidateGlobMap $value hooks {
-			    pre-staging  { Tags! {scalar sequence} $value {key "hooks:pre-staging" } }
-			    post-staging { Tags! {scalar sequence} $value {key "hooks:post-staging"} }
-			    pre-running  { Tags! {scalar sequence} $value {key "hooks:pre-running "} }
+			    pre-staging  { ValidateCommand $value hooks:pre-staging  }
+			    post-staging { ValidateCommand $value hooks:post-staging }
+			    pre-running  { ValidateCommand $value hooks:pre-running  }
 			    *            { UnknownKey hooks:$key }
 			}
 		    }
-		    cron {
-			Tags! {scalar sequence} $value {key "cron"}
-		    }
+		    cron    { ValidateCommand $value cron }
 		    ignores {
 			Tag! sequence $value {key "ignores"}
 		    }
@@ -1890,6 +1901,15 @@ proc ::stackato::client::cli::manifest::ValidateGlobMap {value label switch} {
 	switch -glob -- $key $switch
     }
     return
+}
+
+proc ::stackato::client::cli::manifest::ValidateCommand {value key} {
+    lassign [Tags! {scalar sequence} $value "key \"$key\""] tag value
+    if {$tag eq "scalar"} return
+    # sequence - all elements must be scalar.
+    foreach element $value {
+	Tag! scalar $element "element of sequence key \"$key\""
+    }
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -2053,21 +2073,21 @@ proc ::stackato::client::cli::manifest::Tag!Warn {tag yml {label structure}} {
     if {$thetag eq $tag} return
     stackato::log::say! \
 	[stackato::color::yellow \
-	     "Manifest warning: Expected a yaml $tag for $label, got a $thetag"]
+	     "Manifest warning: Expected a yaml $tag for $label, got a $thetag ($thevalue)"]
 }
 
 proc ::stackato::client::cli::manifest::Tag! {tag yml {label structure}} {
     lassign $yml thetag thevalue
     if {$thetag eq $tag} { return $thevalue }
     return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-	"Manifest validation error: Expected a yaml $tag for $label, got a $thetag"
+	"Manifest validation error: Expected a yaml $tag for $label, got a $thetag ($thevalue)"
 }
 
 proc ::stackato::client::cli::manifest::Tags! {tags yml {label structure}} {
     lassign $yml thetag _
     if {$thetag in $tags} { return $yml }
     return -code error -errorcode {STACKATO CLIENT CLI MANIFEST TAG} \
-	"Manifest validation error: Expected a yaml [linsert [join $tags {, }] end-1 or] for $label, got a $thetag"
+	"Manifest validation error: Expected a yaml [linsert [join $tags {, }] end-1 or] for $label, got a $thetag ($thevalue)"
 }
 
 proc ::stackato::client::cli::manifest::TagOf {yml} {

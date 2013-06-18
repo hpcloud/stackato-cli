@@ -220,5 +220,5 @@ proc ::debug::parray {a {pattern *}} {
 # ### ### ### ######### ######### #########
 ## Ready
 
-package provide debug 1.0
+package provide sdebug 1.0
 return

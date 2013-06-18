@@ -7,7 +7,7 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tclx
-package require debug
+package require sdebug
 
 package provide exec 0
 

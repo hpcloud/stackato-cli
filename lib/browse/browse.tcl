@@ -67,14 +67,25 @@ proc ::browse::UnixOpenUrl {url} {
 	set browser $::env(BROWSER)
     }
 
-    expr {
-	[info exists browser] ||
-	[FindExecutable firefox   browser] ||
-	[FindExecutable mozilla   browser] ||
-	[FindExecutable netscape  browser] ||
-	[FindExecutable iexplorer browser] ||
-	[FindExecutable opera     browser] ||
-	[FindExecutable lynx      browser]
+    if {[info exists ::env(DISPLAY)]} {
+	expr {
+	      [info exists browser]              ||
+	      [FindExecutable xdg-open  browser] ||
+	      [FindExecutable chrome    browser] ||
+	      [FindExecutable firefox   browser] ||
+	      [FindExecutable mozilla   browser] ||
+	      [FindExecutable netscape  browser] ||
+	      [FindExecutable iexplorer browser] ||
+	      [FindExecutable opera     browser] ||
+	      [FindExecutable lynx      browser]
+	  }
+    } else {
+	# Terminal only.
+	expr {
+	      [info exists browser]              ||
+	      [FindExecutable xdg-open  browser] ||
+	      [FindExecutable lynx      browser]
+	  }
     }
 
     # lynx can also output formatted text to a variable

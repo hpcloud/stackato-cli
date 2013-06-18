@@ -126,7 +126,8 @@ oo::class create ::stackato::client::cli {
 	    canary 0
 	}
 
-	if {[info exists env(STACKATO_TARGET)]} {
+	if {[info exists env(STACKATO_TARGET)] &&
+	    ($env(STACKATO_TARGET) ne {})} {
 	    set myoptions(target) $env(STACKATO_TARGET)
 	}
 	if {[info exists env(STACKATO_GROUP)]} {
@@ -212,6 +213,10 @@ oo::class create ::stackato::client::cli {
 	    set myusageerror $e
 	    usage::Display
 	    set myexitstatus false
+
+	} trap {ZIP ENCODE DUPLICATE PATH} {e o} {
+	    say! [color red $e]
+	    fail
 
 	} trap {STACKATO SERVER DATA ERROR} {e} {
 
@@ -672,6 +677,11 @@ oo::class create ::stackato::client::cli {
 		my Usage {version} \
 		    {Report client application version}
 		my SetCommand misc version
+	    }
+	    token {
+		my Usage {token} \
+		    {Interactively Set authentication token}
+		my SetCommand user token
 	    }
 	    target {
 		my Usage {target [url] [--url] [--allow-http]} \
@@ -1315,4 +1325,4 @@ oo::class create ::stackato::client::cli {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::client::cli 1.7.2.1
+package provide stackato::client::cli 1.7.4

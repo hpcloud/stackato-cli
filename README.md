@@ -1,17 +1,28 @@
 What is stackato-cli?
-===
+=====================
 
 This repository contains the source code to the [Stackato](http://activestate.com/stackato) Platform-as-a-Service command line client, written in Tcl.
 
 
 Prerequisites
-===
+=============
 
 1. Install [ActiveTcl 8.5](http://activestate.com/activetcl) somewhere (INSTALLDIR)
 
 2. Put the ``INSTALLDIR/bin`` directory of the above installation on the PATH.
 
-3. Run the command ``INSTALLDIR/bin/teacup install <package>`` for the following packages (may require sudo privileges depending on platform)
+3. Install Tcl library dependencies using one of the following options:
+
+  * (UNIX-only) run ``tools/depends.sh`` to automatically install the
+    below list of packages.
+  
+  * run the command ``INSTALLDIR/bin/teacup update`` to get and
+    install _all_ packages provided by ActiveState's TEApot repository
+    for your platform.
+
+  * Run the command ``INSTALLDIR/bin/teacup install <package>`` for
+    the following packages (may require sudo privileges depending on
+    platform)
 
     * TclOO
     * Tclx
@@ -59,19 +70,15 @@ Prerequisites
     * zipfile::encode
     * zlibtcl
 
-4. Alternatively to step 3…
-	* (UNIX shell platforms) run ``depends.sh`` to install just this list of packages
-	* run the command ``INSTALLDIR/bin/teacup update`` to get and install _all_ packages provided by ActiveState's TEApot repository for your platform.
-
-5. Either
+4. Either
    * make a link ``INSTALLDIR/bin/tclsh`` to ``INSTALLDIR/bin/tclsh8.5``
    * copy the file
    * edit ``bin/stackato`` to use 'tclsh8.5' instead of 'tclsh' in its #! line
 
-6. Run ``bin/stackato`` as you see fit.
+5. Run ``bin/stackato`` as you see fit.
 
 Structure of the client
-===
+=======================
 
 See the file [doc/devguide.txt](https://github.com/ActiveState/stackato-cli/raw/master/doc/devguide.txt) for more information on the internals.
 

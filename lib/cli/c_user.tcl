@@ -199,6 +199,23 @@ oo::class create ::stackato::client::cli::command::User {
 	return
     }
 
+    method token {} {
+	Debug.cli/user {}
+
+	say "Go here to get your login token: [my target_url]/login?print_token=1"
+	set token [term ask/string* "Enter your token: "]
+
+	Debug.cli/user {token = ($token)}
+
+	set retriever [stackato::client new [my target_url] $token]
+	set key       [dict get' [$retriever get_ssh_key] sshkey {}]
+
+	Debug.cli/user {key   = ($key)}
+
+	my save_token $token $key
+	return
+    }
+
     method change_password {{password {}}} {
 	Debug.cli/user {}
 
@@ -281,6 +298,11 @@ oo::class create ::stackato::client::cli::command::User {
 	Debug.cli/user {}
 
 	lassign [[my client] login $email $password] token sshkey
+	my save_token $token $sshkey
+	return
+    }
+
+    method save_token {token sshkey} {
 	set tokenfile [dict get' [my options] token_file {}]
 
 	Debug.cli/user {tokenfile = '$tokenfile'}

@@ -2607,9 +2607,16 @@ oo::class create ::stackato::client::cli::command::Apps {
 	set services [manifest services]
 	Debug.cli/apps {services = ($services)}
 
+	Debug.cli/apps {harbor-debug : option [dict get' [my options] harbordebug 0]}
+	Debug.cli/apps {harbor-debug : server [my ServerVersion]}
+	Debug.cli/apps {harbor-debug : 2.7+   [package vsatisfies [my ServerVersion] 2.7]}
+	Debug.cli/apps {harbor-debug : target [[my client] target]}
+	Debug.cli/apps {harbor-debug : https  [regexp {https://.*} [[my client] target]]}
+
 	set hd [expr {
 	      [dict get' [my options] harbordebug 0] &&
-	      [package vsatisfies [my ServerVersion] 2.7]
+	      [package vsatisfies [my ServerVersion] 2.7] &&
+	      [regexp {https://.*} [[my client] target]]
 	}]
 	Debug.cli/apps {harbor-debug = $hd}
 
@@ -2671,8 +2678,32 @@ oo::class create ::stackato::client::cli::command::Apps {
 		    display [color green OK]
 		}
 
-		set port [dict get [[my client] get_service $sname] credentials port]
-		display "Debugging now enabled on port [color cyan $port]."
+		set si [[my client] get_service $sname]
+		if {![dict exists $si credentials]} {
+		    display "Debugging now enabled on [color red unknown] port."
+		    display [color red "Service failed to transmit its credentials"]
+		    display [color red "Please contact the administrator for \[[[my client] target]\]"]
+		} elseif {![dict exists $si credentials port]} {
+		    display "Debugging now enabled on [color red unknown] port."
+		    display [color red "Service failed to transmit its port information"]
+		    display [color red "Please contact the administrator for \[[[my client] target]\]"]
+		} else {
+		    set port [dict get $si credentials port]
+		    display "Debugging now enabled on port [color cyan $port]."
+		}
+	    }
+	}
+
+	if {!$hd && [dict get' [my options] harbordebug 0]} {
+	    # User requested harbor based debugging.
+	    # Tell her why we ignored that request.
+
+	    display [color red "Ignored -d request for harbor service in support of debugging."]
+	    if {![package vsatisfies [my ServerVersion] 2.7]} {
+		display [color red "Target must be version 2.8 or higher, we found [my ServerVersion]."]
+	    }
+	    if {![regexp {https://.*} [[my client] target]]} {
+		display [color red "Target must use HTTPS."]
 	    }
 	}
 
@@ -3388,6 +3419,7 @@ oo::class create ::stackato::client::cli::command::Apps {
 	    display {  Packing application: } false
 
 	    set mcfile [fileutil::tempfile stackato-mc-]
+	    config::FixPermissions $mcfile 0644
 	    manifest currentInfo $mcfile
 
 	    Debug.cli/apps {mcfile = $mcfile}
