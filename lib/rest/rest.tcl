@@ -2,7 +2,7 @@
 # # ## ### ##### ######## ############# #####################
 
 ## Copyright (c) 2011 Donal Fellows, BSD licensed.
-## Copyright (c) 2011-2012 Modifications by ActiveState Software Inc.
+## Copyright (c) 2011-2013 Modifications by ActiveState Software Inc.
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################
@@ -12,10 +12,29 @@ package require http
 package require TclOO
 
 debug level  rest
-debug prefix rest {}
-debug prefix rest {[::debug::snit::call] | }
+debug prefix rest {[debug caller] | }
 
-#puts [package ifneeded http [package present http]]
+# DANGER -- BRITTLE -- Revisit for each new version of http package
+# HACK internals to auto-close on our side for response length 0, even
+# for 'connection: close'.
+if 1 {
+proc ::http::Event {sock token} \
+	[string map \
+		 [list {For non-chunked transfer} {
+		if {1 && ($state(totalsize) == 0)} {
+			Log "no body, stop"
+			Eof $token
+			return
+	    }
+		# For non-chunked transfer }] \
+	[info body ::http::Event]]
+
+# And hack geturl to handle v1 API also, with different headers.
+proc http::geturl {url args} \
+	[string map \
+		 [list {set state(-keepalive) $defaultKeepalive} {set state(-keepalive) $defaultKeepalive ; set state(totalsize) {}}] \
+		 [info body ::http::geturl]]
+	  }
 
 # RESTful service core
 package provide restclient 0.1
@@ -27,7 +46,7 @@ oo::class create ::REST {
 	variable base wadls acceptedmimetypestack options
 
 	constructor {baseURL args} {
-		Debug.rest {}
+		debug.rest {}
 		set base   $baseURL
 		my LogWADL $baseURL
 
@@ -39,13 +58,15 @@ oo::class create ::REST {
 			-max-redirections    5
 			-headers             {}
 			-trace               0
+			-trace-fd            stdout
+			-accept-no-location  0
 		}
 		my configure {*}$args
 		return
 	}
 
 	method configure {args} {
-		Debug.rest {}
+		debug.rest {}
 		switch -- [llength $args] {
 			0 {
 				return [array get options]
@@ -61,19 +82,19 @@ oo::class create ::REST {
 	}
 
 	method cget {option} {
-		Debug.rest {}
+		debug.rest {}
 		return $options($option)
 	}
 
 	# TODO: Cookies!
 
 	method ExtractError {tok} {
-		Debug.rest {}
+		debug.rest {}
 		return [http::code $tok],[http::data $tok]
 	}
 
 	method OnRedirect {tok location response} {
-		Debug.rest {}
+		debug.rest {}
 		upvar 1 url url
 		set url $location
 		# By default, GET doesn't follow redirects; the next line would
@@ -110,13 +131,13 @@ oo::class create ::REST {
 	}
 
 	method PushAcceptedMimeTypes args {
-		Debug.rest {}
+		debug.rest {}
 		lappend acceptedmimetypestack [http::config -accept]
 		http::config -accept [join $args ", "]
 		return
 	}
 	method PopAcceptedMimeTypes {} {
-		Debug.rest {}
+		debug.rest {}
 		set old [lindex $acceptedmimetypestack end]
 		set acceptedmimetypestack [lrange $acceptedmimetypestack 0 end-1]
 		http::config -accept $old
@@ -124,7 +145,7 @@ oo::class create ::REST {
 	}
 
 	method DoRequest {method url {type ""} {value ""}} {
-		Debug.rest {}
+		debug.rest {}
 
 		set theheaders $options(-headers)
 		if {$method eq "DELETE"} {
@@ -147,7 +168,7 @@ oo::class create ::REST {
 
 		if {$method eq "GET"} {
 			if {$type eq "application/octet-stream"} {
-				Debug.rest {Forced binary by type $type}
+				debug.rest {Forced binary by type $type}
 				lappend req_options -binary 1
 			}
 		}
@@ -159,17 +180,21 @@ oo::class create ::REST {
 		# Show request
 		if {$options(-trace)} {
 			if {$value ne {}} {
-				if {[string match *form* $type] && ($query eq "-query")} {
-					puts "\nRequest  $method, $type: $url -query <BINARY_FORM-VALUE-NOT-SHOWN>"
+				if {[string match *form* $type] &&
+					![string match *urlencoded* $type] &&
+					($query eq "-query")} {
+					puts $options(-trace-fd) "\nRequest  $method, $type: $url -query <BINARY_FORM-VALUE-NOT-SHOWN>"
 				} else {
-					puts "\nRequest  $method, $type: $url -query $value"
+					puts $options(-trace-fd) "\nRequest  $method, $type: $url -query $value"
 				}
 			} else {
-				puts "\nRequest  $method, $type: $url"
+				puts $options(-trace-fd) "\nRequest  $method, $type: $url"
 			}
 			if {[llength $theheaders]} {
+				set n [my MaxLen [dict keys $theheaders]]
+				set fmt %-${n}s
 				foreach {k v} $theheaders {
-					puts "Header $k:\t$v"
+					puts $options(-trace-fd) "Request  Header [format $fmt $k] = ($v)"
 				}
 			}
 		}
@@ -183,10 +208,14 @@ oo::class create ::REST {
 			#puts "WEB:http::geturl $url ($req_options)"
 			#if {$method ne "GET"} { error dont-write-yet }
 
+			puts $options(-trace-fd) "Request  Time [clock format [clock seconds]]"
+
 			if {[catch {
-				Debug.rest {http::geturl ...}
+				debug.rest {http::geturl ...}
+				set reqstart [clock clicks -milliseconds]
 				set tok [http::geturl $url {*}$req_options]
-				Debug.rest {http::geturl ... $tok}
+				set reqdone [clock clicks -milliseconds]
+				debug.rest {http::geturl ... $tok}
 			} e o]} {
 				if {[string match *refused* $e]} {
 					set host [join [lrange [split $url /] 0 2] /]
@@ -200,12 +229,17 @@ oo::class create ::REST {
 
 			# Show response
 			if {$options(-trace)} {
-				puts "Response Code:    [http::code   $tok]"
-				puts "Response Code':   [http::ncode  $tok]"
-				puts "Response Status:  [http::status $tok]"
-				puts "Response Error:   [http::error  $tok]"
-				puts "Response Headers: [http::meta   $tok]"
-				puts "Response Body:    [http::data   $tok]"
+				puts $options(-trace-fd) "Response Time [clock format [clock seconds]]: [expr {$reqdone - $reqstart}] milliseconds"
+				puts $options(-trace-fd) "Response Code:    [http::code   $tok]"
+				puts $options(-trace-fd) "Response Code':   [http::ncode  $tok]"
+				puts $options(-trace-fd) "Response Status:  [http::status $tok]"
+				puts $options(-trace-fd) "Response Error:   [http::error  $tok]"
+				set n [my MaxLen [dict keys [http::meta $tok]]]
+				set fmt %-${n}s
+				dict for {k v} [http::meta $tok] {
+					puts $options(-trace-fd) "Response Headers: [format $fmt $k] = ($v)"
+				}
+				puts $options(-trace-fd) "Response Body:    [http::data   $tok]"
 			}
 
 			if {([http::status $tok] ne "ok") ||
@@ -257,6 +291,18 @@ oo::class create ::REST {
 				if {[catch {
 					set location [dict get $meta location]
 				}]} {
+					if {$options(-accept-no-location) || ($method in {PUT DELETE})} {
+						# Ignore the missing header
+						# Simply do not redirect. Treat like
+						# a 200 return.
+
+						set code [http::ncode $tok]
+						set data [http::data  $tok]
+						set hdrs [http::meta  $tok]
+						http::cleanup $tok
+						return [list $code $data $hdrs]
+					}
+
 					http::cleanup $tok
 					error "missing a location header!"
 				}
@@ -271,6 +317,16 @@ oo::class create ::REST {
 			}
 		}
 		error "too many redirections!"
+	}
+
+	method MaxLen {list} {
+		set max 0
+		foreach s $list {
+			set n [string length $s]
+			if {$n <= $max} continue
+			set max $n
+		}
+		return $max
 	}
 
 	method Get {args} {

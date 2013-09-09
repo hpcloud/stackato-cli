@@ -1,0 +1,3 @@
+*Updating application 'node-env'...
+*
+http://node-env.@BASE@/ deployed

@@ -1,7 +1,7 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Copyright (c) 2011-2012 ActiveState Software Inc.
+## Copyright (c) 2011-2013 ActiveState Software Inc.
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################
@@ -15,6 +15,10 @@ json::write indented 1
 json::write aligned 1
 
 namespace eval ::stackato::jmap {}
+namespace eval ::stackato {
+    namespace export jmap
+    namespace ensemble create
+}
 
 # # ## ### ##### ######## ############# #####################
 ## Convenience commands encapsulating the VMC data structure
@@ -50,8 +54,29 @@ proc ::stackato::jmap::bool {_ s} {
     }
 }
 
+proc ::stackato::jmap::nbool {_ s} {
+    if {$s eq "null"} { return null }
+    if {$s eq {}}     { return null }
+    if {$s} {
+	return true
+    } else {
+	return false
+    }
+}
+
+proc ::stackato::jmap::number {_ s} {
+    return $s
+}
+
+proc ::stackato::jmap::nnumber {_ s} {
+    if {$s eq "null"} { return null }
+    if {$s eq {}}     { return null }
+    return $s
+}
+
 proc ::stackato::jmap::nstring {_ s} {
-    if {$s eq {}} { return null }
+    if {$s eq "null"} { return null }
+    if {$s eq {}}     { return null }
     return [map string $s]
 }
 
@@ -66,15 +91,20 @@ proc ::stackato::jmap::aliases    {as} { map dict $as }
 proc ::stackato::jmap::target     {t}  { map dict $t  }
 proc ::stackato::jmap::env        {e}  { map array $e  }
 proc ::stackato::jmap::targets    {ts} { map dict $ts }
+proc ::stackato::jmap::tadjunct   {ts} { map {dict {* dict}} $ts }
 proc ::stackato::jmap::tgroups    {gs} { map dict $gs }
 proc ::stackato::jmap::runtimes   {rs} {
     map {dict {
 	* dict
     }} $rs
 }
+
+proc ::stackato::jmap::v2-stacks  {st} { map {array dict} $st }
 proc ::stackato::jmap::frameworks {fs} { map {dict {* array}} $fs }
 proc ::stackato::jmap::resources  {rs} {
-    map {array dict} $rs
+    map {array {dict {
+	size number
+    }}} $rs
 }
 
 proc ::stackato::jmap::apps    {as} {
@@ -91,6 +121,45 @@ proc ::stackato::jmap::apps    {as} {
 	    credentials dict
 	}}}
     }}} $as
+}
+
+proc ::stackato::jmap::v2-uaa-user {u} {
+    map {dict {
+	meta      dict
+	name      dict
+	emails    {array dict}
+	groups    {array dict}
+	approvals array
+	schemas   array
+    }} $u
+}
+
+proc ::stackato::jmap::v2-apps-summary {as} {
+    map {dict {
+	services {array {dict {
+	    bound_app_count number
+	    service_plan {dict {
+		service dict
+	    }}
+	}}}
+	apps {array {dict {
+	    urls array
+	    routes {array {dict {
+		domain dict
+	    }}}
+	    service_count number
+	    running_instances number
+	    production bool
+	    buildpack nstring
+	    command nstring
+	    debug nstring
+	    environment_json dict
+	    console   bool
+	    instances number
+	    memory    number
+	    disk_quota number
+	}}}
+    }} $as
 }
 
 proc ::stackato::jmap::user1 {ui} {
@@ -115,6 +184,13 @@ proc ::stackato::jmap::users {us} {
     map {array {dict {
 	apps {array dict}
     }}} $us
+}
+
+proc ::stackato::jmap::v2uconfig {u} {
+    map {dict {
+	name   dict
+	emails {array dict}
+    }} $u
 }
 
 proc ::stackato::jmap::groups {gs} {
@@ -152,7 +228,7 @@ proc ::stackato::jmap::dbs {v} {
     }} $v
 }
 
-proc ::stackato::jmap::stats    {ss} {
+proc ::stackato::jmap::stats {ss} {
     # @todo jmap stats - element type
     map {array {dict {
 	stats {dict {
@@ -162,9 +238,34 @@ proc ::stackato::jmap::stats    {ss} {
     }}} $ss
 }
 
+proc ::stackato::jmap::v2-stats {ss} {
+    map {dict {* {dict {
+	since number
+	stats {dict {
+	    disk_quota number
+	    fds_quota  number
+	    mem_quota  number
+	    port       number
+	    uptime     number
+	    usage {dict {
+		mem  number
+		disk number
+		cpu  number
+	    }}
+	}}
+    }}}} $ss
+}
+
 proc ::stackato::jmap::instances {is} {
     # @todo jmap instances - element type
     map {array dict} $is
+}
+
+proc ::stackato::jmap::v2-instances {is} {
+    # @todo jmap instances - element type
+    map {dict {* {dict {
+	since number
+    }}}} $is
 }
 
 proc ::stackato::jmap::instancemap {is} {
@@ -281,6 +382,12 @@ proc ::stackato::jmap::map {type data} {
 	{} - string {
 	    return [Quote [json::write string $data]]
 	}
+	ref {
+	    # detail = type name.
+	    # data is dict
+	    set id [dict get $data metadata guid]
+	    return [Quote [json::write string "--> $detail $id"]]
+	}
 	array - list {
 	    set tmp {}
 	    # detail = type of array elements
@@ -328,7 +435,8 @@ namespace eval ::stackato::jmap {
 	services apps stats env instances service resources \
 	manifest crashed instancemap appinfo sci users dbs \
 	user1 fwinfo groups tgroups usageinfo drain bool limits \
-	cc_config
+	cc_config tadjunct v2uconfig v2-apps-summary v2-instances \
+	v2-stats v2-uaa-user v2-stacks
     namespace ensemble create
 }
 

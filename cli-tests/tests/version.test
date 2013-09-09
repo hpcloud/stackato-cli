@@ -1,0 +1,36 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## client version
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test version-1.0 {client version, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run version X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test version-1.1 {client version} -setup {
+    stage-open
+} -body {
+    run version
+} -cleanup {
+    stage-close
+} -match glob -result {stackato *}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

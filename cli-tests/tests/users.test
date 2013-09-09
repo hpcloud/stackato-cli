@@ -1,0 +1,78 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## user management - list users
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test users-1.0 {users, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run users X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test users-1.1 {users, requires login} -setup {
+    stage-open
+    ref-target
+} -body {
+    run users
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test users-1.2 {users, requires admin login} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run users
+} -cleanup {
+    be-admin
+    remove-non-admin
+} -returnCodes error -result \
+    [per-api \
+	 {Error 200: Operation not permitted} \
+	 {{"error":"access_denied","error_description":"Access is denied"}}]
+
+test users-1.3 {users} -setup {
+    stage-open
+    go-admin
+} -body {
+    run users
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [per-api \
+	 "*Email*Admin*Applications*[adminuser]*" \
+	 "*Email*Admin*Spaces*Applications*[adminuser]*"]
+
+test users-1.4 {users, json} -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --json
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [per-api \
+	 "*\{\n    \"admin\"  : \"true\",\n    \"apps\"   : *,\n    \"email\"  : \"[adminuser]\",\n    \"groups\" : \"\"\n\}*" \
+	 "*\{\n    \"entity\"   : \{\n        \"active\"                            : \"true\",\n        \"admin\"                             : true,\n        \"audited_organizations\"             : *,\n        \"audited_organizations_url\"         : \"/v2/users/*/audited_organizations\",\n        \"audited_spaces\"                    : *,\n        \"audited_spaces_url\"                : \"/v2/users/*/audited_spaces\",\n        \"billing_managed_organizations\"     : *,\n        \"billing_managed_organizations_url\" : \"/v2/users/*/billing_managed_organizations\",\n        \"default_space_guid\"                : null,\n        \"managed_organizations\"             : *,\n        \"managed_organizations_url\"         : \"/v2/users/*/managed_organizations\",\n        \"managed_spaces\"                    : *,\n        \"managed_spaces_url\"                : \"/v2/users/*/managed_spaces\",\n        \"organizations\"                     : *,\n        \"organizations_url\"                 : \"/v2/users/*/organizations\",\n        \"spaces\"                            : *,\n        \"spaces_url\"                        : \"/v2/users/*/spaces\"\n    \},\n    \"metadata\" : \{\n        \"created_at\" : \"*\",\n        \"guid\"       : \"*\",\n        \"updated_at\" : \"*\",\n        \"url\"        : \"/v2/users/*\"\n    \}\n\}*"]
+
+# TODO: --target --token-file --token
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

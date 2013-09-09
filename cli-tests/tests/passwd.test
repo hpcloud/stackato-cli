@@ -1,0 +1,69 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## user management - password handling
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test passwd-1.0 {passwd, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run passwd X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test passwd-1.1 {passwd, result} -constraints interactive -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run passwd --passwd PAX
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -result {Changing password for 'ex@as'
+Successfully changed password}
+
+test passwd-1.2 {passwd, old passwd fails} -constraints interactive -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run passwd --passwd PAX
+    run logout
+    run login [theuser] --password P
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result "Attempting login to \[https://[thetarget]\]\nProblem with login, invalid account or password while attempting to login to 'https://api.stackato-nightly.activestate.com'. Error 200: Operation not permitted"
+
+test passwd-1.3 {passwd, new passwd ok} -constraints interactive -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run passwd --passwd PAX
+    run logout
+    run login [theuser] --password PAX
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -result "Attempting login to \[https://[thetarget]\]\nSuccessfully logged into \[https://[thetarget]\]\nReset current group: OK"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

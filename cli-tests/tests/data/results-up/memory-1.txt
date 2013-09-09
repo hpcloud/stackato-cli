@@ -1,0 +1,17 @@
+*Updating application 'node-env'...
+Comparing application ?node-env? to * ... 
+Framework:       node
+Runtime:         <framework-specific default>
+Application Url: node-env.@BASE@
+Forcing use of minimum memory requirement: 20M
+    No changes
+Uploading Application \[node-env\] ... 
+  Checking for bad links ...  OK
+  Copying to temp space ...  OK
+  Checking for available resources ...  OK
+  Processing resources ... OK
+  Packing application ... OK
+  Uploading (1K) ...  OK
+Push Status: OK
+Note that \[node-env\] was not automatically started because it was STOPPED before the update.
+You can start it manually using `stackato start node-env`

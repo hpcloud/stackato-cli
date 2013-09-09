@@ -1,0 +1,9 @@
+applications:
+- name: node-env
+  command: node app.js
+  mem: 256M
+  stackato:
+    env:
+      FOO: BAR
+      SNAFU:
+        default: CLUSTER

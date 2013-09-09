@@ -1,0 +1,69 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## admin report
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test admin-report-1.0 {admin report, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run admin report F X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test admin-report-1.1 {admin-report, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run admin report
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test admin-report-1.2 {admin report, admin login required} -constraints knownBug -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run admin report
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted}
+
+test admin-report-1.3 {admin report} -constraints knownBug -setup {
+    stage-open
+    go-admin
+} -body {
+    run admin report [thehome]/report
+} -cleanup {
+    stage-close
+} -result "Generating report [thehome]/report ...\nOK"
+
+test admin-report-1.4 {admin report} -constraints knownBug -setup {
+    stage-open
+    go-admin
+} -body {
+    run admin report [thehome]/report
+    file exists [thehome]/report
+} -cleanup {
+    stage-close
+} -result 1
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

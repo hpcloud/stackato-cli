@@ -1,7 +1,7 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Copyright (c) 2011-2012 ActiveState Software Inc.
+## Copyright (c) 2011-2013 ActiveState Software Inc.
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################

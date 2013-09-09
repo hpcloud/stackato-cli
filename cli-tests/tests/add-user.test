@@ -1,0 +1,143 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## user management - create/add users.
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test add-user-1.0 {add-user, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run add-user E X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test add-user-1.1 {add-user, wrong args, not enough} -setup {
+    stage-open
+    # NOTE: Validation of the email argument requires a proper
+    # target, and being logged in as admin.
+    go-admin
+} -body {
+    run add-user -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: Need a valid email}
+
+test add-user-1.2 {add-user, wrong args, not enough} -setup {
+    stage-open
+    # NOTE: Validation of the email argument requires a proper
+    # target, and being logged in as admin.
+    go-admin
+} -body {
+    run add-user -n E
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: Need a password}
+
+test add-user-1.3 {add-user, requires login} -setup {
+    stage-open
+    ref-target
+} -body {
+    run add-user -n E --password P
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test add-user-1.4 {add-user, name must look like email address} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run add-user -n E --password P
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error 100: Bad request}
+
+test add-user-1.5 {add-user, requires admin login} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run add-user -n au15@as --password P
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Error 200: Operation not permitted} \
+	 {{"error":"access_denied","error_description":"Access is denied"}}]
+
+test add-user-1.6 {add-user} -setup {
+    stage-open
+    go-admin
+} -body {
+    run add-user -n e@as --password P
+} -cleanup {
+    run delete-user -n e@as
+    stage-close
+} -result {Creating New User ... OK}
+
+test add-user-1.7 {add-user, add admin, too short a name for admin} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user -n admin@as --password P --admin
+    run logout
+    run login admin@as --password P
+} -body {
+    run add-user -n au@as --password P --admin
+    # NOTE: The failure occurs while granting admin creds to the new user.
+    # NOTE: The user itself exists already at this point.
+} -cleanup {
+    # Remove test users
+    be-admin
+    run delete-user -n admin@as
+    run delete-user -n au@as
+    stage-close
+} -returnCodes error -result {Error 10002: Bad Request: admins array must contain strings of size at least 6}
+
+test add-user-1.8 {add-user, add admin} -constraints knownBug -setup {
+    stage-open
+    go-admin
+    run add-user -n admin@as --password P --admin
+    run logout
+    run login admin@as --password P
+} -body {
+    run add-user -n admin2@as --password P --admin
+} -cleanup {
+    # Remove test users
+    be-admin
+    catch { ;# prevent cleanup failure in case of body failure
+	run delete-user -n admin2@as
+    }
+    run delete-user -n admin@as
+    stage-close
+} -result {Creating New User ... OK
+Granting administrator privileges to [admin2@as] ... OK}
+
+test add-user-1.9 {add-user, duplicate user name} -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --password P
+} -body {
+    run add-user -n e@as --password P
+} -cleanup {
+    run delete-user -n e@as
+    stage-close
+} -returnCodes error -result {Expected an unused user name for "email", got "e@as"}
+
+# TODO: --group, the various limits (--appuris --apps --services --sudo --drains --mem)
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

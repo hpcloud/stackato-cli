@@ -1,0 +1,13 @@
+#!/bin/bash
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+i=0
+for a in "$@"
+do
+	echo -e "<$i>\t" = "'$a'"
+	i=`expr $i + 1`
+done
+exit 0

@@ -1,7 +1,7 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Copyright (c) 2011-2012 ActiveState Software Inc.
+## Copyright (c) 2011-2013 ActiveState Software Inc.
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################
@@ -14,13 +14,21 @@
 # Requisites
 
 package require Tcl 8.5
+package require debug
+package require debug::caller
 
 namespace eval ::browse {}
+
+debug level  browse
+debug prefix browse {[debug caller] | }
+
 
 # ### ######### ###########################
 # public API
 
 proc ::browse::url {url} {
+    debug.browse {}
+
     global tcl_platform
 
     if {$tcl_platform(platform) eq "windows"} {
@@ -37,9 +45,12 @@ proc ::browse::url {url} {
 # Internal commands
 
 proc ::browse::WinOpenUrl {url} {
+    debug.browse {}
+
     # Perform basic url quoting and escape &'s in url ...
     set url [string map {{ } %20 & ^&} $url]
 
+    debug.browse {exec $::env(COMSPEC) /c start ($url)}
     if {[catch {
 	exec >NUL: <NUL: $::env(COMSPEC) /c start $url &
     } msg]} {
@@ -50,7 +61,11 @@ proc ::browse::WinOpenUrl {url} {
 
 
 proc ::browse::MacOpenUrl {url} {
+    debug.browse {}
+
     set url [string map {{ } %20} $url]
+
+    debug.browse {exec open ($url)}
     if {[catch {
 	#package require Tclapplescript
 	#AppleScript execute "do shell script \"open $url\""
@@ -61,6 +76,7 @@ proc ::browse::MacOpenUrl {url} {
 }
 
 proc ::browse::UnixOpenUrl {url} {
+    debug.browse {}
     set redir ">&/dev/null </dev/null"
 
     if {[info exists ::env(BROWSER)]} {
@@ -120,6 +136,8 @@ proc ::browse::UnixOpenUrl {url} {
 }
 
 proc ::browse::Fail {url msg} {
+    debug.browse {}
+
     set msg "Error displaying url \"$url\":\n$msg"
     if {[catch {package present Tk}]} {
 	return -code error -errorcode {BROWSE FAIL} $msg 
@@ -134,6 +152,8 @@ proc ::browse::Fail {url msg} {
 }
 
 proc ::browse::FindExecutable {progname varname} {
+    debug.browse {}
+
     upvar 1 $varname result
     set progs [auto_execok $progname]
     if {[llength $progs]} {
@@ -143,7 +163,7 @@ proc ::browse::FindExecutable {progname varname} {
 }
 
 proc ::browse::RunBrowser {args} {
-    ##puts ___$args
+    debug.browse {}
     eval exec $args
 }
 

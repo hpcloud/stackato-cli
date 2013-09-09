@@ -1,0 +1,10 @@
+command: node app.js
+app-dir: n1
+name: node-env1
+mem: 256M
+
+applications:
+  n2:
+    command: node app.js
+    name: node-env2
+    mem: 256M

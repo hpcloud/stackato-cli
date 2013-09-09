@@ -1,0 +1,95 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## instances
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test instances-1.0 {instances, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run instances A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test instances-1.1 {instances, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run instances }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test instances-1.3 {instances, bogus app} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run instances A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an application name for "application", got "A"}
+
+test instances-1.5 {instances, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run instances TEST
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test instances-1.6 {instances, stopped, cannot report actual instances} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run instances TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No manifest
+No running instances for [TEST]}
+
+# # ## ### ##### ######## ############# #####################
+
+test instances-2.0 {instances, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    run instances node-env
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {No manifest
++-------+-*-+-*-+
+| Index | State   | Start Time *|
++-------+-*-+-*-+
+| 0     | RUNNING | * |
++-------+-*-+-*-+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

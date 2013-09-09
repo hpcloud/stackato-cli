@@ -1,0 +1,152 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## drain-add
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test drain-add-1.0 {drain add, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run drain add A D U X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test drain-add-1.1 {drain add, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain add -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test drain-add-1.2 {drain add, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain add -n D U }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test drain-add-1.3 {drain add, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN [thedrain]
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test drain-add-1.4 {drain add, bad drain uri} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN URI
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 22000: Bad request: Bad Drain URI}
+
+test drain-add-1.5 {drain add, bad drain uri, bad port} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN tcp://foo:800
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 22002: Forbidden: not allowed to use ports <=9999}
+
+test drain-add-1.6 {drain-add} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN [thedrain]
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No manifest
+Adding drain [DRAIN] ... OK}
+
+test drain-add-1.7 {drain add, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No manifest
++-------+-------+-----------------------------------+
+| Name  | Json  | Url                               |
++-------+-------+-----------------------------------+
+| DRAIN | false | tcp://flux.activestate.com:11100/ |
++-------+-------+-----------------------------------+}
+
+test drain-add-1.8 {drain add, --json} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add --json TEST DRAIN [thedrain]
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No manifest
+Adding json drain [DRAIN] ... OK}
+
+test drain-add-1.9 {drain add, --json, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  --json TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No manifest
++-------+-------+-----------------------------------+
+| Name  | Json  | Url                               |
++-------+-------+-----------------------------------+
+| DRAIN | false | tcp://flux.activestate.com:11100/ |
++-------+-------+-----------------------------------+}
+
+# todo: changing the drains of a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

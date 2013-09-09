@@ -24,11 +24,76 @@ fi
 # this list of dependencies is taken from the README
 # if it changes then this list will also need updating
 
-for i in TclOO Tclx Trf autoproxy base64 cmdline control crc32 fileutil fileutil::decode fileutil::magic::mimetype fileutil::magic::rt fileutil::traverse json json::write logger md5 ncgi report sha1 'snit 2' struct::list struct::matrix tcllibc tclyaml term::ansi::code term::ansi::code::attr term::ansi::code::ctrl term::ansi::ctrl::unix textutil::adjust textutil::repeat textutil::string tls uri uuid zipfile::decode zipfile::encode zlibtcl tar tcl::chan::core tcl::chan::events tcl::chan::cat tcl::chan::string linenoise
-do
+for i in \
+    'snit 2' \
+    TclOO \
+    Tclx \
+    Trf \
+    autoproxy \
+    base64 \
+    cmdline \
+    cmdr \
+    cmdr::actor \
+    cmdr::config \
+    cmdr::help \
+    cmdr::help::json \
+    cmdr::officer \
+    cmdr::parameter \
+    cmdr::private \
+    cmdr::util \
+    cmdr::validate \
+    cmdr::validate::common \
+    control \
+    crc32 \
+    debug \
+    debug::caller \
+    fileutil \
+    fileutil::decode \
+    fileutil::magic::mimetype \
+    fileutil::magic::rt \
+    fileutil::traverse \
+    'json 1.2' \
+    json::write \
+    linenoise \
+    linenoise::facade \
+    linenoise::repl \
+    logger \
+    md5 \
+    ncgi \
+    'oo::util 1.2' \
+    report \
+    sha1 \
+    string::token \
+    string::token::shell \
+    struct::list \
+    struct::set \
+    struct::matrix \
+    struct::queue \
+    struct::set \
+    'tar 0.8' \
+    tcl::chan::cat \
+    tcl::chan::core \
+    tcl::chan::events \
+    tcl::chan::string \
+    tcllibc \
+    tclyaml \
+    term::ansi::code \
+    term::ansi::code::attr \
+    term::ansi::code::ctrl \
+    term::ansi::ctrl::unix \
+    textutil::adjust \
+    textutil::repeat \
+    textutil::string \
+    tls \
+    uri \
+    uuid \
+    zipfile::decode \
+    zipfile::encode \
+    zlibtcl
+  do
   echo
   echo "Attempting to install $i..."
-  $TEACUP install $i
+  $TEACUP install --force $i
 done
 
 # NB on Windows, also requires twapi package (not valid on UNIX platforms)

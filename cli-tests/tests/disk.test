@@ -1,0 +1,79 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## disk
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test disk-1.0 {disk, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run disk A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test disk-1.1 {disk, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run disk }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test disk-1.3 {disk, bogus app} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run disk A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an application name for "application", got "A"}
+
+test disk-1.5 {disk, non-admin login is ok, query} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run disk TEST
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -result {No manifest
+Current Disk Reservation [TEST]: 2.0G}
+
+# # ## ### ##### ######## ############# #####################
+
+test disk-2.0 {disk, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    run disk node-env
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result {No manifest
+Current Disk Reservation \[node-env\]: *}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,67 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## apps
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test apps-1.0 {apps, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run apps X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test apps-1.1 {apps, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run apps
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test apps-1.2 {apps, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run apps
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test apps-1.3 {apps} -setup {
+    stage-open
+    go-admin
+} -body {
+    run apps
+} -cleanup {
+    stage-close
+} -result {No Applications}
+
+test apps-1.4 {apps, json} -setup {
+    stage-open
+    go-admin
+} -body {
+    run apps --json
+} -cleanup {
+    stage-close
+} -result {[]}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,12 @@
+command: node app.js
+name: node-env
+mem: 256M
+services:
+  fs-${name}: filesystem
+  po-${name}: harbor
+  mc-${name}: memcached
+  mo-${name}: mongodb
+  ms-${name}: mysql
+  ps-${name}: postgresql
+  rm-${name}: rabbitmq
+  re-${name}: redis

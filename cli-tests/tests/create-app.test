@@ -1,0 +1,97 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+# # ## ### ##### ######## ############# #####################
+
+## Copyright (c) 2013 ActiveState Software Inc.
+## See file doc/license.txt for the license terms.
+
+# # ## ### ##### ######## ############# #####################
+## create-app
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-app-1.0 {create-app, wrong args, too many} -setup {
+    stage-open
+} -body {
+    indir [appdir] {
+	run create-app -n A X
+    }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test create-app-1.1 {create-app, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    # appdir is empty, manifest search and the like fails.
+    indir [appdir] {
+	run create-app -n
+    }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test create-app-1.2 {create-app, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    make-test-app
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-app-1.3 {create-app, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    make-test-app
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result {No manifest
+Framework:       node
+Runtime:         Node.js
+Application Url: test.*
+Creating Application ?TEST? in * ... OK}
+
+test create-app-1.4 {create-app, persists} -setup {
+    stage-open
+    go-admin
+} -body {
+    make-test-app
+    run apps
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {*| TEST *| 1 *| STOPPED *| * | * |*}
+
+test create-app-1.5 {create-app, duplicate app} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    # no make-test-app, do not delete route yet.
+    indir [appdir] { run create-app -n TEST }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an unused application name for "application", got "TEST"}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests
