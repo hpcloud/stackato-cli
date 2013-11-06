@@ -10,92 +10,160 @@
 package require Tcl 8.5
 package require http
 package require TclOO
+package require ooutil
 
 debug level  rest
-debug prefix rest {}
-debug prefix rest {[::debug::snit::call] | }
+debug prefix rest {[debug caller] | }
 
-#puts [package ifneeded http [package present http]]
+# DANGER -- BRITTLE -- Revisit for each new version of http package
+# HACK internals to auto-close on our side for response length 0, even
+# for 'connection: close'.
+if 1 {
+proc ::http::Event {sock token} \
+	[string map \
+		 [list {For non-chunked transfer} {
+		if {1 && ($state(totalsize) == 0)} {
+			Log "no body, stop"
+			Eof $token
+			return
+	    }
+		# For non-chunked transfer }] \
+	[info body ::http::Event]]
+
+# And hack geturl to handle v1 API also, with different headers.
+# Further hack geturl to handle transparent proxies (https) which do
+# not rewrite the GET line.
+
+proc http::geturl {url args} \
+	[string map \
+		 [list \
+			  {set state(-keepalive) $defaultKeepalive} \
+			  {set state(-keepalive) $defaultKeepalive ; set state(totalsize) {}} \
+			  {set srvurl $url} \
+			  {
+    # Restricted to non-https urls. https passes through proxy
+    # unchanged and the final destination should see the proper path
+    # instead of full url.
+    if {$proto ne "https"} { set srvurl $url }
+}] \
+		 [info body ::http::geturl]]
+}
 
 # RESTful service core
 package provide restclient 0.1
 
-# Support class for RESTful web services. This wraps up the http package to
-# make everything appear nicer.
+# Support class for RESTful web services. This wraps up the http
+# package to make everything appear nicer.
+
 oo::class create ::REST {
 
-	variable base wadls acceptedmimetypestack options
+	variable mybase mywadls myacceptedmimetypestack myoptions \
+		mycounter mymap mycookie
+
+	# mybase                  : string - Base url of all REST calls. The target to talk to.
+	# mywadls                 : array  - wadl messages already printed, prevent duplicate printing
+	# myacceptedmimetypestack : list   - stack of accepted mime-types - NOT USED
+	# myoptions               : array  - configurable options (see constructor)
+	#
+	# Handling of async requests
+	#
+	# mycounter - Counter for requests
+	# mymap     - mapping from request handle to token
+	# mycookie  - Visible request counter for the tracing.
 
 	constructor {baseURL args} {
-		Debug.rest {}
-		set base   $baseURL
+		debug.rest {}
+		set mybase $baseURL
 		my LogWADL $baseURL
 
 		# Option defaults first, then the user's configuration.
-		array set options {
+		array set myoptions {
 			-progress            {}
 			-blocksize           {}
 			-follow-redirections 0
 			-max-redirections    5
 			-headers             {}
 			-trace               0
+			-trace-fd            stdout
+			-accept-no-location  0
 		}
 		my configure {*}$args
 		return
 	}
 
 	method configure {args} {
-		Debug.rest {}
+		debug.rest {}
 		switch -- [llength $args] {
 			0 {
-				return [array get options]
+				return [array get myoptions]
 			}
 			1 {
 				return [my cget [lindex $args 0]]
 			}
 			default {
-				array set options $args
+				array set myoptions $args
 			}
 		}
 		return
 	}
 
 	method cget {option} {
-		Debug.rest {}
-		return $options($option)
+		debug.rest {}
+		return $myoptions($option)
 	}
 
 	# TODO: Cookies!
 
 	method ExtractError {tok} {
-		Debug.rest {}
+		debug.rest {}
 		return [http::code $tok],[http::data $tok]
 	}
 
-	method OnRedirect {tok location response} {
-		Debug.rest {}
-		upvar 1 url url
+	method GetNewLocation {tok} {
+		set location {}
+
+		# Headers should be handled case-insensitive.
+		# Normalize to all lower-case before access.
+		set meta [http::meta $tok]
+		dict for {k v} $meta {
+			dict unset meta $k
+			dict set meta [string tolower $k] $v
+		}
+		#array set _ $meta ; parray _ ; unset _
+		return [dict get $meta location]
+	}
+
+	method OnRedirect {location} {
+		debug.rest {}
+		upvar 1 url url handle handle tok tok cmd cmd cookie cookie
+
+		# Rewrite destination in calling context
 		set url $location
 		# By default, GET doesn't follow redirects; the next line would
 		# change that...
-		#return -code continue
+		#http::cleanup $tok
+		#return
 
-		if {$options(-follow-redirections)} {
-			return -code continue
+		if {$myoptions(-follow-redirections)} {
+			http::cleanup $tok
+			return 1
 		}
 
 		set where $location
 		my LogWADL $where
 
-		set code [http::ncode $tok]
-		set hdrs [http::meta  $tok]
+		set response [http::data  $tok]
+		set code     [http::ncode $tok]
+		set hdrs     [http::meta  $tok]
 
-		if {[string equal -length [string length $base/] $location $base/]} {
-			set where [string range $where [string length $base/] end]
-			return -code error -errorcode {REST REDIRECT} [list $code [split $where /] $hdrs $response]
+		if {[string equal -length [string length $mybase/] $location $mybase/]} {
+			set where [string range $where [string length $mybase/] end]
+			set where [split $where /]
 		}
 
-		return -code error -errorcode {REST REDIRECT} [list $code $where $hdrs $response]
+		my Raise $cookie [list $code $where $hdrs $response] \
+			REST REDIRECT
+		return 0
 	}
 
 	method LogWADL url {
@@ -103,178 +171,190 @@ oo::class create ::REST {
 		set tok [http::geturl $url?_wadl]
 		set w [http::data $tok]
 		http::cleanup $tok
-		if {![info exist wadls($w)]} {
-			set wadls($w) 1
+		if {![info exist mywadls($w)]} {
+			set mywadls($w) 1
 			puts stderr $w
 		}
 	}
 
 	method PushAcceptedMimeTypes args {
-		Debug.rest {}
-		lappend acceptedmimetypestack [http::config -accept]
+		debug.rest {}
+		lappend myacceptedmimetypestack [http::config -accept]
 		http::config -accept [join $args ", "]
 		return
 	}
+
 	method PopAcceptedMimeTypes {} {
-		Debug.rest {}
-		set old [lindex $acceptedmimetypestack end]
-		set acceptedmimetypestack [lrange $acceptedmimetypestack 0 end-1]
+		debug.rest {}
+		set old [lindex $myacceptedmimetypestack end]
+		set myacceptedmimetypestack [lrange $myacceptedmimetypestack 0 end-1]
 		http::config -accept $old
 		return
 	}
 
-	method DoRequest {method url {type ""} {value ""}} {
-		Debug.rest {}
+	method AsyncRequest {cmd method url {type ""} {value ""}} {
+		debug.rest {}
 
-		set theheaders $options(-headers)
-		if {$method eq "DELETE"} {
-			lappend theheaders Content-Length 0
+		set request [my Assemble $method $url $type $value]
+		set max     $myoptions(-max-redirections)
+		set trials  0
+
+		return [my AsyncRun [my New] $method $url $max $trials $cmd {*}$request]
+	}
+
+	method AsyncRun {handle method url max trials cmd cookie request} {
+		debug.rest {}
+		set origr $request
+
+		lappend request -command [mymethod AsyncDone $handle $method $url $max $trials $cmd $cookie $origr]
+
+		if {$trials >= $max} {
+			my Done $cookie error "too many redirections!"
+			return
 		}
 
-		if {$value in [file channels]} {
-			set query -querychannel
-		} else {
-			set query -query
-		}
-		if {[llength $options(-progress)]} {
-			lappend req_options -queryprogress $options(-progress)
-		}
-		if {$options(-blocksize) ne {}} {
-			lappend req_options -queryblocksize $options(-blocksize)
+		if {[catch {
+			set tok [my Invoke $url $cookie $request]
+			set mymap($handle) $tok
+		} e o]} {
+			my Done $cookie return [list {*}$o $e]
 		}
 
-		lappend req_options -method $method -type $type $query $value
+		debug.rest {==> $handle}
+		return $handle
+	}
 
-		if {$method eq "GET"} {
-			if {$type eq "application/octet-stream"} {
-				Debug.rest {Forced binary by type $type}
-				lappend req_options -binary 1
-			}
+	method AsyncDone {handle method url max trials cmd cookie request tok} {
+		debug.rest {}
+		# Async request has completed.
+
+		if {[http::status $tok] eq "reset"} {
+			# Canceled. Stop. See AsyncCancel.
+			my Done $cookie reset
+			return
 		}
 
-		if {[llength $theheaders]} {
-			lappend req_options -headers $theheaders
+		my ShowResponse $tok $cookie
+
+		if {[my CheckBrokenConnection]} {
+			debug.rest {/ERROR BROKEN}
+			return
+		}
+		if {[my CheckStatus]} {
+			debug.rest {/ERROR STATUS}
+           return
 		}
 
-		# Show request
-		if {$options(-trace)} {
-			if {$value ne {}} {
-				if {[string match *form* $type] && ($query eq "-query")} {
-					puts "\nRequest  $method, $type: $url -query <BINARY_FORM-VALUE-NOT-SHOWN>"
-				} else {
-					puts "\nRequest  $method, $type: $url -query $value"
-				}
-			} else {
-				puts "\nRequest  $method, $type: $url"
-			}
-			if {[llength $theheaders]} {
-				foreach {k v} $theheaders {
-					puts "Header $k:\t$v"
-				}
-			}
-		}
+		debug.rest {redirection?}
 
-		set max $options(-max-redirections)
-		for {set reqs 0} {$reqs < $max} {incr reqs} {
-			if {[info exists tok]} {
-				http::cleanup $tok
-			}
+		if {([http::ncode $tok] > 299) ||
+			([http::ncode $tok] == 201)} {
 
-			#puts "WEB:http::geturl $url ($req_options)"
-			#if {$method ne "GET"} { error dont-write-yet }
+			debug.rest {redirection!}
 
 			if {[catch {
-				Debug.rest {http::geturl ...}
-				set tok [http::geturl $url {*}$req_options]
-				Debug.rest {http::geturl ... $tok}
-			} e o]} {
-				if {[string match *refused* $e]} {
-					set host [join [lrange [split $url /] 0 2] /]
-					return -code error \
-						-errorcode [list REST HTTP REFUSED] \
-						"Server \"$host\" refused connection ($e)."
-				} else {
-					return {*}$o $e
+				debug.rest {redirection - get location}
+				set location [my GetNewLocation $tok]
+			}]} {
+				debug.rest {redirection - no location}
+
+				if {$myoptions(-accept-no-location) ||
+					($method in {PUT DELETE})} {
+					debug.rest {redirection - no location is OK}
+
+					# Ignore the missing location header.
+					# Do not redirect. Treat like a 200 return.
+				   my Complete $cookie
+				   return
 				}
+
+				debug.rest {redirection - no location /FAIL}
+
+				my Raise $cookie "missing a location header!" \
+					REST LOCATION MISSING
+				return
 			}
 
-			# Show response
-			if {$options(-trace)} {
-				puts "Response Code:    [http::code   $tok]"
-				puts "Response Code':   [http::ncode  $tok]"
-				puts "Response Status:  [http::status $tok]"
-				puts "Response Error:   [http::error  $tok]"
-				puts "Response Headers: [http::meta   $tok]"
-				puts "Response Body:    [http::data   $tok]"
+			debug.rest {redirection - has location}
+
+			if {![my OnRedirect $location]} {
+				debug.rest {redirection - STOP}
+				return
 			}
 
-			if {([http::status $tok] ne "ok") ||
-				([http::error  $tok] ne "") ||
-				([http::ncode  $tok] eq "")} {
-				set msg "Server broke connection."
-				append msg " " [http::status $tok]
-				append msg " " [http::error  $tok]
-				http::cleanup $tok
-				return -code error \
-					-errorcode [list REST HTTP BROKEN] \
-					$msg
-			}
+			debug.rest {redirection - follow}
 
-			# Bug 9034, 90337. For a time we treated errors in range
-			# 5xx as regular responses. Especially when occuring
-			# during app staging and start. Except in some places
-			# (like 'login') a 502 was valid.
-
-			# Now we are back to treating them as error, as we
-			# originally did, contrary to VMC. Because VMC got changed
-			# to treat them as errors as well too, and we can go back
-			# to the same, matching it again.
-
-			# The client's method 'login' has a hack on this patch
-			# which regenerates 502 as a REST HTTP error. This hack is
-			# currently left in the code. It should be inactive.
-
-			if {[http::ncode $tok] > 399} {
-				#set msg [my ExtractError $tok]
-				set status [http::ncode $tok]
-				set msg [http::data $tok]
-				http::cleanup $tok
-				return -code error \
-					-errorcode [list REST HTTP $status] \
-					$msg
-			} elseif {([http::ncode $tok] > 299) ||
-					  ([http::ncode $tok] == 201)} {
-				set location {}
-
-				# Headers should be handled case-insensitive.
-				# Normalize to all lower-case before access.
-				set meta [http::meta $tok]
-				dict for {k v} $meta {
-					dict unset meta $k
-					dict set meta [string tolower $k] $v
-				}
-				#array set _ $meta ; parray _ ; unset _
-				if {[catch {
-					set location [dict get $meta location]
-				}]} {
-					http::cleanup $tok
-					error "missing a location header!"
-				}
-				set data [http::data $tok]
-				my OnRedirect $tok $location $data
-			} else {
-				set code [http::ncode $tok]
-				set data [http::data  $tok]
-				set hdrs [http::meta  $tok]
-				http::cleanup $tok
-				return [list $code $data $hdrs]
-			}
+			incr trials
+			my AsyncRun $handle $url $max $trials $cmd $cookie $request
+			return
 		}
-		error "too many redirections!"
+
+		debug.rest {no redirection, done}
+
+		my Complete $cookie
+		return
+	}
+
+	method AsyncCancel {handle} {
+		debug.rest {}
+		set tok $mymap($handle)
+		http::reset $tok
+		# Forces AsyncDone
+		return
+	}
+
+	method DoRequest {method url {type ""} {value ""}} {
+		debug.rest {}
+
+		# Implement the sync calls on top of the async core.
+
+		# Allocate and import a variable we can wait on, in the
+		# instance namespace.
+		set var [self namespace]::[my New]
+		upvar \#0 $var waiter
+		set waiter {}
+
+		my AsyncRequest \
+			[mymethod DoRequestComplete $var] \
+			$method $url $type $value
+		# handle ignored, no cancellation allowed/possible.
+
+		if {$waiter eq {}} {
+			# async, wait for completion.
+			debug.rest {waiting $var}
+			vwait $var
+			debug.rest {waiting $var done: $waiter}
+		} ; # else already set, no waiting.
+
+		# Retrieve results, and release variable.
+		set r $waiter
+		unset $var
+
+		# Handle the waiter results: reset, and return
+		# reset: Cannot happen here.
+
+		lassign $r code details
+		if {$code eq "reset"} {
+			error "Unexpected cancellation"
+		}
+
+		return {*}$details
+	}
+
+	method DoRequestComplete {var args} {
+		debug.rest {}
+
+		# args = reset 
+		#      | return return-args
+		# return-args = list, options + result
+
+		upvar \#0 $var waiter
+		set waiter $args
+		return
 	}
 
 	method Get {args} {
-		return [my DoRequest GET $base/[join $args /]]
+		return [my DoRequest GET $mybase/[join $args /]]
 	}
 
 	method Post {args} {
@@ -282,7 +362,7 @@ oo::class create ::REST {
 		set value [lindex $args end]
 		set m POST
 		set path [join [lrange $args 0 end-2] /]
-		return [my DoRequest $m $base/$path $type $value]
+		return [my DoRequest $m $mybase/$path $type $value]
 	}
 
 	method Put {args} {
@@ -290,14 +370,300 @@ oo::class create ::REST {
 		set value [lindex $args end]
 		set m PUT
 		set path [join [lrange $args 0 end-2] /]
-		return [my DoRequest $m $base/$path $type $value]
+		return [my DoRequest $m $mybase/$path $type $value]
 	}
 
 	method Delete args {
 		set m DELETE
-		my DoRequest $m $base/[join $args /]
+		my DoRequest $m $mybase/[join $args /]
 		return
 	}
+
+	# ## #### ######## ################
+
+	method Assemble {method url type value} {
+		debug.rest {}
+
+		if {[llength $myoptions(-progress)]} {
+			lappend request -queryprogress $myoptions(-progress)
+		}
+
+		if {$myoptions(-blocksize) ne {}} {
+			lappend request -queryblocksize $myoptions(-blocksize)
+		}
+
+		lappend request -method $method -type $type
+		set theheaders $myoptions(-headers)
+
+		if {$value in [file channels]} {
+			set qmode chan
+			lappend request -querychannel $value
+		} else {
+			set qmode string
+			lappend request -query $value
+
+			if {($value eq {}) && ($method eq "PUT")} {
+				lappend theheaders Content-Length 0
+			}
+		}
+
+		if {$method eq "GET"} {
+			if {$type eq "application/octet-stream"} {
+				debug.rest {Forced binary by type $type}
+				lappend request -binary 1
+			}
+		}
+
+		if {$method eq "DELETE"} {
+			lappend theheaders Content-Length 0
+		}
+
+		if {[llength $theheaders]} {
+			lappend request -headers $theheaders
+		}
+
+		set cookie [my ShowRequest $method $url $value $type \
+						$qmode $theheaders]
+
+		return [list $cookie $request]
+	}
+
+	method Invoke {url cookie request} {
+		debug.rest {}
+		my ShowTime $cookie
+
+		if {[catch {
+			debug.rest {http::geturl ...}
+			set reqstart [clock clicks -milliseconds]
+
+			set tok [http::geturl $url {*}$request]
+
+			my Set $tok x:rest:start $reqstart
+			my Set $tok x:rest:done  [clock clicks -milliseconds]
+
+			debug.rest {http::geturl ... $tok}
+
+		} e o]} {
+			if {[string match *refused* $e]} {
+				set host [join [lrange [split $url /] 0 2] /]
+			  return -code error \
+					-errorcode {REST HTTP REFUSED} \
+					"Server \"$host\" refused connection ($e)."
+			} else {
+				return {*}$o $e
+			}
+		}
+
+		return $tok
+	}
+
+	# ## #### ######## ################
+
+	method CheckBrokenConnection {} {
+		debug.rest {}
+		upvar 1 handle handle tok tok cmd cmd cookie cookie
+
+		if {([http::status $tok] ne "ok") ||
+			([http::error  $tok] ne "") ||
+			([http::ncode  $tok] eq "")} {
+			set    msg "Server broke connection."
+			append msg " " [http::status $tok]
+			append msg " " [http::error  $tok]
+
+			my Raise $cookie $msg REST HTTP BROKEN
+
+			debug.rest {/BROKEN}
+			return 1
+		}
+
+		debug.rest {/OK}
+		return 0
+	}
+
+	method CheckStatus {} {
+		debug.rest {}
+		upvar 1 handle handle tok tok cmd cmd cookie cookie
+
+		# Bug 9034, 90337. For a time we treated errors in range
+		# 5xx as regular responses. Especially when occuring
+		# during app staging and start. Except in some places
+		# (like 'login') a 502 was valid.
+
+		# Now we are back to treating them as error, as we
+		# originally did, contrary to VMC. Because VMC got changed
+		# to treat them as errors as well too, and we can go back
+		# to the same, matching it again.
+
+		# The client's method 'login' has a hack on this patch
+		# which regenerates 502 as a REST HTTP error. This hack is
+		# currently left in the code. It should be inactive.
+
+		if {[http::ncode $tok] > 399} {
+			set status [http::ncode $tok]
+			set msg    [http::data  $tok]
+
+			my Raise $cookie $msg REST HTTP $status
+			debug.rest {/FAIL}
+			return 1
+		}
+
+		debug.rest {/OK}
+		return 0
+	}
+
+	method Raise {cookie m args} {
+		debug.rest {}
+		upvar 1 handle handle tok tok cmd cmd
+		my Done $cookie return [list -code error -errorcode $args $m]
+		return
+	}
+
+	method Complete {cookie} {
+		debug.rest {}
+		upvar 1 handle handle tok tok cmd cmd
+
+		set code [http::ncode $tok]
+		set data [http::data  $tok]
+		set hdrs [http::meta  $tok]
+
+		if {
+			[dict exists $hdrs content-type] &&
+			[regexp -- {charset=(.*)$} [dict get $hdrs content-type] --> coding]
+		} {
+			switch -- $coding {
+				utf-8 {
+					set data [encoding convertfrom utf-8 $data]
+				}
+				default {
+					my Raise $cookie "Unknown encoding $coding" REST ENCODING UNKNOWN $coding
+				}
+			}
+		}
+
+		my Done $cookie return [list -code ok [list $code $data $hdrs]]
+		return
+	}
+
+	method Done {cookie args} {
+		debug.rest {}
+		upvar 1 handle handle tok tok cmd cmd
+		my ShowDone $cookie [lindex $args 0]
+		unset -nocomplain mymap($handle)
+		if {[info exists tok] && ($tok ne {})} {
+			http::cleanup $tok
+		}
+		uplevel \#0 $cmd $args
+		return
+	}
+
+	# ## #### ######## ################
+
+	method New {} {
+		return r[incr mycounter]
+	}
+
+	method NewCookie {} {
+		return X[format %08d [incr mycookie]]
+	}
+
+	method Set {tok var val} {
+		upvar #0 $tok state
+		set state($var) $val
+		return
+	}
+
+	method Get {tok var} {
+		upvar #0 $tok state
+		return $state($var)
+	}
+
+	# ## #### ######## ################
+
+	method ShowDone {cookie detail} {
+		if {!$myoptions(-trace)} return
+		set fd $myoptions(-trace-fd)
+
+		puts  $fd "Request@ $cookie Done $detail"
+		flush $fd
+		return
+	}
+
+	method ShowRequest {method url value type qmode theheaders} {
+		if {!$myoptions(-trace)} return
+		set fd $myoptions(-trace-fd)
+
+		set cookie [my NewCookie]
+
+		puts $fd "\nRequest@ $cookie [self] [self class]"
+		if {$value ne {}} {
+			if { [string match *form*       $type] &&
+				![string match *urlencoded* $type] &&
+				($qmode eq "string")} {
+				puts $fd "Request  $cookie $method, $type: $url -query <BINARY_FORM-VALUE-NOT-SHOWN>"
+			} else {
+				puts $fd "Request  $cookie $method, $type: $url -query $value"
+			}
+		} else {
+			puts $fd "Request  $cookie $method, $type: $url"
+		}
+
+		my ShowDict $fd "Request  $cookie Header" $theheaders
+		flush $fd
+		return $cookie
+	}
+
+	method ShowTime {cookie} {
+		if {!$myoptions(-trace)} return
+		set fd $myoptions(-trace-fd)
+		puts $fd "Request  $cookie Time [clock format [clock seconds]]"
+		flush $fd
+		return
+	}
+
+	method ShowResponse {tok cookie} {
+		if {!$myoptions(-trace)} {
+			return $tok
+		}
+
+		set fd $myoptions(-trace-fd)
+
+		set start [my Get $tok x:rest:start]
+		set done  [my Get $tok x:rest:done]
+
+		puts $fd "Response $cookie Time [clock format [clock seconds]]: [expr {$done - $start}] milliseconds"
+		puts $fd "Response $cookie Code:    [http::code   $tok]"
+		puts $fd "Response $cookie Code':   [http::ncode  $tok]"
+		puts $fd "Response $cookie Status:  [http::status $tok]"
+		puts $fd "Response $cookie Error:   [http::error  $tok]"
+
+		my ShowDict $fd "Response $cookie Headers:" [http::meta $tok]
+
+		puts  $fd "Response $cookie Body:    [http::data   $tok]"
+		flush $fd
+		return $tok
+	}
+
+	method ShowDict {fd prefix dict} {
+		set n [my MaxLen [dict keys $dict]]
+		set fmt %-${n}s
+
+		dict for {k v} $dict {
+			puts $fd "$prefix [format $fmt $k] = ($v)"
+		}
+		return
+	}
+
+	method MaxLen {list} {
+		set max 0
+		foreach s $list {
+			set n [string length $s]
+			if {$n <= $max} continue
+			set max $n
+		}
+		return $max
+	}
+
+	# ## #### ######## ################
 }
 
 # Local Variables:

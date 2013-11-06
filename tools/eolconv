@@ -1,0 +1,17 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+# input assumed to be unix (\n only).
+# The automatic translation on stdin ensures that.
+
+set mode [lindex $argv 0]
+if {($mode eq {}) || !$mode} {
+    # force unix output (\n). Note that this is made explicit for
+    # portability of the script itself.
+    fconfigure stdout -translation lf
+} else {
+    # force windows output (\r\n).
+    fconfigure stdout -translation crlf
+}
+
+fcopy stdin stdout
+exit

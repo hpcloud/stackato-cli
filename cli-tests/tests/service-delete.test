@@ -1,0 +1,79 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## services, delete
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test delete-service-1.0 {delete-service, nothing} -setup {
+    stage-open
+    go-admin
+} -body {
+    run delete-service -n
+} -cleanup {
+    stage-close
+} -result {}
+
+test delete-service-1.1 {delete-service, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run delete-service N
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test delete-service-1.2 {delete-service, bogus service} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run delete-service bogus
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Service [bogus] is not a valid service choice}
+
+test delete-service-1.3 {delete-service, --all vs service name} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run delete-service --all someservice
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {You cannot use "service" together with "--all".}
+
+set counter 0
+foreach vendor [services] {
+    test delete-service-2.$counter "delete-service, $vendor" -setup {
+	stage-open
+	go-admin
+	go-non-admin
+	run create-service $vendor test-service
+    } -body {
+	run delete-service test-service
+    } -cleanup {
+	be-admin
+	remove-non-admin
+	stage-close
+    } -result {Deleting service [test-service] ... OK}
+    incr counter
+}
+
+# todo: testing --all, requires clean test setup however.
+# todo: auto-binding to existing application
+# todo: service deletion in groups
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

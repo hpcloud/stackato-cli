@@ -1,0 +1,91 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## quota_definitions, listing
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test quotas-1.0 {quotas, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run quotas X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test quotas-1.1 {quotas, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run quotas
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test quotas-1.2 {quotas, non-admin login ok} -constraints cfv2uaa -setup {
+    stage-open
+    ref-target
+    go-admin
+    go-non-admin
+} -body {
+    run quotas
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test quotas-1.3 {quotas} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run quotas
+} -cleanup {
+    stage-close
+} -match glob -result "In [thetarget]...\n+-*-+-*-+-*-+-*-+\n| Name *| Paid? *| Services *| Memory *|\n+-*-+-*-+-*-+-*-+\n*+-*-+-*-+-*-+-*-+"
+
+test quotas-1.4 {quotas, --json} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run quotas --json
+} -cleanup {
+    stage-close
+} -match glob -result [string map [list @@@@ [theorg]] {\[*{
+    "entity"   : {
+        "memory_limit"               : *,
+        "name"                       : *,
+        "non_basic_services_allowed" : *,
+        "total_services"             : *,
+        "trial_db_allowed"           : *
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/quota_definitions/*"
+    }
+}*\]}]
+
+test quotas-1.5 {quotas, not allowed for CFv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run quotas
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

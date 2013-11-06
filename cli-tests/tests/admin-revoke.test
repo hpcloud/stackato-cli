@@ -1,0 +1,93 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## admin revoke
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test admin-revoke-1.0 {admin revoke, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run admin revoke -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test admin-revoke-1.1 {admin revoke, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run admin revoke E X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test admin-revoke-1.2 {admin-revoke, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run admin revoke E
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test admin-revoke-1.3 {admin revoke, admin login required} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run admin revoke E
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Error 200: Operation not permitted} \
+	 {Expected a user name for input "email", got "E"}]
+
+test admin-revoke-1.4 {admin revoke, bogus user} -setup {
+    stage-open
+    go-admin
+} -body {
+    run admin revoke bogus@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Expected a user name for input "email", got "bogus@test"}
+
+test admin-revoke-1.5 {admin revoke} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    be-admin
+    run admin grant [theuser]
+} -body {
+    run admin revoke [theuser]
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -result "Revoking administrator privileges from \[[theuser]\] ... OK"
+
+test admin-revoke-1.6 {admin revoke, persists} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    be-admin
+    run admin grant [theuser]
+} -body {
+    run admin revoke [theuser]
+    run admin list
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -match anti-glob -result "*[theuser]*"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

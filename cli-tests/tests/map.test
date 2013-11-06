@@ -1,0 +1,114 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## map
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test map-1.0 {map, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run map A I X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test map-1.1 {map, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run map -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test map-1.2 {map, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run map -n A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+
+test map-1.3 {map, bogus url} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Error 700: Invalid URI: 'bogus'} \
+	 {Error: Unknown domain ''}]
+
+test map-1.4 {map, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+} -cleanup {
+    remove-test-app
+    if {$isv2 } {
+	run delete-route -n [mapurl]
+    }
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test map-1.5 {map} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+} -cleanup {
+    remove-test-app
+    if {$isv2 } {
+	run delete-route -n [mapurl]
+    }
+    remove-appdir
+    stage-close
+} -result [map {Application [TEST] ... 
+  Map @@
+Commit ...
+Successfully mapped 1 url} @@ [mapurl]]
+
+test map-1.6 {map, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+    run apps
+} -cleanup {
+    remove-test-app
+    if {$isv2 } {
+	run delete-route -n [mapurl]
+    }
+    remove-appdir
+    stage-close
+} -match glob -result "*| TEST *| * | STOPPED *| [mapurl] *| * |*"
+
+# todo: actual (re-)mapping with a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,73 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## mem
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test mem-1.0 {mem, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run mem A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test mem-1.1 {mem, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run mem }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test mem-1.3 {mem, bogus app} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run mem A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an application name for input "application", got "A"}
+
+test mem-1.5 {mem, non-admin login is ok, query} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run mem TEST
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -result {Current Memory Reservation [TEST]: 128M}
+
+# # ## ### ##### ######## ############# #####################
+
+test mem-2.0 {mem, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    run mem node-env
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result {Current Memory Reservation \[node-env\]: *}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

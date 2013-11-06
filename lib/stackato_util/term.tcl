@@ -15,18 +15,24 @@
 package provide stackato::term 0
 package require Tcl 8.5
 package require stackato::color
+package require stackato::log
 package require linenoise
 package require try
+package require table
 
+namespace eval ::stackato {
+    namespace export term
+}
 namespace eval ::stackato::term {
     namespace import ::stackato::color
+    namespace import ::stackato::log::wrap
 }
 
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::term::ask/string {query {default {}}} {
     try {
-	set response [linenoise prompt -prompt $query]
+	set response [Interact {*}[Fit $query 10]]
     } on error {e o} {
 	if {$e eq "aborted"} {
 	    error Interrupted error SIGTERM
@@ -65,7 +71,7 @@ proc ::stackato::term::ask/string/extended {query args} {
 	}
     }
     try {
-	set response [linenoise prompt {*}$config -prompt $query]
+	set response [Interact {*}[Fit $query 10] {*}$config]
     } on error {e o} {
 	if {$e eq "aborted"} {
 	    error Interrupted error SIGTERM
@@ -80,7 +86,7 @@ proc ::stackato::term::ask/string/extended {query args} {
 
 proc ::stackato::term::ask/string* {query} {
     try {
-	set response [linenoise prompt -hidden 1 -prompt $query]
+	set response [Interact {*}[Fit $query 10] -hidden 1]
     } on error {e o} {
 	if {$e eq "aborted"} {
 	    error Interrupted error SIGTERM
@@ -94,24 +100,25 @@ proc ::stackato::term::ask/yn {query {default yes}} {
     append query [expr {$default
 			? " \[[color green Y]n\]: "
 			: " \[y[color green N]\]: "}]
+
+    lassign [Fit $query 5] header prompt
     while {1} {
 	try {
 	    set response \
-		[linenoise prompt \
-		     -prompt $query \
+		[Interact $header $prompt \
 		     -complete {::stackato::term::Complete {yes no false true on off 0 1} 1}]
+		     
 	} on error {e o} {
 	    if {$e eq "aborted"} {
 		error Interrupted error SIGTERM
 	    }
 	    return {*}${o} $e
 	}
-
 	if {$response eq {}} { set response $default }
 	if {[string is bool $response]} break
-	puts stdout "You must choose \"yes\" or \"no\""
-
+	puts stdout [wrap "You must choose \"yes\" or \"no\""]
     }
+
     return $response
 }
 
@@ -124,11 +131,13 @@ proc ::stackato::term::ask/choose {query choices {default {}}} {
     }
 
     append query " ($lc): "
+
+    lassign [Fit $query 5] header prompt
+
     while {1} {
 	try {
 	    set response \
-		[linenoise prompt \
-		     -prompt $query \
+		[Interact $header $prompt \
 		     -complete [list ::stackato::term::Complete $choices 0]]
 	} on error {e o} {
 	    if {$e eq "aborted"} {
@@ -140,7 +149,7 @@ proc ::stackato::term::ask/choose {query choices {default {}}} {
 	    set response $default
 	}
 	if {$response in $choices} break
-	puts stdout "You must choose one of $lc"
+	puts stdout [wrap "You must choose one of $lc"]
     }
 
     return $response
@@ -168,15 +177,17 @@ proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
     }
     $t plain
     $t noheader
+
+    lassign [Fit $prompt 5] pheader prompt
+
     while {1} {
 	if {$header ne {}} {puts stdout $header}
 	$t show* {puts stdout}
 
 	try {
-	set response \
-	    [linenoise prompt \
-		 -prompt $prompt \
-		 -complete [list ::stackato::term::Complete $fullchoices 0]]
+	    set response \
+		[Interact $pheader $prompt \
+		     -complete [list ::stackato::term::Complete $fullchoices 0]]
 	} on error {e o} {
 	    if {$e eq "aborted"} {
 		error Interrupted error SIGTERM
@@ -195,7 +206,7 @@ proc ::stackato::term::ask/menu {header prompt choices {default {}}} {
 	    if {$response in $choices} break
 	}
 
-	puts stdout "You must choose one of the above"
+	puts stdout [wrap "You must choose one of the above"]
     }
 
     $t destroy
@@ -217,6 +228,34 @@ proc ::stackato::term::Complete {choices nocase buffer} {
 	lappend candidates $c
     }
     return $candidates
+}
+
+proc ::stackato::term::Interact {header prompt args} {
+    if {$header ne {}} { puts $header }
+    linenoise prompt {*}$args -prompt $prompt
+}
+
+proc ::stackato::term::Fit {prompt space} {
+    # Similar to stackato::log::wrap, except wrapping is conditional
+    # here, with a split following.
+
+    set w [expr {[linenoise columns] - $space }]
+    # we leave space for some characters to be entered.
+
+    if {[string length $prompt] < $w} {
+	return [list {} $prompt]
+    }
+
+    set prompt [textutil::adjust::adjust $prompt -length $w -strictlength 1]
+
+    set prompt [split $prompt \n]
+    set header [join [lrange $prompt 0 end-1] \n]
+    set prompt [lindex $prompt end]
+    # alt code for the same.
+    #set header [join [lreverse [lassign [lreverse [split $prompt \n]] prompt]] \n]
+    append prompt { }
+
+    list $header $prompt
 }
 
 # # ## ### ##### ######## ############# #####################

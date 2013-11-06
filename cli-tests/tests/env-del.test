@@ -1,0 +1,102 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## env-del
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test env-del-1.0 {env-del, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run env-del A VAR X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test env-del-1.1 {env-del, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run env-del -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test env-del-1.2 {env-del, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run env-del -n VAR }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+
+test env-del-1.3 {env-del, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env-del TEST VAR
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test env-del-1.4 {env-del, unknown variable is ok} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-del TEST VAR
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Deleting Environment Variable [VAR] ... OK}
+
+test env-del-1.5 {env-del} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env-del TEST VAR
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Deleting Environment Variable [VAR] ... OK}
+
+test env-del-1.6 {env-del, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env-del TEST VAR
+    run env     TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No Environment Variables}
+
+# todo: changing the env of a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

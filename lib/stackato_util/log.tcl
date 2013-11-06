@@ -11,16 +11,24 @@ package require textutil::adjust
 package require linenoise
 package require tty
 
-namespace eval ::stackato::log {}
+namespace eval ::stackato::log {
+    namespace export log
+    namespace ensemble create
+
+   # EL (Erase Line)
+    #    Sequence: ESC [ n K
+    # ** Effect: if n is 0 or missing, clear from cursor to end of line
+    #    Effect: if n is 1, clear from beginning of line to cursor
+    #    Effect: if n is 2, clear entire line
+
+    variable eeol \033\[K
+}
 
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::log::wrap {text {down 0}} {
-    set  c [linenoise columns]
-    incr c -$down
-
-    return [textutil::adjust::adjust $text \
-		-length $c -strictlength 1]
+    set c [expr {[linenoise columns]-$down}]
+    return [textutil::adjust::adjust $text -length $c -strictlength 1]
 }
 
 proc ::stackato::log::wrapl {text {down 0}} {
@@ -100,8 +108,9 @@ proc ::stackato::log::again+ {text} {
     if {$log eq {}} return
     variable feedback
     if {!$feedback} return
+    variable eeol
     variable last
-    puts -nonewline $log \r[string repeat { } [expr {5+[string length $last]}]]\r$last$text
+    puts -nonewline $log \r$eeol\r$last$text
     flush $log
     return
 }
@@ -111,8 +120,9 @@ proc ::stackato::log::clearlast {} {
     if {$log eq {}} return
     variable feedback
     if {!$feedback} return
+    variable eeol
     variable last {}
-    puts -nonewline $log \r[string repeat { } [expr {5+[string length $last]}]]\r
+    puts -nonewline $log \r$eeol\r
     flush $log
     return
 }
@@ -122,7 +132,8 @@ proc ::stackato::log::clear {{size 80}} {
     if {$log eq {}} return
     variable feedback
     if {!$feedback} return
-    puts -nonewline $log \r[string repeat { } $size]\r
+    variable eeol
+    puts -nonewline $log \r$eeol\r
     flush $log
     return
 }
@@ -176,6 +187,9 @@ proc ::stackato::log::uptime {delta} {
 }
 
 proc ::stackato::log::psz {size {prec 1}} {
+    # unit (size) = Bytes
+    # see also ::stackato::validate::memspec::format
+
     #checker -scope local exclude warnArgWrite
     if {$size eq {}} { return NA }
     if {$size < 1024} { return ${size}B }
@@ -190,7 +204,7 @@ proc ::stackato::log::psz {size {prec 1}} {
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::log {
-    namespace export say header banner display clear err quit \
+    namespace export say say! header banner display clear err quit \
 	uptime psz to defined again+ clearlast wrap wrapl feedback
     namespace ensemble create
 

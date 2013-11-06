@@ -1,0 +1,11 @@
+applications:
+- depends-on:
+  - node-env2
+  command: node app.js
+  name: node-env1
+  mem: 256M
+  path: n1
+- name: node-env2
+  command: node app.js
+  mem: 256M
+  path: n2

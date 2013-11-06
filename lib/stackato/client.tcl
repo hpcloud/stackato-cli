@@ -11,7 +11,6 @@ package require try            ;# I want try/catch/finally
 package require TclOO
 package require stackato::const
 package require stackato::color
-package require stackato::client::cli::config
 package require lambda
 package require restclient
 package require tls          ; # SSL support (https)
@@ -22,18 +21,21 @@ package require ooutil
 package require stackato::jmap
 package require struct::list
 package require ncgi
-package require sdebug
+package require debug
 package require url
 
 package require autoproxy 1.5.3 ; # Contains the https fixes.
 http::register https 443 autoproxy::tls_socket ; # proxy aware TLS/SSL.
 
 debug level  client
-debug prefix client {}
-Debug.client {[package ifneeded autoproxy [package require autoproxy]]}
-debug prefix client {[::debug::snit::call] | }
+debug prefix client {[debug caller] | }
+debug.client {[package ifneeded autoproxy [package require autoproxy]]}
+
 
 namespace eval ::stackato::client {}
+namespace eval ::stackato {
+    namespace export client
+}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -42,12 +44,13 @@ oo::class create ::stackato::client {
     # # ## ### ##### ######## #############
 
     constructor {{target_url {}} {auth_token {}}} {
-	Debug.client {}
+	debug.client {}
 
 	if {$target_url eq {}} {
 	    set target_url $stackato::const::DEFAULT_TARGET
 	}
 
+	set mygroup {}
 	set myclientinfo {}
 	set myhost {}
 	set myuser {}
@@ -57,7 +60,7 @@ oo::class create ::stackato::client {
 
 	# Namespace import, sort of.
 	namespace path [linsert [namespace path] end \
-			    ::stackato ::stackato::client::cli ::stackato::log]
+			    ::stackato ::stackato::log]
 
 	set myauth_token $auth_token
 	set mytarget     [url canon $target_url]
@@ -98,15 +101,28 @@ oo::class create ::stackato::client {
     }
 
     destructor {
-	Debug.client {}
+	debug.client {}
     }
 
     # # ## ### ##### ######## #############
     ## API
 
     method version {} {
-	Debug.client { = [package present stackato::client]}
+	debug.client { = [package present stackato::client]}
 	return [package present stackato::client]
+    }
+
+    method api-version {} {
+	set v [dict get [my info] version]
+	debug.client {==> $v}
+	return $v
+    }
+
+    method isv2 {} { return no }
+
+    method current_user {} {
+	debug.client {}
+	return [dict get' [my info] user N/A]
     }
 
     ######################################################
@@ -114,31 +130,30 @@ oo::class create ::stackato::client {
     ######################################################
 
     # Retrieves information on the target cloud, and optionally the logged in user
-    method info {} {
-	Debug.client {}
+    method info {{keepredirect 0}} {
+	debug.client {}
 	# TODO: Should merge for new version IMO, general, services, user_account
 
 	if {$myclientinfo ne {}} { return $myclientinfo }
-	set myclientinfo [my json_get $stackato::const::INFO_PATH]
+	set myclientinfo [my json_get $stackato::const::INFO_PATH $keepredirect]
 
 	return $myclientinfo
     }
 
-
     method info_reset {} {
-	Debug.client {}
+	debug.client {}
 	set myclientinfo {}
 	return
     }
 
     method raw_info {} {
-	Debug.client {}
+	debug.client {}
 	return [my http_get $stackato::const::INFO_PATH]
     }
 
     # Global listing of services that are available on the target system
     method services_info {} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	# @todo - cache retrieved result ?
 	set si [my json_get $stackato::const::GLOBAL_SERVICES_PATH]
@@ -147,22 +162,34 @@ oo::class create ::stackato::client {
     }
 
     method logs {name n} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url $stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_logs?num=$n
 	return [lindex [my http_get $url] 1]
     }
 
+    method logs_async {cmd name n} {
+	debug.client {}
+	my check_login_status
+
+	set url $stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_logs?num=$n
+	my http_get_async $cmd $url
+    }
+
+    method logs_cancel {handle} {
+	my AsyncCancel $handle
+    }
+
     method report {} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	return [lindex [my http_get $stackato::const::STACKATO_PATH/report] 1]
     }
 
     method usage {all userOrGroup} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url $stackato::const::STACKATO_PATH/usage
@@ -180,13 +207,13 @@ oo::class create ::stackato::client {
     }
 
     method cc_config_get {} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get $stackato::const::STACKATO_PATH/config/?name=cloud_controller]
     }
 
     method cc_config_set {data} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my http_put $stackato::const::STACKATO_PATH/config/?name=cloud_controller \
 		    [jmap cc_config $data] application/json]
@@ -197,13 +224,13 @@ oo::class create ::stackato::client {
     ######################################################
 
     method apps {} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get $stackato::const::APPS_PATH]
     }
 
     method create_app {name {manifest {}}} {
-	Debug.client {}
+	debug.client {}
 	#@type manifest = ?? /@todo
 	# @todo - callers - manifest structure.
 
@@ -236,7 +263,7 @@ oo::class create ::stackato::client {
     }
 
     method update_app {name manifest} {
-	Debug.client {}
+	debug.client {}
 	#@type manifest = ?? /@todo
 	# @todo - callers - manifest structure.
 
@@ -252,7 +279,7 @@ oo::class create ::stackato::client {
     }
 
     method upload_app {name zipfile {resource_manifest {}}} {
-	Debug.client {}
+	debug.client {}
 	#@type zipfile = path
 
 	#FIXME, manifest should be allowed to be null, here for compatability with old cc's
@@ -317,7 +344,7 @@ oo::class create ::stackato::client {
 	    set dlength [file size UPLOAD_FORM]
 	}
 
-	Debug.client {$contenttype | $dlength := $data}
+	debug.client {$contenttype | $dlength := $data}
 
 	# Provide rest/http with the content-length information for
 	# the non-seekable channel
@@ -350,26 +377,26 @@ oo::class create ::stackato::client {
     }
 
     method delete_app {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	my http_delete $stackato::const::APPS_PATH/[ncgi::encode $name]
 	return
     }
 
     method app_info {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]]
     }
 
     method app_update_info {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]/update]
     }
 
     method app_stats {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	set stats_raw [my json_get \
 			   $stackato::const::APPS_PATH/[ncgi::encode $name]/stats]
@@ -391,13 +418,13 @@ oo::class create ::stackato::client {
     }
 
     method app_instances {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]/instances]
     }
 
     method app_crashes {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	return [my json_get  $stackato::const::APPS_PATH/[ncgi::encode $name]/crashes]
     }
@@ -405,7 +432,7 @@ oo::class create ::stackato::client {
     # List the directory or download the actual file indicated by the
     # path.
     method app_files {name path {instance 0}} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/instances/$instance/files/[ncgi::encode $path]"
@@ -414,7 +441,7 @@ oo::class create ::stackato::client {
     }
 
     method app_run {name cmd instance {timeout {}}} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 	set cmd [ncgi::encode $cmd]
 	if {$timeout ne {}} {
@@ -428,7 +455,7 @@ oo::class create ::stackato::client {
     ## Application, log drains - log forwarding management.
 
     method app_drain_list {name} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
@@ -437,7 +464,7 @@ oo::class create ::stackato::client {
     }
 
     method app_drain_create {name drain uri usejson} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
@@ -450,7 +477,7 @@ oo::class create ::stackato::client {
     }
 
     method app_drain_delete {name drain} {
-	Debug.client {}
+	debug.client {}
 	my check_login_status
 
 	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains/[ncgi::encode $drain]"
@@ -598,7 +625,7 @@ oo::class create ::stackato::client {
     # Auth token can be retained and used in creating
     # new clients, avoiding login.
     method login {user password} {
-	Debug.client {}
+	debug.client {}
 
 	# Password empty => Admin user. Not transmitting such a password.
 	# See c_user.tcl [bug 93843] for the code causing the implication.
@@ -641,18 +668,18 @@ oo::class create ::stackato::client {
 	#@type response_info = dict ("token" -> string)
 	#puts |$response_info|
 
-	Debug.client {ri = ($response_info)}
+	debug.client {ri = ($response_info)}
 
 	if {$response_info ne {}} {
 	    set myuser       $user
 	    set myauth_token [dict get $response_info token]
 
-	    Debug.client {token = ($myauth_token)}
+	    debug.client {token = ($myauth_token)}
 
 	    if {[dict exists $response_info sshkey]} {
 		set sshkey [dict get $response_info sshkey]
 
-		Debug.client {sshkey = ($sshkey)}
+		debug.client {sshkey = ($sshkey)}
 
 		return [list $myauth_token $sshkey]
 	    }
@@ -661,7 +688,7 @@ oo::class create ::stackato::client {
     }
 
     # sets the password for the current logged user
-    method change_password {new_password} {
+    method change_password {new_password old_password} {
 	my check_login_status
 	set user_info [my json_get $stackato::const::USERS_PATH/[ncgi::encode $myuser]]
 	if {$user_info ne {}} {
@@ -763,6 +790,10 @@ oo::class create ::stackato::client {
 	return
     }
 
+    method trace? {} {
+	return [my cget -trace]
+    }
+
     method trace {trace} {
 	set mytrace $trace
 	# Setup tracing if needed
@@ -779,7 +810,8 @@ oo::class create ::stackato::client {
     }
 
     method group {group} {
-	Debug.client {$group}
+	debug.client {$group}
+	set mygroup $group
 
 	if {$group ne {}} {
 	    dict set   myheaders X-Stackato-Group $group
@@ -788,6 +820,10 @@ oo::class create ::stackato::client {
 	}
 	my configure -headers $myheaders
 	return
+    }
+
+    method group? {} {
+	return $mygroup
     }
 
     method users {} {
@@ -828,16 +864,31 @@ oo::class create ::stackato::client {
     ######################################################
 
     # Checks that the target is valid
-    method target_valid? {} {
+    # Tri-state return
+    # 0 - Invalid target
+    # 1 - Target ok, save
+    # 2 - Target redirects to 'newtarget'.
+
+    method target_valid? {rvar} {
 	try {
-	    set descr [my info]
-	    if {$descr eq {}}          { return 0 }
+	    set descr [my info 1]
+	    if {$descr eq {}}             { return 0 }
 	    if {![my HAS $descr name]}    { return 0 }
 	    if {![my HAS $descr build]}   { return 0 }
 	    if {![my HAS $descr version]} { return 0 }
 	    if {![my HAS $descr support]} { return 0 }
 	    return 1
-	} on error {} {
+	} trap {REST REDIRECT} {e o} {
+	    # e = list (code redirection-url headers response)
+	    # Extract url, chop off schema, and /info, this is the
+	    # target we are redirected to.
+	    upvar 1 $rvar url
+	    set url [join [lrange [split [lindex $e 1] /] 0 end-1] /]
+	    return 2
+
+	} on error {e o} {
+	    #puts TV|E|$e
+	    #puts TV|O|$o
 	    #puts TV/$::errorInfo
 	    return 0
 	}
@@ -845,27 +896,27 @@ oo::class create ::stackato::client {
 
     # Checks that the auth_token is valid
     method logged_in? {} {
-	Debug.client {}
+	debug.client {}
 	set descr [my info]
 	if {[llength $descr]} {
 	    try {
 		if {![my HAS $descr user]}  {
-		    Debug.client {No. User field missing}
+		    debug.client {No. User field missing}
 		    return 0
 		}
 		if {![my HAS $descr usage]} {
-		    Debug.client {No. Usage field missing}
+		    debug.client {No. Usage field missing}
 		    return 0
 		}
 	    } on error {e o} {
 		my TargetError "Login check choked on bad server response, please check if the server is responsive."
 	    }
 	    set myuser [dict get $descr user]
-	    Debug.client {Yes -> $myuser}
+	    debug.client {Yes -> $myuser}
 	    return 1
 	}
 	# result when no info present ?
-	Debug.client {No. No information}
+	debug.client {No. No information}
 	return 0
     }
 
@@ -880,10 +931,13 @@ oo::class create ::stackato::client {
     # # ## ### ##### ######## #############
     ## Internal commands.
 
-    method json_get {url} {
+    method json_get {url {keepredirect 0}} {
 	try {
 	    set result [my http_get $url application/json]
 	} trap {REST REDIRECT} {e o} {
+	    if {$keepredirect} {
+		return {*}$o $e
+	    }
 	    return -code error -errorcode {STACKATO CLIENT BAD-RESPONSE} \
 		"Can't parse response into JSON [lindex $e 1]"
 	}
@@ -987,6 +1041,95 @@ oo::class create ::stackato::client {
 	return
     }
 
+
+
+    method http_get_async {cmd path {content_type {}}} {
+	my ARequest $cmd GET $path $content_type
+    }
+
+    method ARequest {cmd method path {content_type {}} {payload {}}} {
+	# payload = channel|literal
+
+	# PAYLOAD see update_app, is dict with file channel inside ?
+	# How/where is that handled.
+
+	if {$content_type ne {}} {
+	    http::config -accept $content_type
+	} else {
+	    http::config -accept */*
+	}
+
+	my AsyncRequest [mymethod ARD $cmd] $method $mytarget$path \
+	    $content_type $payload
+    }
+
+    method ARDO {details} {
+	return {*}$details
+    }
+
+    method ARD {cmd code {details {}}} {
+	# code = reset
+	#      | return (which has details)
+
+	# reset - Passed through.
+	# return - split into options and result, then handle errors
+	#          like in a try. I.e. transformed, and then passed.
+
+
+	if {$code eq "reset"} {
+	    uplevel \#0 [list {*}$cmd reset]
+	    return
+	}
+
+	catch {
+	    try {
+		my ARDO $details
+	    } trap {REST HTTP} {e o} {
+		# e = response body, possibly json
+		# o = dict, -errorcode has status in list, last element.
+
+		set rstatus [lindex [dict get $o -errorcode] end]
+		set rbody   $e
+
+		if {[my request_failed $rstatus]} {
+		    # FIXME, old cc returned 400 on not found for file access
+		    if {$rstatus in {404 400}} {
+			my NotFound [my PEM $rstatus $rbody]
+		    } else {
+			my TargetError [my PEM $rstatus $rbody]
+		    }
+		}
+
+		# else rethrow
+		return {*}$o $e
+
+	    } trap {REST REDIRECT} {e o} {
+		# Rethrow
+		return {*}$o $e
+
+	    } trap {POSIX ECONNREFUSED} {e o} {
+		my BadTarget $e
+
+	    } on error {e o} {
+		if {
+		    [string match {*couldn't open socket*} $e]
+		} {
+		    # XXX Determine the error-code behind the message, so
+		    # XXX that we can trap it (better than string match).
+		    my BadTarget $e
+		}
+
+		my InternalError $e
+
+		#@todo rescue URI::Error, SocketError => e
+		#raise BadTarget, "Cannot access target (%s)" % [ e.message ]
+	    }
+	} e o
+
+	uplevel \#0 [list {*}$cmd return [list {*}$o $e]]
+	return
+    }
+
     method request_failed {status} {
 	# Failed for 4xx and 5xx == range 400..599
 	return [expr {(400 <= $status) && ($status < 600)}]
@@ -1023,7 +1166,7 @@ oo::class create ::stackato::client {
     }
 
     method check_login_status {} {
-	Debug.client { ($myuser)}
+	debug.client { ($myuser)}
 	if {($myuser eq {}) &&
 	    ![my logged_in?]} {
 	    my AuthError
@@ -1054,38 +1197,43 @@ oo::class create ::stackato::client {
     }
 
     method ServiceError {name} {
-	Debug.client {}
+	debug.client {}
 	my TargetError "Service \[$name\] is not a valid service choice"
     }
 
     method ServiceCreationError {service} {
-	Debug.client {}
+	debug.client {}
 	my TargetError "\[$service\] is not a valid service choice"
     }
 
     method BadTarget {text} {
-	Debug.client {}
+	debug.client {}
 	return -code error -errorcode {STACKATO CLIENT BADTARGET} \
-	    "Cannot access target ($text)"
+	    "Cannot access target '$mytarget' ($text)"
     }
 
     method TargetError {msg} {
-	Debug.client {}
+	debug.client {}
 	return -code error -errorcode {STACKATO CLIENT TARGETERROR} $msg
     }
 
     method NotFound {msg} {
-	Debug.client {}
+	debug.client {}
 	return -code error -errorcode {STACKATO CLIENT NOTFOUND} $msg
     }
 
     method AuthError {} {
-	Debug.client {}
+	debug.client {}
 	return -code error -errorcode {STACKATO CLIENT AUTHERROR} {}
     }
 
+	    # forward ...
+    method internal {e} {
+	my InternalError $e
+    }
+
     method InternalError {e} {
-	Debug.client {}
+	debug.client {}
 	return -code error -errorcode {STACKATO CLIENT INTERNAL} \
 	    [list $e $::errorInfo $::errorCode]
     }
@@ -1095,7 +1243,7 @@ oo::class create ::stackato::client {
 
     variable mytarget myhost myuser myproxy myauth_token \
 	mytrace STACKATO_HTTP_ERROR_CODES myprogress myheaders \
-	myclientinfo
+	myclientinfo mygroup
 
     method target    {} { return $mytarget }
     method authtoken {} { return $myauth_token }
@@ -1106,7 +1254,7 @@ oo::class create ::stackato::client {
 }
 
 proc ::stackato::client::AuthError {} {
-    Debug.client {::stackato::client::AuthError}
+    debug.client {::stackato::client::AuthError}
     return -code error -errorcode {STACKATO CLIENT AUTHERROR} \
 	{Authentication error}
 }

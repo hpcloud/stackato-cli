@@ -1,0 +1,19 @@
+Using manifest*
+Updating application 'node-env'...
+stackato.dea.0: Stopping application "node-env" on DEA *
+Comparing application \[node-env\] to \[https://api.@BASE@\] ... 
+Framework:       node
+Runtime:         <framework-specific default>
+Application Url: node-env.@BASE@
+    No changes
+Uploading Application \[node-env\] ... 
+  Checking for bad links ...  OK
+  Copying to temp space ...  OK
+  Checking for available resources ...  OK
+  Processing resources ... OK
+  Packing application ... OK
+  Uploading (*) ...  OK
+Push Status: OK
+*
+http://node-env.@BASE@/ deployed
+

@@ -1,0 +1,99 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## bind-service
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test bind-service-1.0 {bind-service, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run bind-service S A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test bind-service-1.1 {bind-service, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run bind-service -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+
+test bind-service-1.2 {bind-service, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run bind-service -n S }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Expected an application name for input "application", got "appdir"} \
+	 {Expected a service instance name for input "service", got "S"}]
+
+test bind-service-1.3 {bind-service, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    run create-service filesystem test-service
+    make-test-app
+} -body {
+    run bind-service test-service TEST
+} -cleanup {
+    run unbind-service test-service TEST
+    run delete-service test-service
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test bind-service-1.4 {bind-service} -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app
+} -body {
+    run bind-service test-service TEST
+} -cleanup {
+    run unbind-service test-service TEST
+    run delete-service test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Binding Service test-service to TEST ... OK}
+
+test bind-service-1.5 {bind-service, persistent} -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app
+} -body {
+    run bind-service test-service TEST
+    run apps
+} -cleanup {
+    run unbind-service test-service TEST
+    run delete-service test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {*| TEST* | 0* | STOPPED* | * | test-service |*}
+
+# todo: binding services to a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

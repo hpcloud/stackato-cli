@@ -1,0 +1,159 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test group-1.0 {group, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run group G X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test group-1.1 {group, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run group
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test group-1.2 {group, no group = current user} -setup {
+    stage-open
+    go-admin
+} -body {
+    run group
+} -cleanup {
+    stage-close
+} -result {[]}
+
+test group-1.3 {group, no group = current user, json} -setup {
+    stage-open
+    go-admin
+} -body {
+    run group --json
+} -cleanup {
+    stage-close
+} -result {{
+    "group" : []
+}}
+
+test group-1.4 {group, set group, admin can be any} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run group test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Successfully set current group to [test-group]}
+
+test group-1.5 {group, set group, non-admin must be member} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    go-non-admin
+} -body {
+    run group test-group
+} -cleanup {
+    be-admin
+    run groups delete test-group
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error: You are not a member of group 'test-group'
+Groups available to you:}
+
+test group-1.6 {group, set group, non-admin is member} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    make-non-admin
+    run groups add-user test-group [theuser]
+    be-non-admin
+} -body {
+    run group test-group
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run groups delete test-group
+    stage-close
+} -result {Successfully set current group to [test-group]}
+
+test group-1.7 {group, set group, persist} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run group test-group
+    run group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {[test-group]}
+
+test group-1.8 {group, show group, json} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group test-group
+} -body {
+    run group --json
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {{
+    "group" : ["test-group"]
+}}
+
+test group-1.9 {group, unset group} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group test-group
+} -body {
+    run group --reset
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Reset current group: OK}
+
+test group-1.10 {group, unset group, persist} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group test-group
+} -body {
+    run group --reset
+    run group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {[]}
+
+test group-1.11 {group, set/unset do not mix} -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group test-group
+} -body {
+    run group --reset test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -returnCodes error -result {You cannot use "name" together with "--reset".}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

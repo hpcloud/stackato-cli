@@ -17,6 +17,15 @@ package require TclOO
 package require ooutil
 package require uri
 package require tunnel::http ; # Actual tunnel implementation.
+package require debug
+
+# # ## ### ##### ######## ############# #####################
+
+debug level  tunnel
+debug prefix tunnel {}
+
+debug level  tunnel/data
+debug prefix tunnel/data {}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -26,14 +35,13 @@ oo::class create ::tunnel {
 	array set myconn     {} ; # sock -> connection controller object
 	set mylistener       {}
 	set mynumconnections 0
-	set mylog            0
 
-	my log {[self] LISTEN born}
+	debug.tunnel {[self] born}
 	return
     }
 
     destructor {
-	my log {[self] LISTEN dies}
+	debug.tunnel {[self] dies}
 	return
     }
 
@@ -41,21 +49,22 @@ oo::class create ::tunnel {
     # Inner event-loop handling the whole of tunnel management.
 
     method wait {{first 1}} {
-	my log {[self] LISTEN waiting-on-stop}
+	debug.tunnel {[self] waiting-on-stop $first}
 
 	while {$first || $mynumconnections} {
 	    set first 0
 	    vwait [namespace which -variable mynumconnections]
-	    my log {[self] LISTEN waiting-on-stop CHECK}
+	    debug.tunnel {[self] waiting-on-stop CHECK}
 	}
 
-	my log {[self] LISTEN waiting-on-stop OK}
+	debug.tunnel {[self] waiting-on-stop OK}
 	return
     }
 
     # Start the listener for local connections.
 
     method start {args} {
+	debug.tunnel {[self] start ($args)}
 	# args = options = dictionary.
 
 	# Terminal interupts shutting down the application are
@@ -75,12 +84,7 @@ oo::class create ::tunnel {
 	# - dst_port   (int)
 	# - auth_token (string)
 	# - once       (boolean)
-	# - log
-
-	set mylog $log
-	if {$mylog eq {}} { set mylog 0 }
-
-	my log {[self] LISTEN start $args}
+	# - log        /ignored/
 
 	set tun_url [my sanitize $tun_url]
 
@@ -98,14 +102,14 @@ oo::class create ::tunnel {
     # connections. The latter only if so specified.
 
     method stop {{conn 0}} {
-	my log {[self] LISTEN stop[expr {$conn ? " + connections" : ""}]}
+	debug.tunnel {[self] stop[expr {$conn ? " + connections" : ""}]}
 
 	close $mylistener
 	set mylistener {}
 
 	if {!$conn} return
 
-	my log {[self] LISTEN stop connections...}
+	debug.tunnel {[self] stop connections...}
 
 	foreach sock [array names myconn] {
 	    $myconn($sock) close
@@ -118,15 +122,14 @@ oo::class create ::tunnel {
     }
 
     method sanitize {url} {
-	my log* {[self] LISTEN sanitize '$url' ==> }
-
+	set ourl $url
 	#checker -scope local exclude warnArgWrite
 	if {![regexp {^(https|http|ws)?} $url]} {
 	    set url https://$url
 	}
 	set url [string trimright $url /]
 
-	my log {'$url'}
+	debug.tunnel {[self] sanitize $ourl ==> '$url'}
 	return $url
     }
 
@@ -137,7 +140,7 @@ oo::class create ::tunnel {
 	# to configure the local connection for raw binary transfer,
 	# which will be event-based.
 
-	my log {[self] LISTEN $sock new-connection}
+	debug.tunnel {[self] new-connection $once $tun_url $dst_host $dst_port $auth_token $sock $host $port}
 
 	incr mynumconnections
 
@@ -154,7 +157,7 @@ oo::class create ::tunnel {
 	    -buffering   none \
 	    -translation binary
 
-	my log {[self] LISTEN $sock controller ...}
+	debug.tunnel {[self] connection controller start...}
 
 	# And construct the connection controller
 	set myconn($sock) \
@@ -167,12 +170,12 @@ oo::class create ::tunnel {
 		 onreceive  [callback TunnelReceive $sock] \
 		 onclose    [callback TunnelClose   $sock]]
 
-	my log {[self] LISTEN $sock controller active...}
+	debug.tunnel {[self] connection controller $myconn($sock) active...}
 	return
     }
 
     method TunnelOpen {sock} {
-	my log {[self] LISTEN $sock tunnel-open}
+	debug.tunnel {[self] tunnel-open $sock}
 
 	# Now we can start reception of local events.
 	fileevent $sock readable [callback LocalReceive $sock]
@@ -181,17 +184,19 @@ oo::class create ::tunnel {
 
     method LocalReceive {sock} {
 	if {[eof $sock]} {
-	    my log {[self] LISTEN $sock local-receive EOF}
+	    debug.tunnel {[self] local-receive $sock /EOF}
 
 	    # Stop local events immediately
 	    close $sock
 	    $myconn($sock) close
 	    # Indirectly later reaches --> TunnelClose 
+	    debug.tunnel {[self] local-receive $sock /DONE}
 	    return
 	}
 
 	set data [read $sock]
-	my log {[self] LISTEN $sock local-receive [string length $data]}
+	debug.tunnel      {[self] local-receive $sock [string length $data]}
+	debug.tunnel/data {[my Hexl "[self] local-receive $sock" $data]}
 
 	# Ignore empty reads.
 	if {![string length $data]} return
@@ -200,7 +205,8 @@ oo::class create ::tunnel {
     }
 
     method TunnelReceive {sock data} {
-	my log {[self] LISTEN $sock tunnel-receive [string length $data]}
+	debug.tunnel      {[self] tunnel-receive $sock [string length $data]}
+	debug.tunnel/data {[my Hexl "[self] tunnel-receive $sock" $data]}
 
 	puts -nonewline $sock $data
 	return
@@ -210,13 +216,13 @@ oo::class create ::tunnel {
 	# Comes from either the tunnel closing due to errors, or
 	# explicitly through ---> stop (s.a.).
 
-	my log {[self] LISTEN $sock tunnel-close}
+	debug.tunnel {[self] tunnel-close}
 
 	catch { close $sock }
 	$myconn($sock) destroy
 	unset myconn($sock)
 
-	my log {[self] LISTEN $sock tunnel-closed}
+	debug.tunnel {[self] tunnel-closed}
 
 	incr mynumconnections -1
 	return
@@ -224,21 +230,46 @@ oo::class create ::tunnel {
 
     # - -- --- ----- -------- -------------
 
-    method log {text} {
-	if {!$mylog} return
-	puts stderr [uplevel 1 [list subst $text]]
-	return
-    }
+    method Hexl {prefix data} {
+	set r {}
 
-    method log* {text} {
-	if {!$mylog} return
-	puts -nonewline stderr [uplevel 1 [list subst $text]]
-	return
+        # Convert the data to hex and to characters.
+	binary scan $data H*@0a* hexa asciia
+	# Replace non-printing characters in the data.
+	regsub -all -- {[^[:graph:] ]} $asciia {.} asciia
+
+	# pad with spaces to full block of 32/16.
+	set n [expr {[string length $hexa] % 32}]
+	if {$n < 32} { append hexa   [string repeat { } [expr {32-$n}]] }
+	#debug.tunnel {pad H [expr {32-$n}]}
+
+	set n [expr {[string length $asciia] % 32}]
+	if {$n < 16} { append asciia [string repeat { } [expr {16-$n}]] }
+	#debug.tunnel {pad A [expr {32-$n}]}
+
+	# Reassemble formatted, in groups of 16 bytes.
+	# Hex part is chunks of 32 nibbles.
+	while {[string length $hexa]} {
+	    # Get front group of 16 bytes each.
+	    set hex    [string range $hexa   0 31]
+	    set ascii  [string range $asciia 0 15]
+	    # Prep for next iteration
+	    set hexa   [string range $hexa   32 end]  
+	    set asciia [string range $asciia 16 end]
+
+	    # Convert the hex to pairs of hex digits
+	    regsub -all -- {..} $hex {& } hex
+
+	    # Put the hex and Latin-1 data to the result
+	    append r $prefix { | } $hex { | } $ascii |\n
+	}
+
+	return $r
     }
 
     # - -- --- ----- -------- -------------
 
-    variable mylistener myconn mynumconnections mylog
+    variable mylistener myconn mynumconnections
 
     # - -- --- ----- -------- -------------
 }

@@ -1,0 +1,108 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## usage
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test usage-1.0 {usage, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run usage UG X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test usage-1.1 {usage, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run usage
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test usage-1.2 {usage, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run usage
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test usage-1.3 {usage, implied user/space} -setup {
+    stage-open
+    go-admin
+} -body {
+    run usage
+} -cleanup {
+    stage-close
+} -match glob -result {Allocated Memory: *
+Used Memory:      *}
+
+test usage-1.4 {usage, implied user/space, json} -setup {
+    stage-open
+    go-admin
+} -body {
+    run usage --json
+} -cleanup {
+    stage-close
+} -match glob -result {{
+    "allocated" : {
+        "mem" : "*"
+    },
+    "usage"     : {
+        "mem" : "*"
+    }
+}}
+
+test usage-1.5.1 {usage, explicit user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-non-admin
+} -body {
+    run usage [theuser]
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -match glob -result {Allocated Memory: *
+Used Memory:      *}
+
+test usage-1.5.2 {usage, explicit space} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-non-admin
+} -body {
+    run usage [thespace]
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -match glob -result {Allocated Memory: *
+Used Memory:      *}
+
+
+test usage-1.6 {usage, all} -setup {
+    stage-open
+    go-admin
+    make-non-admin
+} -body {
+    run usage --all
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -match glob -result {Allocated Memory: *
+Used Memory:      *}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests
