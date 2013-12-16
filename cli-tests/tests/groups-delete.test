@@ -38,7 +38,7 @@ test groups-delete-1.2 {groups delete, login required} -setup {
 } -returnCodes error -result {Login Required
 Please use 'stackato login'}
 
-test groups-delete-1.3 {groups delete, admin login required} -setup {
+test groups-delete-1.3 {groups delete, admin login required} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
@@ -50,7 +50,7 @@ test groups-delete-1.3 {groups delete, admin login required} -setup {
     stage-close
 } -returnCodes error -result {Error 200: Operation not permitted}
 
-test groups-delete-1.4 {groups delete, bogus group} -setup {
+test groups-delete-1.4 {groups delete, bogus group} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -59,7 +59,7 @@ test groups-delete-1.4 {groups delete, bogus group} -setup {
     stage-close
 } -returnCodes error -result {Error 100: Bad request}
 
-test groups-delete-1.5 {groups delete} -setup {
+test groups-delete-1.5 {groups delete} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -69,7 +69,7 @@ test groups-delete-1.5 {groups delete} -setup {
     stage-close
 } -result {Deleting Group ... OK}
 
-test groups-delete-1.6 {groups delete, persistence} -setup {
+test groups-delete-1.6 {groups delete, persistence} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -79,6 +79,8 @@ test groups-delete-1.6 {groups delete, persistence} -setup {
 } -cleanup {
     stage-close
 } -result {No Groups}
+
+## TODO: Proper error against CFV2 target.
 
 # todo: delete group which has users
 # todo: delete group which has services

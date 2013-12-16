@@ -36,7 +36,7 @@ namespace eval ::stackato::cmd {
 }
 namespace eval ::stackato::cmd::servicemgr {
     namespace import ::stackato::mgr::tunnel
-    rename tunnel tunnelmgr
+    ::rename tunnel tunnelmgr
 
     namespace export \
 	list-instances list-plans show tunnel \
@@ -350,17 +350,21 @@ proc ::stackato::cmd::servicemgr::CloneV2 {config client} {
     set srcapp [$config @source]
     set dstapp [$config @application]
 
+    debug.cmd/servicemgr {src $srcapp}
+    debug.cmd/servicemgr {dst $dstapp}
+
     if {[$srcapp == $dstapp]} {
 	err {Source and destination are the same application}
     }
 
-    set services [$srcapp @service_bindings @app]
+    set services [$srcapp @service_bindings @service_instance]
 
     if {![llength $services]} {
 	err {No services to clone}
     }
 
     foreach service $services {
+	debug.cmd/servicemgr {srv $service : [$service @name]}
 	dict set map [$service @name] $service
     }
 
@@ -560,7 +564,7 @@ proc ::stackato::cmd::servicemgr::DeleteV2 {config client} {
 	if {$nbounds} {
 	    # Implied that unbind is set.
 	    foreach link $bindings {
-		display "Unbinding [$service @name] from [$link @app @name] ..." false
+		display "Unbinding [$service @name] from [$link @app @name] ... " false
 		$link delete
 		$link commit
 		display [color green OK]
@@ -1253,11 +1257,13 @@ proc ::stackato::cmd::servicemgr::PushTunnelHelper {config token turl} {
 	$theapp @total_instances  set 1
 
 	$theapp commit
-	app map-urls $theapp [list $turl]
+	app map-urls $config $theapp [list $turl] 1
+	# note re above: app-creation is rolled back in case of url
+	# mapping issues.
 
 	tunnelmgr def 2 $theapp
 	#stack/framework/buildpack/...
-    } {
+    } else {
 	$client create_app [tunnelmgr appname] \
 	    [dict create \
 		 name $appname \

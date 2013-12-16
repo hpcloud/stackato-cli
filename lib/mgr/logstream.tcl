@@ -26,7 +26,7 @@ namespace eval ::stackato::mgr::logstream {
     namespace export start stop stop-m active \
 	set-use-c get-use-c set-use get-use \
 	needfast needslow isfast show1 tail \
-	new-entries
+	new-entries no-new-entries
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -194,6 +194,14 @@ proc ::stackato::mgr::logstream::new-entries {} {
     set result $hasnew
     set hasnew 0
     return $result
+}
+
+proc ::stackato::mgr::logstream::no-new-entries {} {
+    debug.mgr/logstream {}
+    # query if the logstream saw no new entries since the last check.
+    # leave the counter intact, this is sampling in-between main checks.
+    variable hasnew
+    return [expr {!$hasnew}]
 }
 
 proc ::stackato::mgr::logstream::needfast {p x} {
@@ -467,10 +475,13 @@ proc ::stackato::mgr::logstream::ShowLines {config lines} {
 	    dict with record {} ;# => instance, source, text, ...
 
 	    set original_source $source
-
-	    if {$instance >= 0} { append source .$instance }
 	    
-	    if {$filename ne "" && $original_source ne "staging"} { append source \[$filename\] }
+	    # Append instance index to the app log filename, in a manner similar
+	    # to how stackato* sources have instance index suffixed.
+	    if {$filename ne "" && $original_source ne "staging"} { 
+		if {$instance >= 0} { append filename .$instance }
+		append source \[$filename\] 
+	    }
 
 	    # The color of stackato.* (source) messages differ from
 	    # app messages.
@@ -514,10 +525,19 @@ proc ::stackato::mgr::logstream::Skip {lines} {
     # Different lengths of previous and lines.
     #
     # Shortcuts:
+    # - new is empty => no change, skip all
     # - previous is empty => all is new, skip nothing
     # - previous is full prefix of lines.
     #   (Assumes previous shorter than lines).
     # - previous == lines => no change, skip all
+
+    # Short 0: Nothing received
+    if {![llength $lines]} {
+	debug.mgr/logstream/data {SKIP all (empty)}
+
+	set previous $lines
+	return $lines
+    }
 
     # Short 1: Nothing seen before, accept all new.
     if {![llength $previous]} {

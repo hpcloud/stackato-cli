@@ -10,13 +10,29 @@ kt check tcltest 2
 
 kt source support/common.tcl
 
-set logtext {*T* stackato.stager: Staging application ?node-env?
+set logtext {*T* stackato?cloud_controller_ng?: Created app 'node-env'
+*T* stackato?cloud_controller_ng?: Queued deployment of app 'node-env'
+*T* stackato?dea_ng?: Staging application
+*T* stackato?cloud_controller_ng?: Updated app 'node-env' -- {"console"=>true, "state"=>"STARTED"}
+*T* staging: -----> Downloaded app package *
+*T* staging: -----> Resolving engine versions
 *T* staging: 
-*T* staging: -----> npm config set registry http://registry.npmjs.org*
-*T* staging: end of staging
-*T* stackato.stager: Completed staging application ?node-env?
-*T* stackato.dea.0: Starting application ?node-env? on DEA *
-*T* app.0: Server running at *}
+*T* staging:        WARNING: No version of Node.js specified in package.json, see:
+*T* staging:        https://devcenter.heroku.com/articles/nodejs-versions
+*T* staging: 
+*T* staging:        Using Node.js version: 0.10.21
+*T* staging:        Using npm version: 1.2.30
+*T* staging: -----> Fetching Node.js binaries
+*T* staging: -----> Vendoring node into slug
+*T* staging: -----> Installing dependencies with npm
+*T* staging:        npm WARN package.json node-env@0.0.1 No repository field.
+*T* staging:        npm WARN package.json node-env@0.0.1 No repository field.
+*T* staging:        Dependencies installed
+*T* staging: -----> Building runtime environment
+*T* staging: -----> Uploading droplet *
+*T* stackato?dea_ng?: Completed staging application
+*T* stackato?dea_ng.0?: Spawning app web process: node app.js
+*T* app?stdout.0?: Server running at *}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -37,7 +53,7 @@ test crashlogs-1.1 {crashlogs, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+} -returnCodes error -result [expected-app appdir crashlogs]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

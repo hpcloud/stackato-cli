@@ -18,7 +18,7 @@ namespace eval ::stackato::mgr {
 }
 
 namespace eval ::stackato::mgr::self {
-    namespace export topdir me revision exe plain-revision
+    namespace export topdir me revision exe plain-revision please
     namespace ensemble create
 }
 
@@ -34,6 +34,17 @@ proc ::stackato::mgr::self::topdir {} {
 
     debug.mgr/self {= $topdir}
     return $topdir
+}
+
+proc ::stackato::mgr::self::please {cmd {prefix {Please use}}} {
+    set msg "$prefix '"
+    if {![stackato-cli exists *in-shell*] ||
+	![stackato-cli get    *in-shell*]} {
+	# Not in a shell, full message.
+	append msg [me] " "
+    }
+    append msg $cmd '
+    return $msg
 }
 
 proc ::stackato::mgr::self::me {} {

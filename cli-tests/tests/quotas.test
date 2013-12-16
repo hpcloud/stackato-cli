@@ -63,6 +63,7 @@ test quotas-1.4 {quotas, --json} -constraints cfv2 -setup {
     stage-close
 } -match glob -result [string map [list @@@@ [theorg]] {\[*{
     "entity"   : {
+        "allow_sudo"                 : *,
         "memory_limit"               : *,
         "name"                       : *,
         "non_basic_services_allowed" : *,

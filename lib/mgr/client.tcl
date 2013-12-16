@@ -29,7 +29,7 @@ namespace eval ::stackato::mgr {
 
 namespace eval ::stackato::mgr::client {
     namespace export \
-	auth+group plain authenticated \
+	auth+group plain authenticated support \
 	reset plain-reset authenticated-reset \
 	confer-group frameworks runtimes \
 	the-users-groups check-group-support \
@@ -37,7 +37,7 @@ namespace eval ::stackato::mgr::client {
 	app-started-properly? check-capacity \
 	check-app-limit notv2 isv2 isv2cmd notv2cmd \
 	trace= plainc authenticatedc restlog \
-	get-ssh-key
+	get-ssh-key full-server-version description
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -199,6 +199,11 @@ proc ::stackato::mgr::client::Make {} {
 	debug.mgr/client {group ($group)}
 	$aclient group $group
     }
+
+    # Extract and stash theming information for use by internal stack
+    # traces.
+    variable description [dict get [$aclient info] description]
+    variable support     [dict get [$aclient info] support]
 
     return $aclient
 }
@@ -368,10 +373,20 @@ proc ::stackato::mgr::client::the-users-groups {client} {
 proc ::stackato::mgr::client::server-version {client} {
     debug.mgr/client {}
     set v [dict get' [$client info] vendor_version 0.0]
+    # drop -gXXXX suffix (git revision)
     regsub -- {-g.*$} $v {} v
+    # convert a -betaX clause into bX, proper beta syntax for Tcl
+    regsub -- {-beta} $v {b} v
+    # drop leading 'v', dashes to dots
     set v [string map {v {} - .} $v]
+    # done
     debug.mgr/client {= $v}
     return $v
+}
+
+proc ::stackato::mgr::client::full-server-version {client} {
+    debug.mgr/client {}
+    return [dict get' [$client info] vendor_version 0.0]
 }
 
 proc ::stackato::mgr::client::notv2 {p x} {
@@ -548,6 +563,16 @@ proc ::stackato::mgr::client::check-app-limit {client} {
     err "Not enough capacity for operation.\nCurrent Usage: ($apps of $tapps total apps already in use)"
 }
 
+proc ::stackato::mgr::client::description {} {
+    variable description
+    return  $description
+}
+
+proc ::stackato::mgr::client::support {} {
+    variable support
+    return  $support
+}
+
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::mgr::client {
@@ -555,6 +580,12 @@ namespace eval ::stackato::mgr::client {
     variable auth  ; # cache of an authenticated client
     variable trace ; # remember tracing status
     variable group ; # remember group status
+
+    # Communication from client instances (target) specifying theming
+    # information: System description, and where to direct stacktraces
+    # of internal errors.
+    variable description {this system}
+    variable support     {}
 }
 
 # # ## ### ##### ######## ############# #####################

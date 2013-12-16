@@ -70,13 +70,6 @@ oo::class create ::stackato::client {
 	    lappend myheaders AUTHORIZATION $myauth_token
 	}
 
-	proc ::http::Log {args} {}
-	proc ::http::Log {args} { return
-	    set prefix "[::stackato::color cyan HTTP:] "
-	    set text $prefix[join [split [join $args] \n] "\n$prefix"]
-	    ::stackato::log say $text
-	}
-
 	# Initialize the integrated REST client. Late initialization
 	# of the proxy-settings.
 
@@ -942,8 +935,21 @@ oo::class create ::stackato::client {
 		"Can't parse response into JSON [lindex $e 1]"
 	}
 
+	lassign $result _ response headers
+
+	# Canonicalize the headers to lower-case keys
+	dict for {k v} $headers {
+	    dict set headers [string tolower $k] $v
+	}
+
+	set ctype [dict get $headers content-type]
+	if {![string match application/json* $ctype]} {
+	    return -code error -errorcode {STACKATO SERVER DATA ERROR} \
+		"Expected JSON, instead received $ctype from server"
+	}
+
 	try {
-	    set response [json::json2dict [lindex $result 1]]
+	    set response [json::json2dict $response]
 	} on error {e o} {
 	    return -code error -errorcode {STACKATO SERVER DATA ERROR} \
 		"Received invalid JSON from server; Error: $e"
@@ -1017,14 +1023,18 @@ oo::class create ::stackato::client {
 	    # else rethrow
 	    return {*}$o $e
 
-	} trap {REST REDIRECT} {e o} {
+	} trap {REST REDIRECT} {e o} - \
+	  trap {REST SSL}      {e o} {
 	    # Rethrow
 	    return {*}$o $e
 
-	} trap {POSIX ECONNREFUSED} {e o} {
+	} trap {POSIX ECONNREFUSED} {e o} - \
+	  trap {HTTP SOCK OPEN} {e o} {
 	    my BadTarget $e
 
 	} on error {e o} {
+	    # See also HTTP SOCK OPEN above. Dependent on local
+	    # modified copy of the http package.
 	    if {
 		[string match {*couldn't open socket*} $e]
 	    } {

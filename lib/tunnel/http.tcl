@@ -12,7 +12,11 @@ package require Tcl 8.5
 package require TclOO
 package require ooutil
 package require stackato::jmap
-package require http
+package require s-http ;# our local copy with extensions.
+package require debug
+
+debug level  tunnel/http
+debug prefix tunnel/http {}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -35,10 +39,10 @@ oo::class create ::tunnel::http {
 	# - onclose
 	# - onopen
 
-	#puts stderr "[self]    HTTP config tunnel $tun_url"
-	#puts stderr "[self]    HTTP config d-host $dst_host"
-	#puts stderr "[self]    HTTP config d-port $dst_port"
-	#puts stderr "[self]    HTTP config auth   $auth_token"
+	debug.tunnel/http {[self]    HTTP config tunnel $tun_url}
+	debug.tunnel/http {[self]    HTTP config d-host $dst_host}
+	debug.tunnel/http {[self]    HTTP config d-port $dst_port}
+	debug.tunnel/http {[self]    HTTP config auth   $auth_token}
 
 	set myauth    $auth_token
 	set myclosing  0
@@ -61,18 +65,18 @@ oo::class create ::tunnel::http {
     }
 
     destructor {
-	#puts stderr "[self]    HTTP dies"
+	debug.tunnel/http {[self]    HTTP dies}
 	my close
-	#puts stderr "[self]    HTTP gone"
+	debug.tunnel/http {[self]    HTTP gone}
 	return
     }
 
     method close {} {
-	#puts stderr "[self]    HTTP close ($myclosed|$myclosing)"
+	debug.tunnel/http {[self]    HTTP close ($myclosed|$myclosing)}
 
 	if {$myclosed || $myclosing} return
 	set myclosing 1
-	#puts stderr "[self]    HTTP closing"
+	debug.tunnel/http {[self]    HTTP closing}
 
 	if {$mywriter ne {}} { $mywriter destroy }
 	if {$myreader ne {}} { $myreader destroy }
@@ -92,11 +96,11 @@ oo::class create ::tunnel::http {
     # including read and write controllers.
 
     method start {base initmsg} {
-	#puts stderr "[self]    HTTP start $mytries ($base $initmsg)"
+	debug.tunnel/http {[self]    HTTP start $mytries ($base $initmsg)}
 
 	incr mytries
 	if {$mytries > $tunnel::http::maxtries} {
-	    #puts stderr "[self]    HTTP start fail too often"
+	    debug.tunnel/http {[self]    HTTP start fail too often}
 	    my trigger-close
 	    return
 	}
@@ -104,7 +108,7 @@ oo::class create ::tunnel::http {
 	set uri $base/tunnels
 
 	if {[catch {
-	    #puts stderr "[self]    HTTP start $uri"
+	    debug.tunnel/http {[self]    HTTP start $uri}
 
 	    http::geturl $uri \
 		-command [callback DoneStart $base $initmsg] \
@@ -113,7 +117,7 @@ oo::class create ::tunnel::http {
 		-query $initmsg
 	} msg]} {
 	    # Retry after immediate failure.
-	    #puts stderr "[self]    HTTP start failure: $msg"
+	    debug.tunnel/http {[self]    HTTP start failure: $msg}
 
 	    after idle [callback start $base $initmsg]
 	}
@@ -122,10 +126,10 @@ oo::class create ::tunnel::http {
 
     method DoneStart {base initmsg token} {
 	set code [http::ncode $token]
-	#puts stderr "[self]    HTTP DoneStart $token $code"
+	debug.tunnel/http {[self]    HTTP DoneStart $token $code}
 
 	if {$code ni {200 201 204}} {
-	    #puts stderr "[self]    HTTP start failure, retry"
+	    debug.tunnel/http {[self]    HTTP start failure, retry}
 
 	    # Failed, try again.
 	    http::cleanup $token
@@ -145,9 +149,9 @@ oo::class create ::tunnel::http {
 	set pathout  $base[dict get $response path_out]
 	set pathin   $base[dict get $response path_in]
 
-	#puts stderr "[self]    HTTP start connected: $mytunuri"
-	#puts stderr "[self]    HTTP start connected: $pathout"
-	#puts stderr "[self]    HTTP start connected: $pathin"
+	debug.tunnel/http {[self]    HTTP start connected: $mytunuri}
+	debug.tunnel/http {[self]    HTTP start connected: $pathout}
+	debug.tunnel/http {[self]    HTTP start connected: $pathin}
 
 	set myreader [tunnel::http::Reader new $pathout [self] $myauth]
 	set mywriter [tunnel::http::Writer new $pathin  [self] $myauth]
@@ -161,11 +165,11 @@ oo::class create ::tunnel::http {
     # Invokes 'myclose' when done.
 
     method stop {} {
-	#puts stderr "[self]    HTTP stop $mytries"
+	debug.tunnel/http {[self]    HTTP stop $mytries}
 
 	incr mytries
 	if {$mytries > $tunnel::http::maxtries} {
-	    #puts stderr "[self]    HTTP stop fail too often"
+	    debug.tunnel/http {[self]    HTTP stop fail too often}
 	    my trigger-close
 	    return
 	}
@@ -173,7 +177,7 @@ oo::class create ::tunnel::http {
 	if {$mytunuri eq {}} return
 
 	if {[catch {
-	    #puts stderr "[self]    HTTP delete $mytunuri"
+	    debug.tunnel/http {[self]    HTTP delete $mytunuri}
 
 	    http::geturl $mytunuri \
 		-command [callback DoneStop] \
@@ -181,7 +185,7 @@ oo::class create ::tunnel::http {
 		-headers [list Auth-Token $myauth]
 	} msg]} {
 	    # Retry after immediate failure.
-	    #puts stderr "[self]    HTTP stop failure: $msg"
+	    debug.tunnel/http {[self]    HTTP stop failure: $msg}
 
 	    after idle [callback stop]
 	}
@@ -190,19 +194,19 @@ oo::class create ::tunnel::http {
 
     method DoneStop {token} {
 	set code [http::ncode $token]
-	#puts stderr "[self]    HTTP DoneStop $token $code"
+	debug.tunnel/http {[self]    HTTP DoneStop $token $code}
 
 	http::cleanup $token
 
 	if {$code ni {200 202 204 404}} {
-	    #puts stderr "[self]    HTTP stop failure, retry"
+	    debug.tunnel/http {[self]    HTTP stop failure, retry}
 
 	    # Failed, try again.
 	    my stop
 	    return
 	}
 
-	#puts stderr "[self]    HTTP stop - close"
+	debug.tunnel/http {[self]    HTTP stop - close}
 	my trigger-close
 	[self] destroy
 	return
@@ -212,21 +216,21 @@ oo::class create ::tunnel::http {
     # Methods to run the various callbacks.
 
     method trigger-open {} {
-	#puts stderr "[self]    HTTP trigger-open"
+	debug.tunnel/http {[self]    HTTP trigger-open}
 
 	set myopened 1
 	if {$myopen eq {}} return
 	try {
 	    uplevel \#0 $myopen
 	} on error {e o} {
-	    #puts stderr "[self]    HTTP trigger-open FAIL $o"
+	    debug.tunnel/http {[self]    HTTP trigger-open FAIL $o}
 	    return {*}$o $e
 	}
 	return
     }
 
     method trigger-close {} {
-	#puts stderr "[self]    HTTP trigger-close"
+	debug.tunnel/http {[self]    HTTP trigger-close}
 
 	my close
 	set myclosed 1
@@ -234,7 +238,7 @@ oo::class create ::tunnel::http {
 	try {
 	    uplevel \#0 $myclose
 	} on error {e o} {
-	    #puts stderr "[self]    HTTP trigger-close FAIL $o"
+	    debug.tunnel/http {[self]    HTTP trigger-close FAIL $o}
 	    return {*}$o $e
 	}
 	set myclose {}
@@ -242,12 +246,12 @@ oo::class create ::tunnel::http {
     }
 
     method trigger-receive {data} {
-	#puts stderr "[self]    HTTP trigger-receive [string length $data]"
+	debug.tunnel/http {[self]    HTTP trigger-receive [string length $data]}
 
 	try {
 	    uplevel \#0 [list {*}$myreceive $data]
 	} on error {e o} {
-	    #puts stderr "[self]    HTTP trigger-receive FAIL $o"
+	    debug.tunnel/http {[self]    HTTP trigger-receive FAIL $o}
 	    return {*}$o $e
 	}
 	return
@@ -265,7 +269,7 @@ oo::class create ::tunnel::http {
 
 oo::class create ::tunnel::http::Reader {
     constructor {url conn auth_token} {
-	#puts stderr "[self]    HTTP READ born $url $conn $auth_token"
+	debug.tunnel/http {[self]    HTTP READ born $url $conn $auth_token}
 
 	set mybase   $url
 	set myconn   $conn
@@ -280,46 +284,51 @@ oo::class create ::tunnel::http::Reader {
     }
 
     destructor {
-	#puts stderr "[self]    HTTP READ dies"
+	debug.tunnel/http {[self]    HTTP READ dies}
 	my close
-	#puts stderr "[self]    HTTP READ gone"
+	debug.tunnel/http {[self]    HTTP READ gone}
 	return
     }
 
     method close {} {
-	#puts stderr "[self]    HTTP READ close ($myclosed)"
+	debug.tunnel/http {[self]    HTTP READ close ($myclosed)}
 	set myclosed 1
 
 	if {$mytoken eq {}} return
 
+	debug.tunnel/http {[self]    HTTP READ close token $mytoken}
 	http::reset   $mytoken
 	http::cleanup $mytoken
+
+	debug.tunnel/http {[self]    HTTP READ close /done}
 	return
     }
 
     method get {{seq 1}} {
-	#puts stderr "[self]    HTTP READ get\#$seq &$mytries c$myclosed"
+	debug.tunnel/http {[self]    HTTP READ get\#$seq &$mytries c$myclosed}
 
 	if {$myclosed} return
 
 	incr mytries
 	if {$mytries > $tunnel::http::maxtries} {
-	    #puts stderr "[self]    HTTP READ get fail too often"
+	    debug.tunnel/http {[self]    HTTP READ get fail too often}
 	    $myconn trigger-close
 	    # The above eventually destroys this object.
 	    return
 	}
 
 	if {[catch {
-	    #puts stderr "[self]    HTTP READ get $mybase/$seq"
+	    debug.tunnel/http {[self]    HTTP READ get $mybase/$seq}
 
 	    set mytoken [http::geturl $mybase/$seq \
 			     -command [callback DoneGet $seq] \
 			     -binary 1 -method GET \
 			     -headers [list Auth-Token $myauth]]
+
+	    debug.tunnel/http {[self]    HTTP READ get token $mytoken}
 	} msg]} {
 	    # Retry after immediate failure.
-	    #puts stderr "[self]    HTTP READ get failure: $msg"
+	    debug.tunnel/http {[self]    HTTP READ get failure: $msg}
 
 	    after idle [callback get $seq]
 	}
@@ -328,7 +337,7 @@ oo::class create ::tunnel::http::Reader {
 
     method DoneGet {seq token} {
 	set code [http::ncode $token]
-	#puts stderr "[self]    HTTP READ DoneGet $token $code c$myclosed"
+	debug.tunnel/http {[self]    HTTP READ DoneGet $token $code c$myclosed}
 
 	# Ignore callbacks while in destruction, or gone.
 	if {$myclosed} return
@@ -340,7 +349,7 @@ oo::class create ::tunnel::http::Reader {
 		set data [http::data $token]
 		http::cleanup $token
 
-		#puts stderr "[self]    HTTP READ push [string length $data]"
+		debug.tunnel/http {[self]    HTTP READ push [string length $data]}
 
 		# Push retrieved data
 		$myconn trigger-receive $data
@@ -352,7 +361,7 @@ oo::class create ::tunnel::http::Reader {
 	    }
 	    404 {
 		# EOF, close connection.
-		#puts stderr "[self]    HTTP READ get eof"
+		debug.tunnel/http {[self]    HTTP READ get eof}
 
 		http::cleanup $token
 		$myconn trigger-close
@@ -360,7 +369,7 @@ oo::class create ::tunnel::http::Reader {
 	    }
 	    default {
 		# Restart failed attempt at reading.
-		#puts stderr "[self]    HTTP READ restart"
+		debug.tunnel/http {[self]    HTTP READ restart}
 
 		http::cleanup $token
 		my get $seq
@@ -381,7 +390,7 @@ oo::class create ::tunnel::http::Reader {
 oo::class create ::tunnel::http::Writer {
 
     constructor {url conn auth_token} {
-	#puts stderr "[self]    HTTP WRITE born $url $conn $auth_token"
+	debug.tunnel/http {[self]    HTTP WRITE born $url $conn $auth_token}
 
 	set mybase    $url
 	set myconn    $conn
@@ -396,14 +405,14 @@ oo::class create ::tunnel::http::Writer {
     }
 
     destructor {
-	#puts stderr "[self]    HTTP WRITE dies"
+	debug.tunnel/http {[self]    HTTP WRITE dies}
 	my close
-	#puts stderr "[self]    HTTP WRITE gone"
+	debug.tunnel/http {[self]    HTTP WRITE gone}
 	return
     }
 
     method send {data} {
-	#puts stderr "[self]    HTTP WRITE send [string length $data]"
+	debug.tunnel/http {[self]    HTTP WRITE send [string length $data]}
 	# Avoid empty writes, and during destruction.
 	if {$myclosed} return
 	if {![string length $data]} return
@@ -413,18 +422,21 @@ oo::class create ::tunnel::http::Writer {
     }
 
     method close {} {
-	#puts stderr "[self]    HTTP WRITE close ($myclosed)"
+	debug.tunnel/http {[self]    HTTP WRITE close ($myclosed)}
 	set myclosed 1
 
 	if {$mytoken eq {}} return
 
+	debug.tunnel/http {[self]    HTTP WRITE close token $mytoken}
 	http::reset   $mytoken
 	http::cleanup $mytoken
+
+	debug.tunnel/http {[self]    HTTP WRITE close /done}
 	return
     }
 
     method send-buffer {} {
-	#puts stderr "[self]    HTTP WRITE send-buffer\#$myseq &$mytries c$myclosed"
+	debug.tunnel/http {[self]    HTTP WRITE send-buffer\#$myseq &$mytries c$myclosed}
 
 	if {$myclosed} return
 	if {$mywriting} return
@@ -432,7 +444,7 @@ oo::class create ::tunnel::http::Writer {
 	# Send failed too often ? Close whole connection.
 	incr mytries
 	if {$mytries > $tunnel::http::maxtries} {
-	    #puts stderr "[self]    HTTP WRITE send-buffer fail too often"
+	    debug.tunnel/http {[self]    HTTP WRITE send-buffer fail too often}
 	    $myconn trigger-close
 	    return
 	}
@@ -442,16 +454,18 @@ oo::class create ::tunnel::http::Writer {
 	set mywriting 1
 
 	if {[catch {
-	    #puts stderr "[self]    HTTP WRITE put $mybase/$myseq"
+	    debug.tunnel/http {[self]    HTTP WRITE put $mybase/$myseq}
 
 	    set mytoken [http::geturl $mybase/$myseq \
 			     -command [callback DoneSend $data] \
 			     -binary 1 -method PUT \
 			     -headers [list Auth-Token $myauth] \
 			     -query $data]
+
+	    debug.tunnel/http {[self]    HTTP WRITE put token $mytoken}
 	} msg]} {
 	    # Retry after immediate failure.
-	    #puts stderr "[self]    HTTP WRITE put failure: $msg"
+	    debug.tunnel/http {[self]    HTTP WRITE put failure: $msg}
 
 	    set mywriting 0
 	    after idle [callback send-buffer]
@@ -461,7 +475,7 @@ oo::class create ::tunnel::http::Writer {
 
     method DoneSend {data token} {
 	set code [http::ncode $token]
-	#puts stderr "[self]    HTTP WRITE DoneSend $token $code c$myclosed"
+	debug.tunnel/http {[self]    HTTP WRITE DoneSend $token $code c$myclosed}
 
 	# Ignore callbacks while in destruction, or gone.
 	if {$myclosed} return
@@ -471,7 +485,7 @@ oo::class create ::tunnel::http::Writer {
 
 	switch -exact -- $code {
 	    200 - 202 - 204 {
-		#puts stderr "[self]    HTTP WRITE written"
+		debug.tunnel/http {[self]    HTTP WRITE written}
 
 		incr myseq
 		set mytries   0
@@ -483,14 +497,14 @@ oo::class create ::tunnel::http::Writer {
 	    }
 	    404 {
 		# EOF, close connection
-		#puts stderr "[self]    HTTP WRITE send eof"
+		debug.tunnel/http {[self]    HTTP WRITE send eof}
 
 		$myconn trigger-close
 		# Eventually destroys this object.
 	    }
 	    default {
 		# Restart failed attempt at writing
-		#puts stderr "[self]    HTTP WRITE restart"
+		debug.tunnel/http {[self]    HTTP WRITE restart}
 
 		# Keep sequence number, and do not reset trial count,
 		# but push the unwritten data back to the buffer.

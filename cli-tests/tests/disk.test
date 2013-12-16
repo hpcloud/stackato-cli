@@ -29,7 +29,7 @@ test disk-1.1 {disk, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application disk]
 
 test disk-1.3 {disk, bogus app} -setup {
     stage-open

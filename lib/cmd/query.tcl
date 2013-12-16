@@ -74,7 +74,8 @@ proc ::stackato::cmd::query::context {config} {
 
 proc ::stackato::cmd::query::target-version {config} {
     debug.cmd/query {}
-    display "Server [client server-version [client plain]]"
+    display "Server [client full-server-version [client plain]]"
+    display "Version [client server-version [client plain]]"
     display "API [[client plain] api-version]"
     return
 }
@@ -260,7 +261,7 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	set health [$theapp health]
     }  trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 	set htitle {** Health}
-	set health "** Staging in progress"
+	set health "** Staging not completed"
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
 	set htitle {** Health}
 	set health "** Failed to stage"
@@ -578,8 +579,9 @@ proc ::stackato::cmd::query::AppListV2 {config} {
     debug.cmd/query {v2}
 
     set cs [cspace get]
-    # NOTE: Given that we pretty much always have a current
-    # space, the else-branch is likely a no-go-ever.
+
+    # While we pretty much always have a current space, not having one
+    # is possible, so the else branch can happen.
     if {![$config @all] && $cs ne {}} {
 	try {
 	    $cs summarize
@@ -616,10 +618,16 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 
     [table::do t {Application \# Mem Health URLS Services} {
 	foreach app $applications {
+	    try {
+		set health [$app health]
+	    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+		debug.cmd/query {not staged}
+		set health 0%
+	    }
+
 	    set name         [$app @name]
 	    set numinstances [$app @total_instances]
 	    set mem          [$app @memory]
-	    set health       [$app health]
 	    set uris         [join [$app uris] \n]
 	    set services     [join [$app services] \n]
 

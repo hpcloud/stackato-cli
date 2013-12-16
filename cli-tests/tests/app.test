@@ -28,7 +28,7 @@ test app-1.1 {app, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+} -returnCodes error -result [expected-app appdir app]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
@@ -39,7 +39,6 @@ test app-1.2 {app, auto-select app} -setup {
     go-admin
     set appdir [example a.original.node-env]
     make-test-app node-env $appdir
-    after 40000 ; # wait some for push to settle
 } -body {
     indir $appdir { run app -n }
 } -cleanup {
@@ -51,9 +50,9 @@ test app-1.2 {app, auto-select app} -setup {
 +--------------+-*-+
 | Key          | Value *|
 +--------------+-*-+
-| State        | STARTED *|
+| State        | STOPPED *|
 | Uris         | node-env.* |
-| Health       | RUNNING *|
+| Health       | STOPPED *|
 | Instances    | 1 *|
 | Memory       | 256.0M *|
 | Disk Quota   | 2.0G *|
@@ -140,15 +139,16 @@ test app-1.4.2 {app, json} -constraints cfv2 -setup {
     stage-close
 } -match glob -result {{
     "entity"   : {
-        "app_events"           : "",
-        "app_events_url"       : "/v2/apps/*/app_events",
         "buildpack"            : null,
         "command"              : "node app.js",
-        "console"              : false,
+        "console"              : *,
         "debug"                : null,
         "detected_buildpack"   : "Node.js",
         "disk_quota"           : *,
         "environment_json"     : {},
+        "events"               : \[\],
+        "events_url"           : "/v2/apps/*/events",
+        "guid"                 : "*",
         "instances"            : 1,
         "memory"               : *,
         "name"                 : "node-env",
@@ -157,10 +157,10 @@ test app-1.4.2 {app, json} -constraints cfv2 -setup {
         "routes_url"           : "/v2/apps/*/routes",
         "service_bindings"     : \[\],
         "service_bindings_url" : "/v2/apps/*/service_bindings",
-        "space"                : "*",
+        "space"                : *,
         "space_guid"           : "*",
         "space_url"            : "/v2/spaces/*",
-        "stack"                : "*",
+        "stack"                : *,
         "stack_guid"           : "*",
         "stack_url"            : "/v2/stacks/*",
         "staging_task_id"      : "*",

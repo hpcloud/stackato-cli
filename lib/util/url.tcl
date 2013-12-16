@@ -24,7 +24,7 @@ proc ::url::domain {url} {
 
 proc ::url::canon {url} {
     #checker -scope local exclude warnArgWrite
-    if {![regexp {^https?} $url]} {
+    if {![regexp {^https?://} $url]} {
 	set url https://$url
     }
     return [string trimright $url /]

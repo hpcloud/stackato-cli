@@ -12,6 +12,8 @@ package require dictutil
 package require stackato::log
 package require stackato::color
 package require stackato::term
+package require stackato::mgr::client
+package require stackato::mgr::ctarget
 package require stackato::mgr::service
 
 namespace eval ::stackato::mgr {
@@ -26,7 +28,10 @@ namespace eval ::stackato::mgr::app {
 
     namespace import ::stackato::color
     namespace import ::stackato::log::display
+    namespace import ::stackato::log::err
     namespace import ::stackato::term
+    namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::service
 }
 
@@ -150,14 +155,18 @@ proc ::stackato::mgr::app::base       {} { debug.mgr/app {} ; variable base   ; 
 proc ::stackato::mgr::app::ticker     {} { debug.mgr/app {} ; variable ticker ; return $ticker  }
 proc ::stackato::mgr::app::health     {} { debug.mgr/app {} ; variable health ; return $health  }
 proc ::stackato::mgr::app::tail       {} { debug.mgr/app {} ; variable tail   ; return $tail    }
-proc ::stackato::mgr::app::timeout    {} { debug.mgr/app {} ; variable timeout; return $timeout }
+#proc ::stackato::mgr::app::timeout    {} { debug.mgr/app {} ; variable timeout; return $timeout }
 proc ::stackato::mgr::app::min-memory {} { debug.mgr/app {} ; variable minmem ; return $minmem }
 
 proc ::stackato::mgr::app::hasharbor {p x} {
     # when-set callback of the -d option (cmdr.tcl).
     # dependencies: @client (implied @target)
     set client [$p config @client]
-    set harbor [package vsatisfies [client server-version $client] 2.7]
+    set harbor [expr {
+      (![$client isv2] && [package vsatisfies [client server-version $client] 2.7]) ||
+      ( [$client isv2] && [package vsatisfies [client server-version $client] 3])
+    }]
+
     if {!$harbor} {
 	err "This option requires a target version 2.8 or higher"
     }
@@ -177,7 +186,7 @@ namespace eval ::stackato::mgr::app {
     variable ticker  [expr { 25 / $base}]
     variable health  [expr {  5 / $base}]
     variable tail    [expr { 45 / $base}]
-    variable timeout [expr {120 / $base}]
+    #variable timeout [expr {120 / $base}]
     variable minmem  20
 }
 

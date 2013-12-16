@@ -161,6 +161,9 @@ oo::class create ::stackato::v2::app {
 	debug.v2/app {count}
 
 	set count 0
+	# 'instances' not trapped for in-progress. The caller of using
+	# method 'health' wants to know about this exception in some
+	# situations.
 	dict for {n i} [my instances] {
 	    if {[$i running?]} { incr count }
 	}
@@ -172,6 +175,12 @@ oo::class create ::stackato::v2::app {
     method instances {} {
 	debug.v2/app {}
 	set json [[authenticated] instances-of [my url]]
+	# While we might like to, we cannot really trap the error
+	# {STACKATO CLIENT V2 STAGING IN-PROGRESS} here, as there are
+	# callers which have to know about this exceptional condition.
+	#
+	# Thus all the callers are responsible for trapping the issue
+	# for themselves.
 
 	set max -1
 	dict for {n idata} $json {
@@ -441,8 +450,10 @@ oo::class create ::stackato::v2::appinstance {
 	return $myjson
     }
 
-    method running?  {} { string equal [my state] RUNNING  }
+    method down?     {} { string equal [my state] DOWN     }
     method flapping? {} { string equal [my state] FLAPPING }
+    method running?  {} { string equal [my state] RUNNING  }
+    method starting? {} { string equal [my state] STARTING }
 
     method state {} { dict get $myjson state }
     method since {} { dict get $myjson since }

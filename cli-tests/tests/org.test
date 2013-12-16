@@ -74,10 +74,12 @@ test org-1.4 {org, --full} -constraints cfv2 -setup {
 | Auditors *| * |
 | Domains *|* [targetdomain] *|
 | Spaces *| [thespace] *|
-| Quota (*) *| * |
-| - Extended Services *| * |
-| - # Services *| * |
-| - Memory *| * |
+| Quota *| * |
+| - Memory Limit *| * |
+| - Paid Services *| * |
+| - Total Services *| * |
+| - Trial Databases *| * |
+| - Allow Sudo *| * |
 +-*-+-*-+"
 
 test org-1.5 {org, --json} -constraints cfv2 -setup {

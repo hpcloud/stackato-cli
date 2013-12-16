@@ -8,6 +8,7 @@ if {![package vsatisfies [package provide Tcl] 8.5]} {
 # Custom validation types
 package ifneeded stackato::validate::alias               0 [list source [file join $dir alias.tcl]]
 package ifneeded stackato::validate::appname             0 [list source [file join $dir appname.tcl]]
+package ifneeded stackato::validate::appname-lex         0 [list source [file join $dir appname-lex.tcl]]
 package ifneeded stackato::validate::appname-api         0 [list source [file join $dir appname-api.tcl]]
 package ifneeded stackato::validate::appname-dot         0 [list source [file join $dir appname-dot.tcl]]
 package ifneeded stackato::validate::approute            0 [list source [file join $dir approute.tcl]]
@@ -20,6 +21,7 @@ package ifneeded stackato::validate::http-header         0 [list source [file jo
 package ifneeded stackato::validate::http-operation      0 [list source [file join $dir httpop.tcl]]
 package ifneeded stackato::validate::instance            0 [list source [file join $dir instance.tcl]]
 package ifneeded stackato::validate::integer0            0 [list source [file join $dir integer0.tcl]]
+package ifneeded stackato::validate::interval            0 [list source [file join $dir interval.tcl]]
 package ifneeded stackato::validate::memspec             0 [list source [file join $dir memspec.tcl]]
 package ifneeded stackato::validate::notappname          0 [list source [file join $dir notappname.tcl]]
 package ifneeded stackato::validate::notclicmd           0 [list source [file join $dir notclicmd.tcl]]

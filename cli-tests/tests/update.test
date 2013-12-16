@@ -42,7 +42,10 @@ test update-1.1 {push as update, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result "Error: The framework \[standalone\] needs a non-empty start command.\nPlease add a \"command\" key to your stackato.yml"
+} -returnCodes error \
+    -result [per-api \
+		 "Error: The framework \[standalone\] needs a non-empty start command.\nPlease add a \"command\" key to your stackato.yml" \
+		 {Error: Application failed to stage}]
 
 # # ## ### ##### ######## ############# #####################
 

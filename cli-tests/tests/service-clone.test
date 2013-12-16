@@ -87,7 +87,7 @@ test clone-services-1.5 {clone-services, no services to clone} -setup {
     stage-close
 } -returnCodes error -result {Error: No services to clone}
 
-test clone-services-1.6 {clone-services} -setup {
+test clone-services-1.6.1 {clone-services} -constraints cfv1 -setup {
     stage-open
     go-admin
     run create-service filesystem test-service
@@ -106,7 +106,26 @@ test clone-services-1.6 {clone-services} -setup {
     stage-close
 } -result {Binding Service test-service to DEST ... OK}
 
-test clone-services-1.7 {clone-services, persistent} -setup {
+test clone-services-1.6.2 {clone-services} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service --plan free filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    run unbind-service    test-service SRC
+    run unbind-service    test-service DEST
+    run delete-service -n test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -result {Binding test-service to DEST ... OK}
+
+test clone-services-1.7.1 {clone-services, persistent} -constraints cfv1 -setup {
     stage-open
     go-admin
     run create-service filesystem test-service
@@ -125,6 +144,26 @@ test clone-services-1.7 {clone-services, persistent} -setup {
     remove-appdir
     stage-close
 } -match glob -result {*| DEST* | 0* | STOPPED* | * | test-service |*}
+
+test clone-services-1.7.2 {clone-services, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service --plan free filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+    run apps
+} -cleanup {
+    run unbind-service    test-service SRC
+    run unbind-service    test-service DEST
+    run delete-service -n test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| DEST* | 1* | STOPPED* | * | test-service |*}
 
 # todo: cloning services from/to running apps.
 

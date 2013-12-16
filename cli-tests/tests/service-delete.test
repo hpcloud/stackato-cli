@@ -40,7 +40,10 @@ test delete-service-1.2 {delete-service, bogus service} -setup {
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Service [bogus] is not a valid service choice}
+} -returnCodes error \
+    -result [per-api \
+		 {Service [bogus] is not a valid service choice} \
+		 {Expected a service instance name for input "service", got "bogus"}]
 
 test delete-service-1.3 {delete-service, --all vs service name} -setup {
     stage-open
@@ -56,7 +59,7 @@ test delete-service-1.3 {delete-service, --all vs service name} -setup {
 
 set counter 0
 foreach vendor [services] {
-    test delete-service-2.$counter "delete-service, $vendor" -setup {
+    test delete-service-2.$counter.1 "delete-service, $vendor" -constraints cfv1 -setup {
 	stage-open
 	go-admin
 	go-non-admin
@@ -67,7 +70,20 @@ foreach vendor [services] {
 	be-admin
 	remove-non-admin
 	stage-close
-    } -result {Deleting service [test-service] ... OK}
+    } -result {Deleting service test-service ... OK}
+
+    test delete-service-2.$counter.2 "delete-service, $vendor" -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	go-non-admin
+	run create-service -n --plan free $vendor test-service
+    } -body {
+	run delete-service -n test-service
+    } -cleanup {
+	be-admin
+	remove-non-admin
+	stage-close
+    } -result {Deleting service test-service ... OK}
     incr counter
 }
 

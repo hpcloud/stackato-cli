@@ -166,6 +166,12 @@ proc ::stackato::log::err {message {prefix {Error: }}} {
 	$prefix$message
 }
 
+proc ::stackato::log::warn {message {prefix {Warning: }}} {
+    return -code error \
+	-errorcode {STACKATO CLIENT CLI CLI-WARN} \
+	$prefix$message
+}
+
 proc ::stackato::log::quit {{message {}}} {
     return -code error \
 	-errorcode {STACKATO CLIENT CLI GRACEFUL-EXIT} \
@@ -205,7 +211,8 @@ proc ::stackato::log::psz {size {prec 1}} {
 
 namespace eval ::stackato::log {
     namespace export say say! header banner display clear err quit \
-	uptime psz to defined again+ clearlast wrap wrapl feedback
+	uptime psz to defined again+ clearlast wrap wrapl feedback \
+	warn
     namespace ensemble create
 
     variable feedback 1

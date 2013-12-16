@@ -201,29 +201,26 @@ proc ::stackato::mgr::exit::attempt {script} {
 	say! [color red "Bad server response; $e"]
 	fail
 
-    }   trap {STACKATO CLIENT AUTHERROR}    {e} - \
-	trap {STACKATO CLIENT V2 AUTHERROR} {e} {
-
-	set me [self me]
-
+    } trap {STACKATO CLIENT AUTHERROR}    {e} - \
+      trap {STACKATO CLIENT V2 AUTHERROR} {e} {
 	if {[auth get] eq {}} {
 	    say! [color red "Login Required"]
-	    say! "Please use '$me login'"
+	    say! [self please login]
 	} else {
 	    say! [color red "Not Authorized"]
 	    say! "You are using an expired or deleted login"
-	    say! "Please use '$me login'"
+	    say! [self please login]
 	}
 	fail
 
-    }   trap {STACKATO CLIENT TARGETERROR}    {e} - \
-	trap {STACKATO CLIENT NOTFOUND}       {e} - \
-	trap {STACKATO CLIENT BADTARGET}      {e} - \
-	trap {STACKATO CLIENT V2 TARGETERROR} {e} - \
-	trap {STACKATO CLIENT V2 NOTFOUND}    {e} - \
-	trap {STACKATO CLIENT V2 BADTARGET}   {e} {
+    } trap {STACKATO CLIENT TARGETERROR}    {e} - \
+      trap {STACKATO CLIENT NOTFOUND}       {e} - \
+      trap {STACKATO CLIENT BADTARGET}      {e} - \
+      trap {STACKATO CLIENT V2 TARGETERROR} {e} - \
+      trap {STACKATO CLIENT V2 NOTFOUND}    {e} - \
+      trap {STACKATO CLIENT V2 BADTARGET}   {e} {
 
-	say! [color red "$e"]
+	say! [color red [wrap $e]]
 
 	debug.mgr/exit {$e}
 	debug.mgr/exit {$::errorCode}
@@ -239,23 +236,31 @@ proc ::stackato::mgr::exit::attempt {script} {
 
     } trap {STACKATO CLIENT CLI GRACEFUL-EXIT} e {
 	# Redirected commands end up generating this exception (kind of goto)
+    } trap {STACKATO CLIENT CLI CLI-WARN} e {
+	if {$e ne {}} {
+	    say! [color yellow [wrap $e]]
+	}
+	# keep ok (just a warning)
+
     } trap {STACKATO CLIENT CLI} e - trap {BROWSE FAIL} e {
 	if {$e ne {}} {
-	    say! [color red "$e"]
+	    say! [color red [wrap $e]]
 	}
 	fail
 
-    } trap {REST HTTP} {e o} {
-
-	say [color red "$e"]
+    } trap {REST HTTP} {e o} - \
+      trap {REST SSL}  {e o} - \
+      trap {HTTP URL}  {e o} {
+	say [color red $e]
 	fail
 
     } trap {STACKATO CLIENT INTERNAL} {e o} {
 	lassign $e msg trace code
 
-	debug.mgr/exit {$e}
-	debug.mgr/exit {$o}
-	debug.mgr/exit {$code}
+	debug.mgr/exit {INTERNAL}
+	debug.mgr/exit {ERROR   $e}
+	debug.mgr/exit {OPTIONS $o}
+	debug.mgr/exit {ECODE   $code}
 	debug.mgr/exit {$trace}
 
 	ProcessInternalError $msg $code $trace
@@ -274,9 +279,10 @@ proc ::stackato::mgr::exit::attempt {script} {
 	fail
 
     } on error {e o} {
-	debug.mgr/exit {$e}
-	debug.mgr/exit {$o}
-	debug.mgr/exit {$::errorCode}
+	debug.mgr/exit {GENERIC}
+	debug.mgr/exit {ERROR   $e}
+	debug.mgr/exit {OPTIONS $o}
+	debug.mgr/exit {ECODE   $::errorCode}
 	debug.mgr/exit {$::errorInfo}
 
 	ProcessInternalError $e $::errorCode $::errorInfo
@@ -356,11 +362,22 @@ proc ::stackato::mgr::exit::ProcessInternalError {msg code trace} {
 
     say! "Full traceback stored at: [file nativename $f]"
 
-    #say! "Please report this bug to ActiveState by attaching the above file at,"
-    #say! "\thttp://bugs.activestate.com/"
-    say! "Please report this bug to ActiveState by emailing the above file to"
-    say! "stackato-support@activestate.com with a short description of what you"
-    say! "were trying to do."
+    set d [client description]
+    set s [client support]
+
+    set msg ""
+    if {$s ne {}} {
+	append msg "For diagnosis of this issue with $d please email this traceback"
+	append msg " to $s"
+    } else {
+	append msg "For diagnosis of this issue with $d please file this traceback"
+	append msg " with your designated support"
+    }
+
+    append msg ", together with a short description of what you"
+    append msg  " were trying to do."
+
+    say! [wrap $msg]
     return
 }
 

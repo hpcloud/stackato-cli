@@ -33,7 +33,7 @@ test user-1.2 {user introspection, not logged in} -body {
     run user --target [thetarget]
 } -cleanup {
     stage-close
-} -result {[N/A]}
+} -result [per-api {[N/A]} {[N/A, N/A]}]
 
 test user-1.3 {user introspection, not logged in, default target} -setup {
     stage-open
@@ -42,7 +42,7 @@ test user-1.3 {user introspection, not logged in, default target} -setup {
     run user
 } -cleanup {
     stage-close
-} -result {[N/A]}
+} -result [per-api {[N/A]} {[N/A, N/A]}]
 
 test user-1.4 {user introspection, logged in, default target} -setup {
     stage-open
@@ -51,7 +51,7 @@ test user-1.4 {user introspection, logged in, default target} -setup {
     run user
 } -cleanup {
     stage-close
-} -result "\[[adminuser]\]"
+} -result [per-api "\[[adminuser]\]" "\[[adminuser], [adminuser]\]"]
 
 test user-1.5 {user introspection, json, logged in, default target} -setup {
     stage-open
@@ -60,7 +60,9 @@ test user-1.5 {user introspection, json, logged in, default target} -setup {
     run user --json
 } -cleanup {
     stage-close
-} -result "\[\"[adminuser]\"\]"
+} -result [per-api \
+	       "\[\"[adminuser]\"\]" \
+	       "\{\n    \"email\" : \"[adminuser]\",\n    \"name\"  : \"[adminuser]\"\n\}"]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

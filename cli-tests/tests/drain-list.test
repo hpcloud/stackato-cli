@@ -29,7 +29,7 @@ test drain-list-1.1 {drain list, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application {drain list}]
 
 test drain-list-1.2 {drain list, non-admin login is ok} -constraints cfv2uaa -setup {
     stage-open
@@ -58,7 +58,7 @@ test drain-list-1.3 {drain list, nothing} -setup {
     stage-close
 } -result {No Drains}
 
-test drain-list-1.4 {drain list, something} -setup {
+test drain-list-1.4.1 {drain list, something} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -66,6 +66,7 @@ test drain-list-1.4 {drain list, something} -setup {
 } -body {
     run drain list TEST
 } -cleanup {
+    run drain delete TEST DRAIN
     remove-test-app
     remove-appdir
     stage-close
@@ -74,6 +75,24 @@ test drain-list-1.4 {drain list, something} -setup {
 +-------+-------+-----------------------------------+
 | DRAIN | false | tcp://flux.activestate.com:11100/ |
 +-------+-------+-----------------------------------+}
+
+test drain-list-1.4.2 {drain list, something} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {+-------+------+-----------------------------------+-*-+
+| Name  | Json | Url                               | Status *|
++-------+------+-----------------------------------+-*-+
+| DRAIN | 0    | tcp://flux.activestate.com:11100/ | * |
++-------+------+-----------------------------------+-*-+}
 
 test drain-list-1.5 {drain list, nothing} -setup {
     stage-open
@@ -95,14 +114,20 @@ test drain-list-1.6 {drain list, something} -setup {
 } -body {
     run drain list --json TEST
 } -cleanup {
+    run drain delete TEST DRAIN
     remove-test-app
     remove-appdir
     stage-close
-} -result {[{
+} -match glob -result [per-api {\[{
     "json" : false,
     "name" : "DRAIN",
     "uri"  : "tcp://flux.activestate.com:11100/"
-}]}
+}\]} {\[{
+    "json"   : false,
+    "name"   : "DRAIN",
+    "status" : "*",
+    "uri"    : "tcp://flux.activestate.com:11100/"
+}\]}]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -8,46 +8,12 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tcl 8.5
-package require http
+package require s-http ;# local copy of http with our hacks, and much more placed Log'ging activity.
 package require TclOO
 package require ooutil
 
 debug level  rest
 debug prefix rest {[debug caller] | }
-
-# DANGER -- BRITTLE -- Revisit for each new version of http package
-# HACK internals to auto-close on our side for response length 0, even
-# for 'connection: close'.
-if 1 {
-proc ::http::Event {sock token} \
-	[string map \
-		 [list {For non-chunked transfer} {
-		if {1 && ($state(totalsize) == 0)} {
-			Log "no body, stop"
-			Eof $token
-			return
-	    }
-		# For non-chunked transfer }] \
-	[info body ::http::Event]]
-
-# And hack geturl to handle v1 API also, with different headers.
-# Further hack geturl to handle transparent proxies (https) which do
-# not rewrite the GET line.
-
-proc http::geturl {url args} \
-	[string map \
-		 [list \
-			  {set state(-keepalive) $defaultKeepalive} \
-			  {set state(-keepalive) $defaultKeepalive ; set state(totalsize) {}} \
-			  {set srvurl $url} \
-			  {
-    # Restricted to non-https urls. https passes through proxy
-    # unchanged and the final destination should see the proper path
-    # instead of full url.
-    if {$proto ne "https"} { set srvurl $url }
-}] \
-		 [info body ::http::geturl]]
-}
 
 # RESTful service core
 package provide restclient 0.1
@@ -444,9 +410,15 @@ oo::class create ::REST {
 			debug.rest {http::geturl ... $tok}
 
 		} e o]} {
-			if {[string match *refused* $e]} {
+			if {[string match *handshake* $e]} {
 				set host [join [lrange [split $url /] 0 2] /]
-			  return -code error \
+				return -code error \
+					-errorcode {REST SSL} \
+					"SSL/TLS problem with \"$host\": $e."
+
+			} elseif {[string match *refused* $e]} {
+				set host [join [lrange [split $url /] 0 2] /]
+				return -code error \
 					-errorcode {REST HTTP REFUSED} \
 					"Server \"$host\" refused connection ($e)."
 			} else {

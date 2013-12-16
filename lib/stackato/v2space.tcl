@@ -34,6 +34,7 @@ oo::class create ::stackato::v2::space {
 	my Many apps
 	my Many domains
 	my Many service_instances
+	my Many app_events
 
 	my Summary \
 	    services [mymethod S.services]

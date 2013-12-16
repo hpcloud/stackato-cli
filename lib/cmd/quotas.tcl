@@ -76,6 +76,7 @@ proc ::stackato::cmd::quotas::configure {config} {
 	total_services             services
 	memory_limit               mem
 	trial_db_allowed           trial-db-allowed
+	allow_sudo                 allow-sudo
     } {
 	if {![$config @$k set?]} continue
 	$qd @$a set [$config @$k]
@@ -162,7 +163,7 @@ proc ::stackato::cmd::quotas::list {config} {
 	return
     }
 
-    [table::do t {Name Paid? Services Memory {Trial DB?}} {
+    [table::do t {Name Paid? Services Memory {Trial DB?} Sudo?} {
 	# TODO: Might be generalizable via attr listing + labeling
 	foreach qd $thequotas {
 	    lappend values [$qd @name]
@@ -170,6 +171,7 @@ proc ::stackato::cmd::quotas::list {config} {
 	    lappend values [$qd @total_services]
 	    lappend values [psz [MB [$qd @memory_limit]]]
 	    lappend values [$qd @trial_db_allowed]
+	    lappend values [$qd @allow_sudo]
 	    $t add {*}$values
 	    unset values
 	}
@@ -195,6 +197,7 @@ proc ::stackato::cmd::quotas::show {config} {
 	$t add {Paid Services}   [$qd @non_basic_services_allowed]
 	$t add {Total Services}  [$qd @total_services]
 	$t add {Trial Databases} [$qd @trial_db_allowed]
+	$t add {Allow sudo}      [$qd @allow_sudo]
     }] show display
     return
 }

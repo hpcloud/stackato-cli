@@ -29,7 +29,7 @@ test crashes-1.1 {crashes, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+} -returnCodes error -result [expected-app appdir crashes]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

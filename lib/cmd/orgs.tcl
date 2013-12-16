@@ -65,7 +65,12 @@ proc ::stackato::cmd::orgs::switch {config} {
     debug.cmd/orgs {}
     # @name
 
-    set org [$config @name]
+    try {
+	set org [$config @name]
+    } trap {CMDR VALIDATE ORGNAME} {e o} {
+	set name [$config @name string]
+	err "Unable to switch to organization \"$name\" (not found, or not a member)"
+    }
 
     if {$org eq {}} {
 	display [color yellow {Unable to switch, no organization specified}]
@@ -263,6 +268,7 @@ proc ::stackato::cmd::orgs::show {config} {
 	    $t add "- Paid Services"   [$org @quota_definition @non_basic_services_allowed]
 	    $t add "- Total Services"  [$org @quota_definition @total_services]
 	    $t add "- Trial Databases" [$org @quota_definition @trial_db_allowed]
+	    $t add "- Allow Sudo"      [$org @quota_definition @allow_sudo]
 	}
     }] show display
     return

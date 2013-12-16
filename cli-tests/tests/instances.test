@@ -29,7 +29,7 @@ test instances-1.1 {instances, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application instances]
 
 test instances-1.3 {instances, bogus app} -setup {
     stage-open
@@ -56,7 +56,7 @@ test instances-1.5 {instances, non-admin login is ok} -constraints cfv2uaa -setu
     stage-close
 } -match glob -result *
 
-test instances-1.6 {instances, stopped, cannot report actual instances} -setup {
+test instances-1.6.1 {instances, stopped, cannot report actual instances} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -67,6 +67,18 @@ test instances-1.6 {instances, stopped, cannot report actual instances} -setup {
     remove-appdir
     stage-close
 } -result {No running instances for [TEST]}
+
+test instances-1.6.2 {instances, stopped, cannot report actual instances} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run instances TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: Unable to show instances: App has not finished staging}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -79,7 +91,7 @@ test instances-2.0 {instances, running app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -match glob -result {+-------+-*-+-*-+
+} -match glob -result {*+-------+-*-+-*-+
 | Index | State   | Start Time *|
 +-------+-*-+-*-+
 | 0     | RUNNING | * |

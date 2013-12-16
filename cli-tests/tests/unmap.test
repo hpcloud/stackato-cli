@@ -39,7 +39,10 @@ test unmap-1.2 {unmap, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an application name for input "application", got "appdir"}
+} -returnCodes error \
+    -result [per-api \
+		 {Expected an application name for input "application", got "appdir"} \
+		 {Expected a route name for 'appdir' for input "url", got "URL"}]
 
 test unmap-1.3 {map, bogus url, not mapped} -setup {
     stage-open
@@ -90,7 +93,7 @@ test unmap-1.5 {unmap} -setup {
     remove-appdir
     stage-close
 } -result [map {Application [TEST] ... 
-  Unmap @@
+  Unmap @@ ... OK
 Successfully unmapped 1 url} @@ [mapurl]]
 
 # We cannot unmap an url from a stopped app. It reports ok (see 1.5),

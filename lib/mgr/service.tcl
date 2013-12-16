@@ -183,7 +183,7 @@ proc ::stackato::mgr::service::unbind-with-banner {client theservice theapp {sho
 	    return 0
 	}
 
-	display "Unbinding [$theservice @name] from [$theapp @name] ..." false
+	display "Unbinding [$theservice @name] from [$theapp @name] ... " false
 	foreach link $links {
 	    $link delete
 	    $link commit

@@ -9,6 +9,7 @@ package require fileutil
 package require stackato::color
 package require stackato::log
 package require stackato::mgr::client
+package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
 package require stackato::mgr::self
 package require stackato::term
@@ -29,7 +30,9 @@ namespace eval ::stackato::mgr::manifest {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say!
+    namespace import ::stackato::log::wrap
     namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::self
     namespace import ::stackato::term
@@ -75,6 +78,9 @@ namespace eval ::stackato::mgr::manifest {
     #                 Cache for the result of "DependencyOrdered".
 
     variable stdignore {
+	.carton/
+	local/bin/
+	local/lib/
 	.git/
 	*.svn/
 	.hg/
@@ -473,6 +479,15 @@ proc ::stackato::mgr::manifest::framework {} {
     return [yaml dict get' $currentappinfo framework name {}]
 }
 
+proc ::stackato::mgr::manifest::app-server {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo framework app-server {}]
+}
+
 proc ::stackato::mgr::manifest::framework-info {} {
     debug.mgr/manifest/core {}
     InitCurrent
@@ -595,8 +610,15 @@ proc ::stackato::mgr::manifest::env {} {
     InitCurrent
 
     variable currentappinfo
-    if {![info exists currentappinfo]} { return {} }
-    return [yaml dict get' $currentappinfo stackato env {}]
+    if {![info exists currentappinfo]} {
+	debug.mgr/manifest/core {no current app - no environment}
+	return {}
+    }
+
+    set theenv [yaml dict get' $currentappinfo stackato env {}]
+
+    debug.mgr/manifest/core {==> ($theenv)}
+    return $theenv
 }
 
 proc ::stackato::mgr::manifest::drain {} {
@@ -606,6 +628,15 @@ proc ::stackato::mgr::manifest::drain {} {
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
     return [yaml dict get' $currentappinfo stackato drain {}]
+}
+
+proc ::stackato::mgr::manifest::hooks {args} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato hooks {*}$args {}]
 }
 
 proc ::stackato::mgr::manifest::ignorePatterns {} {
@@ -735,7 +766,10 @@ proc ::stackato::mgr::manifest::on_user {mode config cmd} {
 
     # mode in {each |}
 
-    foreach theapp $applications {
+    # [bug 101781] Reducing to a unique set (names, objs) to prevent
+    # duplicate calls on the same application.
+
+    foreach theapp [lsort -unique $applications] {
 	# theapp may be a string (= app name) or an object (= v2/app
 	# instance), dependening on various factors (validation type
 	# of config @application, client v1/v2). introspect the result
@@ -947,8 +981,17 @@ proc ::stackato::mgr::manifest::on_single {cmd} {
     #
     # The reset ensures that there is no leakage to other places.
 
-    $theconfig @application set $appname
-    set result [{*}$cmd $theconfig [$theconfig @application]]
+    try {
+	$theconfig @application set $appname
+	set theapp [$theconfig @application]
+    } trap {CMDR VALIDATE APPNAME} {e o} {
+	append msg "The application \[$appname\] is not deployed."
+	append msg " Please deploy it, or choose a different application"
+	append msg " to [$theconfig context get *prefix*]."
+	err $msg
+    }
+
+    set result [{*}$cmd $theconfig $theapp]
     $theconfig @application reset
 
     return $result
@@ -1340,6 +1383,7 @@ proc ::stackato::mgr::manifest::reset {} {
     variable rootfile       ; unset -nocomplain rootfile
     variable manifest       ; unset -nocomplain manifest
     variable currentapp     ; unset -nocomplain currentapp
+    variable currentdef     ; unset -nocomplain currentdef
     variable currentreq     ; unset -nocomplain currentreq
     variable currentappinfo ; unset -nocomplain	currentappinfo
     variable outmanifest    ; unset -nocomplain outmanifest
@@ -1726,6 +1770,9 @@ proc ::stackato::mgr::manifest::ResolveSymbol {contextlist already symbol} {
     dict set already $symbol .
 
     switch -exact -- $symbol {
+	space-base {
+	    return [SpaceBase $contextlist]
+	}
 	target-base {
 	    return [TargetBase $contextlist]
 	}
@@ -1751,6 +1798,41 @@ proc ::stackato::mgr::manifest::ResolveSymbol {contextlist already symbol} {
 	}
     }
     error "Reached unreachable"
+}
+
+proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
+    debug.mgr/manifest/core/resolve {}
+
+    set client [client authenticated]
+    if {![$client isv2]} {
+	Error "space-base can only be used with a Stackato 3 target"
+    }
+
+    # Get current space.
+    # Get domains mapped into the space.
+    # Result is the single domain mapped to the space.
+    # Interactively ask if multiple domains ?
+    # ... For now fail that case
+
+    set thespace [cspace get]
+    if {$thespace eq {}} {
+	Error "space-base requires a current space, no such found"
+    }
+
+    set thedomains [$thespace @domains]
+    set nd [llength $thedomains]
+
+    if {!$nd} {
+	Error "space-base requires a domain mapped into the current space, no such found"
+    } elseif {$nd > 1} {
+	Error "space-base is ambigous, found multiple domains mapped into the space."
+    } else {
+	set symvalue [[lindex $thedomains 0] @name]
+    }
+
+    debug.mgr/manifest/core         {domain = $symvalue}
+    debug.mgr/manifest/core/resolve {config => $symvalue}
+    return $symvalue
 }
 
 proc ::stackato::mgr::manifest::TargetUrl {{contextlist {}}} {
@@ -2185,7 +2267,7 @@ proc ::stackato::mgr::manifest::TS_Services {value} {
 
 		} elseif {($outer ni $choices) && ($innervalue ni $choices)} {
 		    # Neither value is a proper vendor.
-		    Error "Bad service definition \"$outer: $innervalue\" in manifest. Neither \[$outer\] nor \[$innervalue\] are supported system services.\nPlease use '[self me] services' to see the list of system services supported by the target." \
+		    Error "Bad service definition \"$outer: $innervalue\" in manifest. Neither \[$outer\] nor \[$innervalue\] are supported system services.\n[self please services] to see the list of system services supported by the target." \
 			BAD SERVICE
 		} else {
 		    # Both values are proper vendors.
@@ -2345,7 +2427,7 @@ proc ::stackato::mgr::manifest::TransformCFManifest {yml} {
     # (mapping -> v1, sequence -> v2).
     #
     # We normalize both forms to a mapping. The difference is that the
-    # v1 mappins is keyed by path, and the internal representation
+    # v1 mapping is keyed by path, and the internal representation
     # will be keyed by name.
 
     set value [yaml tag! mapping $yml root]
@@ -2353,6 +2435,7 @@ proc ::stackato::mgr::manifest::TransformCFManifest {yml} {
     # (1) Separate toplevel keys (anything ni {applications, properties})
     set result       {}
     set applications {}
+    set properties   {}
     set toplevel     {}
 
     yaml tags!do $yml root _ value {
@@ -2363,18 +2446,35 @@ proc ::stackato::mgr::manifest::TransformCFManifest {yml} {
 			# Remember for upcoming transforms.
 			set applications $v
 		    }
-		    inherit -
-		    properties   {
+		    inherit {
 			# Passed into result, not needed here.
 			lappend result $k $v
 		    }
+		    properties {
+			lappend properties {*}[yaml tag! mapping $v properties]
+		    }
 		    default {
+			UnknownKey $k "(If this is not a mis-typed standard key it is strongly recommend to put this information under the 'properties' mapping)"
 			# Remember for upcoming transforms.
 			dict set toplevel $k $v
+
+			# For backward compatibility we save these
+			# settings as properties as well, ensuring
+			# their presence in the final result, even if
+			# this side has no applications for them to be
+			# copied into.
+
+			dict set properties $k $v
 		    }
 		}
 	    }
 	}
+    }
+
+    # Merge the extended properties (properties + toplevel) back into
+    # the result.
+    if {[llength $properties]} {
+	lappend result properties [Cmapping {*}$properties]
     }
 
     # (2) Extend toplevels with a default "path" (".").
@@ -2821,6 +2921,18 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 		    env {
 			yaml validate-glob $svalue env -- ekey evalue {
 			    * {
+				if {($ekey eq "BUILDPACK_URL") &&
+				    (![yaml dict exists $appspec framework name] ||
+				     ([yaml dict get $appspec framework name] ne "buildpack"))
+				} {
+				    set    msg "An 'env:BUILDPACK_URL' without a corresponding"
+				    append msg " 'framework:type' (buildpack) does not work."
+				    append msg " For a Stackato v3 target better use either"
+				    append msg " a --buildpack option, or a toplevel 'buildpack'"
+				    append msg " key in the manifest."
+				    Warning $msg
+				}
+
 				# We assume normalized data here! See
 				# marker "4a" in TransformASStackato.
 				yaml validate-glob $evalue "env:$ekey" -- key value {
@@ -2854,6 +2966,7 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 		    }
 		    hooks {
 			yaml validate-glob $svalue hooks -- ky value {
+			    pre-push     { ValidateCommand $value hooks:pre-push     }
 			    pre-staging  { ValidateCommand $value hooks:pre-staging  }
 			    post-staging { ValidateCommand $value hooks:post-staging }
 			    pre-running  { ValidateCommand $value hooks:pre-running  }
@@ -2877,6 +2990,7 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 
     foreach {k v} [yaml tag! mapping $yml root] {
 	if {$k eq "applications"} continue
+	if {$k eq "properties"}   continue
 	if {$k eq "inherit"}      continue
 	UnknownKey $k
     }
@@ -2894,11 +3008,22 @@ proc ::stackato::mgr::manifest::Error {text args} {
 	"Manifest error: $text"
 }
 
-proc ::stackato::mgr::manifest::UnknownKey {k} {
+proc ::stackato::mgr::manifest::UnknownKey {k {suffix {}}} {
     #error $k
     variable showwarnings
     if {!$showwarnings} return
-    say! [color yellow "Manifest warning: Unknown key \"$k\""]
+
+    if {$suffix ne {}} { set suffix " $suffix" }
+
+    say! [color yellow [wrap "Manifest warning: Unknown key \"$k\"$suffix"]]
+    return
+}
+
+proc ::stackato::mgr::manifest::Warning {msg} {
+    #error $k
+    variable showwarnings
+    if {!$showwarnings} return
+    say! [color yellow [wrap "Manifest warning: $msg"]]
     return
 }
 

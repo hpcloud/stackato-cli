@@ -60,6 +60,7 @@ test quota-1.3 {quota show, --json} -constraints cfv2 -setup {
     stage-close
 } -match glob -result {{
     "entity"   : {
+        "allow_sudo"                 : *,
         "memory_limit"               : *,
         "name"                       : "testquota",
         "non_basic_services_allowed" : *,

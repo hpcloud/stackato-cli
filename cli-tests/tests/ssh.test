@@ -19,7 +19,7 @@ test ssh-1.0 {ssh, no app} -setup {
     run ssh X
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application-q ssh]
 
 test ssh-1.1 {ssh, empty application} -setup {
     stage-open
@@ -29,18 +29,19 @@ test ssh-1.1 {ssh, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application-q ssh]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
 ## not contain everything needed to match because of that.
 
 set flist {total *
--rw-rw-r-- 1 stackato admin * app.js
--rw-r--r-- 1 stackato admin * manifest.yml
--rw-rw-r-- 1 stackato admin * package.json
--rw-rw-r-- 1 stackato admin * README.md
--rw-rw-r-- 1 stackato admin * stackato.yml}
+-* 1 stackato * app.js
+d* 2 stackato * bin
+-* 1 stackato * manifest.yml
+-* 1 stackato * package.json
+-* 1 stackato * README.md
+-* 1 stackato * stackato.yml}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -131,7 +132,7 @@ foreach {k cmd dry printed} {
 	unset appdir
 	remove-test-app node-env
 	stage-close
-    } -match glob -result "/*/ssh -i */key_* -o IdentitiesOnly=yes -t -o \"PasswordAuthentication no\" -o \"ChallengeResponseAuthentication no\" -o \"PreferredAuthentications publickey\" -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@[theplaintarget] stackato-ssh * node-env 0 $dry"
+    } -match glob -result [per-api [ssh-cmd node-env $dry] [ssh-cmd * $dry]]
 
     test ssh-3.$k "ssh printargs, $cmd" -setup {
 	stage-open

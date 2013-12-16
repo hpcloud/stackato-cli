@@ -1,11 +1,6 @@
-Using manifest*
-Updating application 'node-env'...*
-Comparing application \[node-env\] to \[https://api.@BASE@\] ... 
-Framework:       node
-Runtime:         <framework-specific default>
-Application Url: node-env.@BASE@
-    No changes
-Uploading Application \[node-env\] ... 
+*Updating application 'node-env'...*
+*Comparing application \[node-env\] to \[https://api.@BASE@*\] ... 
+*Uploading Application \[node-env\] ... 
   Checking for bad links ...  OK
   Copying to temp space ...  OK
   Checking for available resources ...  OK

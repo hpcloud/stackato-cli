@@ -75,8 +75,9 @@ proc ::stackato::mgr::context::GetOrg {} {
     } trap {STACKATO CLIENT AUTHERROR} {e options} - \
       trap {STACKATO CLIENT V2 AUTHERROR} {e options} {
 	set lsuffix [color red "(not resolved: not logged in, or not authorized)"]
-	set on "[$o id] $lsuffix"
+	set on "[corg get-id] $lsuffix"
     } trap {STACKATO CLIENT V2 NOTFOUND} {e options} {
+	# cannot happen anymore. corg discarded data, returned <none>
 	set lsuffix [color red "(not resolved: not found)"]
 	set on "[$o id] $lsuffix"
     }
@@ -99,8 +100,9 @@ proc ::stackato::mgr::context::GetSpace {} {
     } trap {STACKATO CLIENT AUTHERROR} {e options} - \
       trap {STACKATO CLIENT V2 AUTHERROR} {e options} {
 	set lsuffix [color red "(not resolved: not logged in, or not authorized)"]
-	set sn "[$s id] $lsuffix"
+	set sn "[cspace get-id] $lsuffix"
     } trap {STACKATO CLIENT V2 NOTFOUND} {e options} {
+	# cannot happen anymore. cspace discarded data, returned <none>
 	set lsuffix [color red "(not resolved: not found)"]
 	set sn "[$s id] $lsuffix"
     }

@@ -30,7 +30,7 @@ test services-1.1 {services, login required} -setup {
 } -returnCodes error -result {Login Required
 Please use 'stackato login'}
 
-test services-1.3 {services} -setup {
+test services-1.3.1 {services} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -51,6 +51,31 @@ test services-1.3 {services} -setup {
 | rabbitmq   | * | RabbitMQ message queue                   |
 | redis      | * | Redis key-value store service            |
 +------------+---------+------------------------------------------+
+
+=========== Provisioned Services ============*}
+
+
+test services-1.3.2 {services} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run services
+} -cleanup {
+    stage-close
+} -match glob -result {============== Service Plans ================
+
++------------+-------------------------------+----------+---------+------+---------+
+| Name       | Description                   | Provider | Version | Plan | Details |
++------------+-------------------------------+----------+---------+------+---------+
+| filesystem | Persistent filesystem service | core     | * | free | free    |
+| harbor     | External port mapping service | core     | * | free | free    |
+| mongodb    | MongoDB NoSQL store           | core     | * | free | free    |
+| mysql      | MySQL database service        | core     | * | free | free    |
+| postgresql | PostgreSQL database service   | core     | * | free | free    |
+| rabbitmq   | RabbitMQ message queue        | core     | * | free | free    |
+| rabbitmq3  | RabbitMQ message queue        | core     | * | free | free    |
+| redis      | Redis key-value store service | core     | * | free | free    |
++------------+-------------------------------+----------+---------+------+---------+
 
 =========== Provisioned Services ============*}
 

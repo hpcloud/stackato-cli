@@ -18,6 +18,7 @@ package require stackato::log
 package require stackato::mgr::auth
 package require stackato::mgr::cgroup
 package require stackato::mgr::ctarget
+package require stackato::mgr::exit
 package require stackato::mgr::self
 package require stackato::mgr::targets
 
@@ -37,6 +38,7 @@ namespace eval ::stackato::mgr::ssh {
     namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::mgr::exit
     namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::targets
 }
@@ -571,6 +573,19 @@ proc ::stackato::mgr::ssh::SSHCommand {ov cv} {
     return
 }
 
+proc ::stackato::mgr::ssh::GetStatus {options} {
+    set status [lindex [dict get $options -errorcode] end]
+    debug.mgr/ssh {status = $status}
+
+    if {$status == 255} {
+	append msg "Server closed connection."
+	append msg " This may have been caused by an out-of-date ssh key."
+	append msg " [self please login] to refresh the ssh key."
+	err $msg
+    }
+    return $status
+}
+
 proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} {
     # eincmd = External INput Command.
     # eocmd = External Output Command.
@@ -586,14 +601,7 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 	try {
 	    exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
 	} trap {CHILDSTATUS} {e o} {
-	    set status [lindex [dict get $o -errorcode] end]
-
-	    debug.mgr/ssh {status = $status}
-	    if {$status == 255} {
-		err "Server closed connection."
-	    } else {
-		return $status
-	    }
+	    return [GetStatus $o]
 	}
 	debug.mgr/ssh {status = OK}
 	return 0
@@ -622,12 +630,7 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 	    exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
 	}
     } trap {CHILDSTATUS} {e o} {
-	set status [lindex [dict get $o -errorcode] end]
-	if {$status == 255} {
-	    err "Server closed connection."
-	} else {
-	    exit $status
-	}
+	exit fail [GetStatus $o]
     }
     return
 }

@@ -40,7 +40,7 @@ proc ::stackato::validate::serviceauthtoken::release  {p x} { return }
 proc ::stackato::validate::serviceauthtoken::complete {p x} {
     refresh-client $p
     complete-enum [struct::list map [v2 service_auth_token list] [lambda o {
-	$o name
+	$o @name
     }]] 0 $x
 }
 
@@ -52,7 +52,7 @@ proc ::stackato::validate::serviceauthtoken::validate {p x} {
     # Note: The auth token list is not cached. Multiple round trips
     # are made when validating multiple tokens.
     set matches [struct::list filter [v2 service_auth_token list 1] [lambda {x o} {
-	string equal $x	[$o name]
+	string equal $x	[$o @name]
     } $x]]
     if {[llength $matches] == 1} {
 	debug.validate/serviceauthtoken {OK/canon = $x}

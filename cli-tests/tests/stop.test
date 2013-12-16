@@ -28,7 +28,7 @@ test stop-1.1 {stop, empty application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application stop]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

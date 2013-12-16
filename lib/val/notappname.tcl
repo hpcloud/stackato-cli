@@ -1,6 +1,8 @@
 ## -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 ## Stackato - Validation Type - Application names, NOT
+##                              Yet possible
+## <==> syntactically valid app-name, not known to target.
 ## Dependency: config @client
 
 # # ## ### ##### ######## ############# #####################
@@ -13,6 +15,7 @@ package require dictutil
 package require cmdr::validate ;# Fail utility command.
 package require stackato::mgr::client
 package require stackato::mgr::cspace
+package require stackato::validate::appname-lex
 package require stackato::validate::common
 
 debug level  validate/notappname
@@ -35,6 +38,7 @@ namespace eval ::stackato::validate::notappname {
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::appname-lex
 }
 
 proc ::stackato::validate::notappname::default  {p}   { return {} }
@@ -58,6 +62,11 @@ proc ::stackato::validate::notappname::validate {p x} {
 
 	set thespace [cspace get]
 	if {$thespace eq {}} {
+	    if {![appname-lex ok $p $x]} {
+		debug.validate/notappname {FAIL}
+		fail $p NOTAPPNAME "an application name" $x
+	    }
+
 	    # No space to check against. Accept all and hope that later
 	    # REST calls will error out properly.
 
@@ -72,6 +81,11 @@ proc ::stackato::validate::notappname::validate {p x} {
 
 	if {![llength $matches] == 1} {
 	    # Not found, good.
+	    if {![appname-lex ok $p $x]} {
+		debug.validate/notappname {FAIL}
+		fail $p NOTAPPNAME "an application name" $x
+	    }
+
 	    debug.validate/notappname {OK/canon = $x}
 	    return $x
 	}
@@ -79,6 +93,11 @@ proc ::stackato::validate::notappname::validate {p x} {
 	debug.validate/notappname {/v1}
 
 	if {![client app-exists? $c $x]} {
+	    if {![appname-lex ok $p $x]} {
+		debug.validate/notappname {FAIL}
+		fail $p NOTAPPNAME "an application name" $x
+	    }
+
 	    debug.validate/notappname {OK}
 	    return $x
 	}

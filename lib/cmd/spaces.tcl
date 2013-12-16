@@ -51,8 +51,14 @@ proc ::stackato::cmd::spaces::switch {config} {
     # @name
     # @organization
 
-    set org   [$config @organization]
-    set space [$config @name]
+    set org [$config @organization]
+
+    try {
+	set space [$config @name]
+    } trap {CMDR VALIDATE SPACENAME} {e o} {
+	set name [$config @name string]
+	err "Unable to switch to space \"$name\" (not found, or not a member)"
+    }
 
     if {$org eq {}} {
 	display [color yellow {Unable to switch, no organization specified}]

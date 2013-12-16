@@ -210,6 +210,26 @@ proc login-required {} {
     return "Login Required\nPlease use 'stackato login'"
 }
 
+proc not-authorized {} {
+    return "Not Authorized\nYou are using an expired or deleted login\nPlease use 'stackato login'"
+}
+
+proc no-application {cmd} {
+    return "No manifest\nNo application specified, and no manifest found.\n$cmd *"
+}
+
+proc no-application-q {cmd} {
+    return "No application specified, and no manifest found.\n$cmd *"
+}
+
+proc expected-app {x cmd} {
+    return "Error: The application \[$x\] is not deployed. Please deploy it, or choose a different application to $cmd."
+}
+
+proc ssh-cmd {app dry} {
+    return "/*/ssh -i */key_* -o IdentitiesOnly=yes -t -o \"PasswordAuthentication no\" -o \"ChallengeResponseAuthentication no\" -o \"PreferredAuthentications publickey\" -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@[theplaintarget] stackato-ssh * $app 0 $dry"
+}
+
 proc ref-target {} {
     run target -n [thetarget] --allow-http
 }
@@ -239,7 +259,9 @@ proc make-non-admin {} {
     if {$isv1} {
 	run add-user -n [theuser] --password P
     } else {
-	run add-user -n [theuser] --password P --organization [theorg]
+	run add-user -n [theuser] --email [theuser] --password P --organization [theorg]
+	run link-user-org   [theuser] [theorg]   --developer
+	run link-user-space [theuser] [thespace] --developer
     }
 }
 
@@ -289,7 +311,7 @@ tcltest::customMatch anti-glob antiglob
 
 
 proc services {} {
-    return {
+    return [per-api {
 	filesystem
 	harbor
 	memcached
@@ -298,7 +320,16 @@ proc services {} {
 	postgresql
 	rabbitmq
 	redis
-    }
+    } {
+	filesystem
+	harbor
+	mongodb
+	mysql
+	postgresql
+	rabbitmq
+	rabbitmq3
+	redis
+    }]
 }
 
 proc per-api {v1 v2} {

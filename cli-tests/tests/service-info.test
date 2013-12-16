@@ -48,7 +48,10 @@ test service-1.3 {service (info), bogus service} -setup {
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Service [bogus] is not a valid service choice}
+} -returnCodes error \
+    -result [per-api \
+		 {Service [bogus] is not a valid service choice} \
+		 {Expected a service instance name for input "name", got "bogus"}]
 
 # todo: get the data for all types of services
 # todo: service querying in groups

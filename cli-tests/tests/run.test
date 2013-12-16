@@ -19,7 +19,7 @@ test run-1.0 {run, no app} -setup {
     run run X
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application-q run]
 
 test run-1.1 {run, empty application} -setup {
     stage-open
@@ -36,26 +36,12 @@ test run-1.1 {run, empty application} -setup {
 ## not contain everything needed to match because of that.
 
 set flist {total *
--rw-rw-r-- 1 stackato admin * app.js
--rw-r--r-- 1 stackato admin * manifest.yml
--rw-rw-r-- 1 stackato admin * package.json
--rw-rw-r-- 1 stackato admin * README.md
--rw-rw-r-- 1 stackato admin * stackato.yml}
-
-# # ## ### ##### ######## ############# #####################
-
-test run-1.2 {run, auto-select app} -setup {
-    stage-open
-    go-admin
-    set appdir [example a.original.node-env]
-    indir $appdir { run push -n }
-} -body {
-    indir $appdir { run run ls -l }
-} -cleanup {
-    unset appdir
-    remove-test-app node-env
-    stage-close
-} -match glob -result $flist
+-* 1 stackato * app.js
+d* 2 stackato * bin
+-* 1 stackato * manifest.yml
+-* 1 stackato * package.json
+-* 1 stackato * README.md
+-* 1 stackato * stackato.yml}
 
 # # ## ### ##### ######## ############# #####################
 

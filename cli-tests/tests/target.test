@@ -28,7 +28,7 @@ test target-1.1 {client target, default} -setup {
     stage-close
 } -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
 
-test target-1.2 {client target, default, json} -setup {
+test target-1.2.1 {client target, default, json} -constraints cfv1 -setup {
     stage-open
 } -body {
     run target -n --json
@@ -38,13 +38,31 @@ test target-1.2 {client target, default, json} -setup {
     "target" : "https://api.stackato.local"
 }}
 
+test target-1.2.2 {client target, default, json} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run target -n --json
+} -cleanup {
+    stage-close
+} -result {{
+    "organization" : {
+        "error" : "not defined"
+    },
+    "space"        : {
+        "error" : "not defined"
+    },
+    "target"       : "https://api.stackato.local"
+}}
+
 test target-1.3 {client target, set} -setup {
     stage-open
 } -body {
     run target -n [theplaintarget]
 } -cleanup {
     stage-close
-} -result "Successfully targeted to \[https://[theplaintarget]\]"
+} -result [per-api \
+	       "Successfully targeted to \[https://[theplaintarget]\]" \
+	       "Successfully targeted to \[https://[theplaintarget]\]\nTarget:       https://[theplaintarget]\nOrganization: <none>\nSpace:        <none>"]
 
 test target-1.4 {client target, set, with schema prefix} -setup {
     stage-open
@@ -52,7 +70,9 @@ test target-1.4 {client target, set, with schema prefix} -setup {
     run target -n https://[theplaintarget]
 } -cleanup {
     stage-close
-} -result "Successfully targeted to \[https://[theplaintarget]\]"
+} -result [per-api \
+	       "Successfully targeted to \[https://[theplaintarget]\]" \
+	       "Successfully targeted to \[https://[theplaintarget]\]\nTarget:       https://[theplaintarget]\nOrganization: <none>\nSpace:        <none>"]
 
 test target-1.5 {client target, set, with schema prefix, http not allowed} -setup {
     stage-open
@@ -60,7 +80,7 @@ test target-1.5 {client target, set, with schema prefix, http not allowed} -setu
     run target -n http://[theplaintarget]
 } -cleanup {
     stage-close
-} -returnCodes error -result "Error: Illegal use of http://[theplaintarget].\nEither re-target to use https, or force acceptance via --allow-http"
+} -returnCodes error -result "Error: Illegal use of http://[theplaintarget]. Either re-target to use https, or force acceptance via --allow-http"
 
 test target-1.6 {client target, set, force allow http} -setup {
     stage-open

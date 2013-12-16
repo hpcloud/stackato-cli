@@ -32,8 +32,8 @@ test scale-mem-1.6 {mem, plain number, megabyte} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Memory Reservation [TEST] to 23M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?TEST? to 23M ... 
+Committing changes ...*}
 
 test scale-mem-1.7 {mem, megabyte suffix} -setup {
     stage-open
@@ -45,8 +45,8 @@ test scale-mem-1.7 {mem, megabyte suffix} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Memory Reservation [TEST] to 23M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?TEST? to 23M ... 
+Committing changes ...*}
 
 test scale-mem-1.8 {mem, gigabyte suffix} -setup {
     stage-open
@@ -58,8 +58,8 @@ test scale-mem-1.8 {mem, gigabyte suffix} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Memory Reservation [TEST] to 512M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?TEST? to 512M ... 
+Committing changes ...*}
 
 test scale-mem-1.9 {mem, too small} -setup {
     stage-open
@@ -71,10 +71,10 @@ test scale-mem-1.9 {mem, too small} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Memory Reservation [TEST] to 5M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?TEST? to 5M ... 
+Committing changes ...*}
 
-test scale-mem-1.10 {mem, below zero} -setup {
+test scale-mem-1.10.1 {mem, below zero} -constraints cfv1 -setup {
     stage-open
     go-admin
     indir [appdir] { run create-app -n TEST }
@@ -86,6 +86,18 @@ test scale-mem-1.10 {mem, below zero} -setup {
     stage-close
 } -result {Updating Memory Reservation [TEST] to -3M ... 
 Committing changes ...}
+
+test scale-mem-1.10.2 {mem, below zero} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem -3
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 100006: You have specified an invalid amount of memory for your application.}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -99,9 +111,9 @@ test scale-mem-2.0 {mem, scale up, running app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -match glob -result {Updating Memory Reservation \[node-env\] to 260M ... 
+} -match glob -result {Updating Memory Reservation ?node-env? to 260M ... 
 Committing changes ... 
-stackato.controller: Set memory limit to 260MB*}
+*stackato?cloud_controller_ng?: Updated app 'node-env' -- ??memory?=>260*}
 
 test scale-mem-2.1 {mem, scale down, running app} -setup {
     stage-open
@@ -113,9 +125,9 @@ test scale-mem-2.1 {mem, scale down, running app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -match glob -result {Updating Memory Reservation \[node-env\] to 250M ... 
+} -match glob -result {Updating Memory Reservation ?node-env? to 250M ... 
 Committing changes ... 
-stackato.controller: Set memory limit to 250MB*}
+*stackato?cloud_controller_ng?: Updated app 'node-env' -- ??memory?=>250*}
 
 test scale-mem-2.2 {mem, scale up, stopped app} -setup {
     stage-open
@@ -127,8 +139,8 @@ test scale-mem-2.2 {mem, scale up, stopped app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -result {Updating Memory Reservation [node-env] to 260M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?node-env? to 260M ... 
+Committing changes ...*}
 
 test scale-mem-2.3 {mem, scale down, stopped app} -setup {
     stage-open
@@ -140,8 +152,8 @@ test scale-mem-2.3 {mem, scale down, stopped app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -result {Updating Memory Reservation [node-env] to 250M ... 
-Committing changes ...}
+} -match glob -result {Updating Memory Reservation ?node-env? to 250M ... 
+Committing changes ...*}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -165,8 +177,8 @@ test scale-disk-1.6 {disk, plain number, megabyte} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Disk Reservation [TEST] to 23M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?TEST? to 23M ... 
+Committing changes ...*}
 
 test scale-disk-1.7 {disk, megabyte suffix} -setup {
     stage-open
@@ -178,8 +190,8 @@ test scale-disk-1.7 {disk, megabyte suffix} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Disk Reservation [TEST] to 23M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?TEST? to 23M ... 
+Committing changes ...*}
 
 test scale-disk-1.8 {disk, gigabyte suffix} -setup {
     stage-open
@@ -191,8 +203,8 @@ test scale-disk-1.8 {disk, gigabyte suffix} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Disk Reservation [TEST] to 512M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?TEST? to 512M ... 
+Committing changes ...*}
 
 test scale-disk-1.9 {disk, too small} -setup {
     stage-open
@@ -204,8 +216,8 @@ test scale-disk-1.9 {disk, too small} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Disk Reservation [TEST] to 5M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?TEST? to 5M ... 
+Committing changes ...*}
 
 test scale-disk-1.10 {disk, below zero} -setup {
     stage-open
@@ -217,8 +229,8 @@ test scale-disk-1.10 {disk, below zero} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Updating Disk Reservation [TEST] to -3M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?TEST? to -3M ... 
+Committing changes ...*}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -232,7 +244,7 @@ test scale-disk-2.0 {disk, scale up, running app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -match glob -result {Updating Disk Reservation \[node-env\] to 260M ... 
+} -match glob -result {Updating Disk Reservation ?node-env? to 260M ... 
 Committing changes ...*}
 
 test scale-disk-2.1 {disk, scale down, running app} -setup {
@@ -245,7 +257,7 @@ test scale-disk-2.1 {disk, scale down, running app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -match glob -result {Updating Disk Reservation \[node-env\] to 250M ... 
+} -match glob -result {Updating Disk Reservation ?node-env? to 250M ... 
 Committing changes ...*}
 
 test scale-disk-2.2 {disk, scale up, stopped app} -setup {
@@ -258,8 +270,8 @@ test scale-disk-2.2 {disk, scale up, stopped app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -result {Updating Disk Reservation [node-env] to 260M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?node-env? to 260M ... 
+Committing changes ...*}
 
 test scale-disk-2.3 {disk, scale down, stopped app} -setup {
     stage-open
@@ -271,8 +283,8 @@ test scale-disk-2.3 {disk, scale down, stopped app} -setup {
 } -cleanup {
     run delete node-env
     stage-close
-} -result {Updating Disk Reservation [node-env] to 250M ... 
-Committing changes ...}
+} -match glob -result {Updating Disk Reservation ?node-env? to 250M ... 
+Committing changes ...*}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -296,8 +308,8 @@ test scale-instances-1.7 {instances, scale absolute} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Scaling Application instances up to 6 ...
-Committing changes ...}
+} -match glob -result {Scaling Application instances up to 6 ...
+Committing changes ...*}
 
 test scale-instances-1.8 {instances, scale absolute, persist} -setup {
     stage-open
@@ -323,8 +335,8 @@ test scale-instances-1.9 {instances, scale relative up} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Scaling Application instances up to 7 ...
-Committing changes ...}
+} -match glob -result {Scaling Application instances up to 7 ...
+Committing changes ...*}
 
 test scale-instances-1.10 {instances, scale relative up, persist} -setup {
     stage-open
@@ -351,8 +363,8 @@ test scale-instances-1.11 {instances, scale relative down} -setup {
     run delete TEST
     remove-appdir
     stage-close
-} -result {Scaling Application instances down to 4 ...
-Committing changes ...}
+} -match glob -result {Scaling Application instances down to 4 ...
+Committing changes ...*}
 
 test scale-instances-1.12 {instances, scale relative down, persist} -setup {
     stage-open

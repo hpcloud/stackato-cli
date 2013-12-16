@@ -20,6 +20,7 @@ package require stackato::mgr::app
 package require stackato::mgr::auth
 package require stackato::mgr::cgroup
 package require stackato::mgr::client
+package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::exit
@@ -45,7 +46,7 @@ namespace eval ::stackato::cmd::usermgr {
     namespace export \
 	add delete list login logout password who info \
 	link-org link-space unlink-org unlink-space \
-	token decode-token
+	token decode-token login-fields
     namespace ensemble create
 
     namespace import ::stackato::cmd::admin
@@ -63,6 +64,7 @@ namespace eval ::stackato::cmd::usermgr {
     namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::exit
@@ -524,7 +526,7 @@ proc ::stackato::cmd::usermgr::token {config} {
 
     Debug.cmd/usermgr {token = ($token)}
 
-    set retriever [client restlog [stackato::client new [my target_url] $token]]
+    set retriever [client restlog [stackato::client new $target $token]]
     set key       [dict get' [$retriever get_ssh_key] sshkey {}]
 
     Debug.cmd/usermgr {key   = ($key)}
@@ -544,6 +546,26 @@ proc ::stackato::cmd::usermgr::token {config} {
     return
 }
 
+proc ::stackato::cmd::usermgr::login-fields {config} {
+    debug.cmd/usermgr {}
+
+    set client [$config @client]
+    set fields [$client login-fields]
+
+    if {[$config @json]} {
+	display [jmap map {dict {* array}} $fields]
+	return
+    }
+
+    [table::do t {Field Type Label} {
+	foreach {name def} $fields {
+	    lassign $def type label
+	    $t add $name $type $label
+	}
+    }] show display
+    return
+}
+
 proc ::stackato::cmd::usermgr::login {config} {
     debug.cmd/usermgr {}
 
@@ -557,67 +579,12 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    # Note: Was done before this procedure was invoked.
 
 	    set client [$config @client]
-	    set api    [expr {[$client isv2] ? "V2" : "V1"}]
-	    set label  [expr {[$client isv2] ? "username" : "email"}]
-
-	    if {$promptok} {
-		if {$target ne {}} {
-		    display "Attempting login to \[$target\]"
-		}
-		if {![$config @email set?]} {
-		    $config @email set [term ask/string "[string totitle $label]: "] 
-		}
-	    }
-
-	    set email [$config @email]
-
-	    if {$email eq {}} {
-		err "Need a valid $label"
-	    }
-
-	    # NOTE V2: The UAA always requires a password. Admins
-	    #          cannot 'sudo' to other accounts without
-	    #          password anymore. The v2client instance behind
-	    #          $client knowns this and forces the !admin branch.
-
-	    set isadmin [$client admin?]
-	    debug.cmd/usermgr {Admin = $isadmin}
-	    # [bug 93843]
-	    set password {}
-	    if {!$isadmin} {
-		# Not an administrator.  Password is required.  Get a
-		# value, from command line or through interaction.
-
-		if {$promptok && ![$config @password set?]} {
-		    $config @password set [string trim [term ask/string* "Password: "]]
-		}
-
-		set password [string trim [$config @password]]
-
-		if {$password eq {}} {
-		    err "Need a password"
-		}
-	    } else {
-		# This can be reached only for a v1 target.
-		# assert: ![$client isv2]
-
-		set user [$client user]
-		if {[HasPassword $config]} {
-		    display "Ignoring password, logged in as administrator $user"
-		} else {
-		    display "No password asked for, logged in as administrator $user"
-		}
-	    }
-
-	    lassign [$client login $email $password] token sshkey
-
 	    if {[$client isv2]} {
-		# Pull the ssh key directly. This may fail.
-		# For the tech preview we simply capture and
-		# display that error.
-		set sshkey [client get-ssh-key $client]
-		# Retrieve and save refresh token.
-		tadjunct add $target refresh [$client refreshtoken]
+		set api V2
+		lassign [LoginV2 $client $config] token sshkey
+	    } else {
+		set api V1
+		lassign [LoginV1 $client $config] token sshkey
 	    }
 
 	    # We remove a pre-existing token, this also removes the
@@ -625,6 +592,7 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    # this login (expired token) does not cause us to leave the
 	    # ssh key file for the old token behind, never to be removed
 	    # (except through running 'logout --all').
+
 	    targets  remove $target
 	    targets  add    $target $token $sshkey
 
@@ -648,13 +616,14 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    exit fail
 	    break
 
-	} trap {REST HTTP} {e o} - \
-	  trap SIGTERM {e o} - \
-	  trap {TERM INTERUPT} {e o} - \
+	} trap {REST HTTP}                  {e o} - \
+	  trap {REST SSL}                   {e o} - \
+	  trap SIGTERM                      {e o} - \
+	  trap {TERM INTERUPT}              {e o} - \
 	  trap {STACKATO SERVER DATA ERROR} {e o} - \
-	  trap {STACKATO CLIENT} {e o} - \
-	  trap {CMDR PARAMETER UNDEFINED} {e o} - \
-	  trap {CMDR VALIDATE} {e o} {
+	  trap {STACKATO CLIENT}            {e o} - \
+	  trap {CMDR PARAMETER UNDEFINED}   {e o} - \
+	  trap {CMDR VALIDATE}              {e o} {
 	    return {*}$o $e
 
 	} on error e {
@@ -664,6 +633,163 @@ proc ::stackato::cmd::usermgr::login {config} {
 	}
     }
     return
+}
+
+proc ::stackato::cmd::usermgr::LoginV1 {client config} {
+    debug.cmd/usermgr {}
+
+    if {[cmdr interactive?]} {
+	set target [$config @target]
+	if {$target ne {}} {
+	    display "Attempting login to \[$target\]"
+	}
+    }
+
+    set name     [GetName             $config]
+    set password [GetPassword $client $config]
+
+    return [$client login $name $password]
+}
+
+proc ::stackato::cmd::usermgr::LoginV2 {client config} {
+    debug.cmd/usermgr {}
+
+    set target [$config @target]
+
+    # Translate @email, @password into entries in the @credentials, if
+    # they were specified on the command line.
+
+    if {[$config @email set?]} {
+	$config @credentials set "username: [$config @email]"
+    }
+    if {[$config @password set?]} {
+	$config @credentials set "password: [$config @password]"
+    }
+
+    # Query target for the supported credential fields. We always need
+    # this, for the interactive query, and to match them against the
+    # non-interactively provided fields.
+
+    set supported [$client login-fields]
+
+    # Get the non-interactively provided fields, if any.
+
+    set creds {}
+    foreach kv [$config @credentials] {
+	dict set creds {*}$kv
+    }
+
+    # Match supported and provided fields against each other.
+    # (1) Provided, but unsupported fields are an error, always.
+    # (2) Missing, but supported fields are an error if we cannot ask
+    #     the user for their value. If we can, we do.
+
+    dict for {field value} $creds {
+	if {[dict exists $supported $field]} continue
+	err "Credentials \"$field\" provided, but not supported by target \[$target\]"
+    }
+
+    if {[cmdr interactive?] && ($target ne {})} {
+	display "Attempting login to \[$target\]"
+    }
+
+    dict for {field def} $supported {
+	if {[dict exists $creds $field]} continue
+	if {![cmdr interactive?]} {
+	    err "Credentials \"$field\" not specified, but needed by target \[$target\]"
+	}
+
+	lassign $def ftype label
+	debug.cmd/usermgr {${ftype}-field $field \$label\"}
+	dict set creds $field [Get-$ftype $label]
+    }
+
+    # The credentials are now fine. Nothing unsupported in them, and
+    # nothing missing either. We can now run the login.
+
+    set token [$client login-by-fields $creds]
+
+    # Pull the ssh key directly. This may fail. For the tech preview
+    # we simply capture and display that error.
+
+    set sshkey [client get-ssh-key $client]
+
+    # Retrieve and save refresh token.
+    tadjunct add $target refresh [$client refreshtoken]
+
+    return [::list $token $sshkey]
+}
+
+proc ::stackato::cmd::usermgr::Get-text {label} {
+    return [term ask/string "$label: "] 
+}
+
+proc ::stackato::cmd::usermgr::Get-password {label} {
+    return [term ask/string* "$label: "] 
+}
+
+proc ::stackato::cmd::usermgr::GetName {config} {
+    # CFv1 only
+    debug.cmd/usermgr {}
+
+    if {![$config @email set?] && [cmdr interactive?]} {
+	$config @email set [term ask/string "Email: "] 
+    }
+
+    set email [$config @email]
+
+    if {$email eq {}} {
+	err "Need a valid email"
+    }
+
+    return $email
+}
+
+proc ::stackato::cmd::usermgr::GetPassword {client config} {
+    # CFv1 only
+    debug.cmd/usermgr {}
+
+    set isadmin [$client admin?]
+
+    debug.cmd/usermgr {Admin = $isadmin}
+    # [bug 93843]
+    if {$isadmin} {
+	# This can be reached only for a v1 target.
+	# assert: ![$client isv2]
+
+	# NOTE V2: The UAA always requires a password. Admins
+	#          cannot 'sudo' to other accounts without
+	#          password anymore. The v2client instance behind
+	#          $client knowns this and forces the !admin branch.
+
+	# Note: With the restructuring for use of dynamically provided
+	# fields for CFv2, i.e Stackato 3 the above is moot, as the
+	# procedure is not used for the CFv2 branch at all anymore.
+
+	set user [$client user]
+	if {[HasPassword $config]} {
+	    display "Ignoring password, logged in as administrator $user"
+	} else {
+	    display "No password asked for, logged in as administrator $user"
+	}
+
+	return {}
+    }
+
+    # Not an administrator.  Password is required.  Get a value, from
+    # command line or through interaction.
+
+    if {![$config @password set?] && [cmdr interactive?]} {
+	$config @password set [string trim [term ask/string* "Password: "]]
+    }
+
+    set password [string trim [$config @password]]
+
+    if {$password eq {}} {
+	err "Need a password"
+    }
+
+    return $password
 }
 
 proc ::stackato::cmd::usermgr::PostLoginV1 {client config} {
@@ -690,10 +816,8 @@ proc ::stackato::cmd::usermgr::PostLoginV2 {client config} {
     # Handle chosen/current organization and space.
 
     # 1a. If an org is chosen validate its existence (search-by-name).
-    # 1b. If none is chosen, retrieve a list of possible orgs.
-    # 1b1. If this list has more than one entry let the user choose interactively.
-    # 1b2. With a single entry automatically choose this org.
-    # 1b3. For an empty list throw an error.
+    # 1b. If none is chosen a cached current org is used, if ok, or
+    #     re-chosen by the user.
 
     if {[$config @organization set?]} {
 	set name [$config @organization]
@@ -710,10 +834,10 @@ proc ::stackato::cmd::usermgr::PostLoginV2 {client config} {
 	# includes saving
     }
 
-    # 2a. If a space is chosen validate its existence within the chosen
-    #     org.
-    # 2b. If no space is chosen generate a list of spaces from the chosen
-    #     org and let the user choose.
+    # 2a. If a space is chosen validate its existence
+    #     (search-by-name), within the current org.
+    # 2b. If none is chosen a cached current space is used, if ok, or
+    #     re-chosen by the user.
 
     if {[$config @space set?]} {
 	set name  [$config @space]
@@ -731,6 +855,7 @@ proc ::stackato::cmd::usermgr::PostLoginV2 {client config} {
 	# includes saving
     }
 
+    display [context format-large]
     debug.cmd/usermgr {/done}
     return
 }
@@ -820,14 +945,14 @@ proc ::stackato::cmd::usermgr::password {config} {
 		if {$tries < 3} continue
 		exit fail
 		break
-	    } trap {REST HTTP} {e o} {
+	    } trap {REST HTTP}                  {e o} - \
+	      trap {REST SSL}                   {e o} - \
+	      trap SIGTERM                      {e o} - \
+	      trap {TERM INTERUPT}              {e o} - \
+	      trap {STACKATO SERVER DATA ERROR} {e o} - \
+	      trap {STACKATO CLIENT}            {e o} {
 		return {*}$o $e
-	    } trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
-		return {*}$o $e
-	    } trap {STACKATO SERVER DATA ERROR} {e o} {
-		return {*}$o $e
-	    } trap {STACKATO CLIENT} {e o} {
-		return {*}$o $e
+
 	    } on error e {
 		# Rethrow as internal error, with a full stack trace.
 		return -code error -errorcode {STACKATO CLIENT INTERNAL} \

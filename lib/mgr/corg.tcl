@@ -13,8 +13,11 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::mgr::tadjunct
+package require stackato::color
+package require stackato::log
 package require stackato::mgr::ctarget
+package require stackato::mgr::self
+package require stackato::mgr::tadjunct
 package require stackato::term
 package require stackato::v2::client
 
@@ -24,11 +27,17 @@ namespace eval ::stackato::mgr {
 }
 
 namespace eval ::stackato::mgr::corg {
-    namespace export set get get-auto reset save select-for setc getc
+    namespace export \
+	set setc get getc get-auto get-id \
+	reset save select-for
     namespace ensemble create
 
-    namespace import ::stackato::mgr::tadjunct
+    namespace import ::stackato::color
+    namespace import ::stackato::log::display
+    namespace import ::stackato::log::warn
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::mgr::self
+    namespace import ::stackato::mgr::tadjunct
     namespace import ::stackato::term
     namespace import ::stackato::v2
 }
@@ -48,9 +57,59 @@ proc ::stackato::mgr::corg::set {obj} {
     return
 }
 
+proc ::stackato::mgr::corg::get-id {} {
+    debug.mgr/corg {}
+    variable current
+    global env
+
+    # If cached, use that.
+    if {[info exists current]} {
+	if {$current eq {}} {
+	    return $current
+	} else {
+	    return [$current id]
+	}
+    }
+
+    # Not cached, pull id from the possible sources.
+    # NOTE! Result is not cached, as it was not validated.
+
+    # Priority order (first to last taken):
+    # (1) --organization, -o (via set)
+    # (2) $STACKATO_ORG
+    # (3) $HOME/.stackato/client/token2 (adjunct)
+
+    if {[info exists env(STACKATO_ORG)]} {
+	::set name $env(STACKATO_ORG)
+
+	# Inline form of orgname validate.
+	# Not using parameter reference here.
+
+	if {![catch {
+	    ::set o [v2 organization find-by-name $name]
+	}]} {
+	    ::set uuid [$o id]
+	} else {
+	    ::set uuid {}
+	}
+
+	debug.mgr/corg {env var   = $name}
+	debug.mgr/corg {env var   = $uuid}
+    } else {
+	::set target [ctarget get]
+	debug.mgr/corg {from  $target}
+
+	::set uuid [tadjunct get' $target organization {}]
+	debug.mgr/corg {file/dflt = $uuid}
+    }
+
+    return $uuid
+}
+
 proc ::stackato::mgr::corg::get {} {
     debug.mgr/corg {}
     variable current
+    global env
 
     if {![info exists current]} {
 	debug.mgr/corg {fill cache}
@@ -67,32 +126,51 @@ proc ::stackato::mgr::corg::get {} {
 	    # Not using parameter reference here.
 
 	    if {![catch {
-		set o [v2 organization find-by-name $name]
+		::set o [v2 organization find-by-name $name]
 	    }]} {
-		set uuid [$o id]
+		::set uuid [$o id]
 	    } else {
-		set uuid {}
+		::set uuid {}
 	    }
 
 	    debug.mgr/corg {env var   = $name}
 	    debug.mgr/corg {env var   = $uuid}
+	    ::set store 0
 	} else {
 	    ::set target [ctarget get]
-	    ::set known  [tadjunct known]
-
 	    debug.mgr/corg {from  $target}
-	    debug.mgr/corg {known $known}
 
-	    #checker -scope line exclude badOption
-	    ::set uuid [dict get' $known $target organization {}]
-
+	    ::set uuid [tadjunct get' $target organization {}]
 	    debug.mgr/corg {file/dflt = $uuid}
+	    ::set store 1
 	}
 
 	if {$uuid ne {}} {
-	    # Convert uuid into entity instance in-memory.
+	    debug.mgr/corg {load $uuid uuid}
+
+	    # Convert uuid into entity instance in-memory. We use an
+	    # attribute access to force resolution and validate the
+	    # org's existence. A failure is treated as if no current
+	    # org is set at all, effectively discarding the value.  If
+	    # it came from the filesystem the discard is propagated to
+	    # it.
 	    ::set current [v2 deref-type organization $uuid]
+	    try {
+		$current @name
+	    } trap {STACKATO CLIENT V2 AUTHERROR} {e o} - \
+	      trap {STACKATO CLIENT AUTHERROR} {e o} {
+		debug.mgr/corg {org auth failure}
+		# Could not validate, not logged in.
+		# Keep information, treat is no current org set
+		::set current {}
+
+	    } trap {STACKATO CLIENT V2 NOTFOUND} {e o} {
+		# Failed to validate.
+		debug.mgr/corg {org validation failure}
+		Discard $store $uuid
+	    }
 	} else {
+	    debug.mgr/corg {no current org}
 	    ::set current {}
 	}
     }
@@ -101,12 +179,37 @@ proc ::stackato::mgr::corg::get {} {
     return $current
 }
 
+proc ::stackato::mgr::corg::Discard {store uuid} {
+    debug.mgr/corg {}
+    variable current
+    $current destroy
+    ::set current {}
+
+    # Discard external as well, if that was the source.
+    if {$store} {
+	display [color yellow "Resetting current org, invalid value."]
+	save
+    } else {
+	display [color yellow "Ignoring STACKATO_ORG, invalid value."]
+    }
+    return
+}
+
 proc ::stackato::mgr::corg::get-auto {p} {
     # generate callback
     debug.mgr/corg {}
     # get, and if that fails, automagically determine and save a
     # suitable organization.
 
+    # 1b1. Test for and re-validate a cached current org.
+    # 1b2. Keep a valid cached org.
+    # 1b3. Choose a current when none found, or invalid.
+    # 1b3a. Retrieve a list of possible orgs.
+    # 1b3b. If this list has more than one entry let the user choose interactively.
+    # 1b3c. With a single entry automatically choose this org.
+    # 1b3d. For an empty list throw an error.
+
+    # Irrelevant when talking to a CF API v1 target.
     if {![[$p config @client] isv2]} {
 	return {}
     }
@@ -168,7 +271,9 @@ proc ::stackato::mgr::corg::select-for {what p {mode noauto}} {
     debug.mgr/corg {ORG [join $choices "\nORG "]}
 
     if {([llength $choices] == 1) && ($mode eq "auto")} {
-	return [lindex $choices 0]
+	::set neworg [lindex $choices 0]
+	display "Choosing the one available organization: \"[$neworg @name]\""
+	return $neworg
     }
 
     if {(![cmdr interactive?] ||
@@ -185,7 +290,7 @@ proc ::stackato::mgr::corg::select-for {what p {mode noauto}} {
     }
 
     if {![llength $choices]} {
-	err "No organizations available to $what"
+	warn "No organizations available to ${what}. [self please link-user-org] to connect users with orgs."
     }
 
     foreach o $choices {

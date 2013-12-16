@@ -19,7 +19,7 @@ test scp-1.0 {scp, no app} -setup {
     run scp X
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application-q scp]
 
 test scp-1.1 {scp, empty application} -setup {
     stage-open

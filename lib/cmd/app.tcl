@@ -9,8 +9,10 @@
 
 package require Tcl 8.5
 package require browse
+package require cd
 package require cmdr 0.4
 package require dictutil
+package require exec
 package require json
 package require lambda
 package require sha1 2
@@ -22,8 +24,6 @@ package require zipfile::encode
 package require stackato::color
 package require stackato::jmap
 package require stackato::log
-package require stackato::misc
-package require stackato::term
 package require stackato::mgr::app
 package require stackato::mgr::cfile
 package require stackato::mgr::cgroup
@@ -39,6 +39,8 @@ package require stackato::mgr::manifest
 package require stackato::mgr::self
 package require stackato::mgr::service
 package require stackato::mgr::ssh
+package require stackato::misc
+package require stackato::term
 package require stackato::validate::appname
 package require stackato::validate::memspec
 package require stackato::validate::routename
@@ -127,6 +129,19 @@ proc ::stackato::cmd::app::the-upload-manifest {config} {
 
 proc ::stackato::cmd::app::list-events {config} {
     debug.cmd/app {}
+
+    if {![$config @application set?]} {
+	# No application specified. Go for space listing.
+	::stackato::cmd::app::ListEvents $config {}
+	return
+    }
+
+    if {[$config @application] eq "."} {
+	# Fake 'undefined' for 'user_1app' below, which then becomes
+	# the current app as per the manifest.
+	$config @application reset
+    }
+
     manifest user_1app each $config ::stackato::cmd::app::ListEvents
     return
 }
@@ -136,9 +151,26 @@ proc ::stackato::cmd::app::ListEvents {config theapp} {
     # V2 only.
     # client v2 = theapp is entity instance
 
-    set events [$theapp @events]
+    if {$theapp eq {}} {
+	# Space set of events.
+	debug.cmd/app {space events}
+
+	set thespace [cspace get]
+	if {$thespace eq {}} {
+	    err "Unable to show space events. No space specified."
+	}
+
+	set events [$thespace @app_events]
+	set label "For space [$thespace full-name]"
+    } else {
+	# Application set of events.
+	debug.cmd/app {app events}
+	set events [$theapp @events]
+	set label "For application [$theapp @name]"
+    }
 
     if {[$config @json]} {
+	debug.cmd/app {show json}
 	set tmp {}
         foreach e $events {
 	    lappend tmp [$e as-json]
@@ -147,6 +179,8 @@ proc ::stackato::cmd::app::ListEvents {config theapp} {
 	return
     }
 
+    debug.cmd/app {show table}
+    display $label
     [table::do t {Time Instance Index Description Status} {
 	foreach e $events {
 	    $t add \
@@ -262,10 +296,14 @@ proc ::stackato::cmd::app::StartV2 {config theapp push} {
 proc ::stackato::cmd::app::WaitV2 {config theapp push} {
     debug.cmd/app {}
 
+    set timeout    [$config @timeout]
     set client     [$config @client]
     set appname    [$theapp @name]
     set imap       {}
     set start_time [clock seconds]
+
+    debug.cmd/app {timeout  $timeout}
+    debug.cmd/app {starting $start_time}
 
     # Use the standard CFv2 stager log if and only if no logyard
     # streaming is present and active, the target supports it as well,
@@ -275,6 +313,8 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
     }
 
     try {
+	set hasstarted no
+
 	while 1 {
 	    debug.cmd/app {ping CC}
 
@@ -286,12 +326,13 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 		    PrintStatusSummary $imap
 		}
 
-		if {[AllRunning $imap]} {
+		if {[OneRunning $imap]} {
 		    display [color green OK]
 		    return
 		}
 
 	    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+		debug.cmd/app {staging in progress}
 		# Staging in progress.
 		if {[$config @tail] && ![logstream active]} {
 		    display "    Staging in progress"
@@ -300,7 +341,14 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	    set e [clock clicks -milliseconds]
 	    set delta [expr {$e - $s}]
 
-	    if {[AnyFlapping $imap]} {
+	    # Wait until at least one instance shows signs of starting
+	    # before treating all-inactive as problem. At the
+	    # beginning we have a period where all are down before
+	    # getting started by the system.
+
+	    set hasstarted [expr {$hasstarted || [AnyStarting $imap]}]
+	    if {$hasstarted && [NoneActive $imap]} {
+		debug.cmd/app {start failed}
 		if {$push && [cmdr interactive?]} {
 		    display [color red "Application failed to start"]
 		    if {[term ask/yn {Should I delete the application ? }]} {
@@ -316,34 +364,55 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	    # Limit waiting to a second, if we have to wait at all.
 	    # (wait < 0 => delta was over a second spent on the REST call, don't wait with next query)
 	    set wait [expr {1000 - $delta}]
-	    if {$wait > 0} { after $wait }
+	    if {$wait > 0} { After $wait }
 
 	    # Reset the timeout while the log is active, i.e. new
 	    # entries were seen since the last check here.
 	    if {[logstream new-entries]} {
+		debug.cmd/app {timeout /reset}
 		set start_time [clock seconds]
 	    }
 
 	    set delta [expr {[clock seconds] - $start_time}]
-	    if {$delta > [app timeout]} {
+	    if {$delta > $timeout} {
+		debug.cmd/app {timeout /triggered}
 		# Real time, as good as we can. Simply counting loop
 		# iterations here is no good, as the loop itself may take
 		# substantially longer than one second, especially when it
 		# comes to tailing the startup log. Furthermore an unready
 		# container imposes a multi-second wait as well before
 		# timing out.
+
+		try {
+		    PrintStatusSummary [$theapp instances]
+		} trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+		    # Ignore stager issue now that we have timed out already.
+		}
 		err "Application is taking too long to start ($delta seconds), check your logs"
 	    }
 	} ;# while
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
 	err "Application failed to stage"
     } finally {
+	debug.cmd/app {stop log stream}
+
 	if {[logstream active]} {
 	    logstream stop $config
 	}
     }
 
     debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::After {delay} {
+    # Do a synchronous after with full execution of other events.
+    # I.e. a plain after <delay> is not correct, as it suppresses
+    # other events (file events = concurrent log stream rest
+    # requests).
+
+    after $delay {set ::stackato::cmd::app::ping .}
+    vwait ::stackato::cmd::app::ping
     return
 }
 
@@ -378,11 +447,34 @@ proc ::stackato::cmd::app::AnyFlapping {imap} {
     return no
 }
 
+proc ::stackato::cmd::app::AnyStarting {imap} {
+    dict for {n i} $imap {
+	if {[$i starting?]} { return yes }
+    }
+    return no
+}
+
+proc ::stackato::cmd::app::NoneActive {imap} {
+    # Has (Starting|Running) <=> All (Flapping|Down)
+    dict for {n i} $imap {
+	if {[$i starting?]} { return no }
+	if {[$i running?]}  { return no }
+    }
+    return yes
+}
+
 proc ::stackato::cmd::app::AllRunning {imap} {
     dict for {n i} $imap {
 	if {![$i running?]} { return no }
     }
     return yes
+}
+
+proc ::stackato::cmd::app::OneRunning {imap} {
+    dict for {n i} $imap {
+	if {[$i running?]} { return yes }
+    }
+    return no
 }
 
 proc ::stackato::cmd::app::PrintStatusSummary {imap} {
@@ -425,7 +517,8 @@ proc ::stackato::cmd::app::StateColor {s text} {
 proc ::stackato::cmd::app::StartV1 {config appname push} {
     debug.cmd/app {}
 
-    set client [$config @client]
+    set timeout [$config @timeout]
+    set client  [$config @client]
 
     set app [$client app_info $appname]
     if {$app eq {}} {
@@ -469,13 +562,16 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
     set failed false
     set start_time [clock seconds]
 
+    debug.cmd/app {timeout  $timeout}
+    debug.cmd/app {starting $start_time}
+
     while {1} {
 	if {![logstream active] &&
 	    ($count <= [app ticker])} {
 	    display . false
 	}
 
-	after [expr {1000 * [app base]}]
+	After [expr {1000 * [app base]}]
 
 	try {
 	    if {[client app-started-properly? \
@@ -505,13 +601,12 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 		set log_lines_displayed \
 		    [GrabStartupTail $client $appname $log_lines_displayed]
 	    }
-	} trap SIGTERM {e o} - trap {TERM INTERUPT} {e o} {
-	    return {*}$o $e
-
-	} trap {STACKATO CLIENT} {e o} {
-	    return {*}$o $e
-
-	} trap {REST HTTP} {e o} {
+	} trap SIGTERM           {e o} - \
+	  trap {TERM INTERUPT}   {e o} - \
+	  trap {STACKATO CLIENT} {e o} - \
+	  trap {REST HTTP}       {e o} - \
+	  trap {REST SSL}        {e o} - \
+	  trap {HTTP URL}        {e o} {
 	    return {*}$o $e
 
 	} on error e {
@@ -521,8 +616,15 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 	}
 
 	incr count
+
+	# Reset the timeout while the log is active, i.e. new
+	# entries were seen since the last check here.
+	if {[logstream new-entries]} {
+	    set start_time [clock seconds]
+	}
+
 	set delta [expr {[clock seconds] - $start_time}]
-	if {$delta > [app timeout]} {
+	if {$delta > $timeout} {
 	    # Real time, as good as we can. Simply counting loop
 	    # iterations here is no good, as the loop itself may take
 	    # substantially longer than one second, especially when it
@@ -1128,20 +1230,6 @@ proc ::stackato::cmd::app::delete1 {config theapp} {
 proc ::stackato::cmd::app::Delete {force rollback config theapp} {
     debug.cmd/app {}
     set client [$config @client]
-
-    if {[$client isv2]} {
-	# TODO: handling of routes, orphaned services ?
-	set appname [$theapp @name]
-	if {$rollback} {
-	    display [color red "Rolling back application \[$appname\] ... "] false
-	} else {
-	    display "Deleting application \[$appname\] ... " false
-	}
-	$theapp delete!
-	display [color green OK]
-	return
-    }
-
     app delete $client $theapp $force $rollback
     return
 }
@@ -1209,14 +1297,14 @@ proc ::stackato::cmd::app::Map2 {config theapp} {
 
     set n [llength [$config @url]]
 
-    map-urls $theapp [$config @url]
+    map-urls $config $theapp [$config @url]
 
     MapFinal mapped $n
     debug.cmd/app {/done}
     return
 }
 
-proc ::stackato::cmd::app::map-urls {theapp urls {sync 1}} {
+proc ::stackato::cmd::app::map-urls {config theapp urls {rollback 0} {sync 1}} {
     debug.cmd/app {}
 
     foreach url [lsort -dict $urls] {
@@ -1225,7 +1313,7 @@ proc ::stackato::cmd::app::map-urls {theapp urls {sync 1}} {
 
 	if {$sync} {
 	    display "  Map $url ... " false
-	    $theapp @routes add [Url2Route $url]
+	    $theapp @routes add [Url2Route $config $theapp $url $rollback]
 	    display [color green OK]
 	} else {
 	    display "  Map $url ... (Change Ignored)"
@@ -1246,11 +1334,11 @@ proc ::stackato::cmd::app::unmap-urls {config theapp urls {sync 1}} {
 	if {$sync} {
 	    display "  Unmap $url ... " false
 
-	    set r [routename validate [$config @url self] $u]
+	    set r [routename validate [$config @url self] $url]
 	    $theapp @routes remove $r
 	    display [color green OK]
 	} else {
-	    display "  Unmap $url ... (Change Ignored)" false
+	    display "  Unmap $url ... (Change Ignored)"
 	}
     }
 
@@ -1269,22 +1357,46 @@ proc ::stackato::cmd::app::kept-urls {theapp urls {sync 1}} {
     return
 }
 
-proc ::stackato::cmd::app::Url2Route {url} {
+proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
     debug.cmd/app {}
-    # Split url into host and domain.
-    set url    [split $url .]
-    set host   [lindex $url 0 ]
-    set domain [join [lrange $url 1 end] .]
+
+    # The url can be host+domain, or just a domain.  In case of the
+    # latter we create a route "" which the target will fill for us
+    # with a proper name.
+
+    set thedomain [GetDomain $url]
+    if {$thedomain ne {}} {
+	# url = domain
+	set host ""
+	set domain $url
+    } else {
+	# url = host+domain, split into parts
+	set url    [split $url .]
+	set host   [lindex $url 0 ]
+	set domain [join [lrange $url 1 end] .]
+
+	set thedomain [GetDomain $domain]
+	if {$thedomain eq {}} {
+	    if {[llength [v2 domain list-by-name $domain]]} {
+		# domain exists, not mapped into the space.
+		set msg "Not mapped into the space. [self please map-domain] to add the domain to the space."
+	    } else {
+		# domains does not exist at all.
+		set msg "Does not exist. [self please map-domain] to create the domain and add it to the space."
+	    }
+	    display "" ; # Force new line.
+
+	    # Force application rollback, per caller's instruction.
+	    if {$rollback} {
+		Delete 0 1 $config $theapp
+	    }
+
+	    err "Unknown domain '$domain': $msg"
+	}
+    }
 
     debug.cmd/app {host    = $host}
     debug.cmd/app {domain  = $domain}
-
-    # 1. Locate domain by name in the current space.
-
-    set matches [[cspace get] @domains filter-by @name $domain]
-    if {[llength $matches] != 1} {
-	err "Unknown domain '$domain'"
-    }
 
     # 2. Find route by host(-name), in all routes, then
     #    filter by domain, locally.
@@ -1295,23 +1407,29 @@ proc ::stackato::cmd::app::Url2Route {url} {
 	string equal $d [$o @domain @name]
     } $domain]]
 
-    set domain [lindex $matches 0]
-
-    if {![llength $routes]} {
+    if {[llength $routes]} {
+	debug.cmd/app {use existing route}
+	set route [lindex $routes 0]
+    } else {
 	debug.cmd/app {create new route}
 
 	set route [v2 route new]
-	$route @domain set $domain
+	$route @domain set $thedomain
 	$route @host   set $host
 	$route @space  set [cspace get]
 	$route commit
-    } else {
-	debug.cmd/app {use existing route}
-
-	set route [lindex $routes 0]
     }
 
     return $route
+}
+
+proc ::stackato::cmd::app::GetDomain {domain} {
+    set matches [[cspace get] @domains filter-by @name $domain]
+    if {[llength $matches] != 1} {
+	return {}
+    } else {
+	return [lindex $matches 0]
+    }
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -1797,10 +1915,10 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
 	set instances [$theapp instances]
     } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 	# Staging in progress.
-	err "Unable to show instances, staging in progress"
+	err "Unable to show instances: $e"
 	return
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
-	err "Unable to show instances, application failed to stage"
+	err "Unable to show instances: Application failed to stage"
     }
 
     set instances [dict sort $instances]
@@ -2288,12 +2406,12 @@ proc ::stackato::cmd::app::create {config} {
     }
 
     manifest user_all each $config \
-	{::stackato::cmd::app::Create true no}
+	{::stackato::cmd::app::Create true no no}
     # interact = yes, starting = no
     return
 }
 
-proc ::stackato::cmd::app::Create {interact starting config appname} {
+proc ::stackato::cmd::app::Create {interact starting defersd config appname} {
     debug.cmd/app {}
 
     # push is a combination of app creation followed by a file upload.
@@ -2323,14 +2441,14 @@ proc ::stackato::cmd::app::Create {interact starting config appname} {
     if {[$client isv2]} {
 	debug.cmd/app {/v2: '$appname'}
 	# CFv2 API...
-	set theapp [CreateAppV2 $interact $starting $config $appname $path]
+	set theapp [CreateAppV2 $interact $starting $defersd $config $appname $path]
 	# result is the v2/app instance
 
 	debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
     } else {
     	debug.cmd/app {/v1: '$appname'}
 	# CFv1 API...
-	set theapp [CreateAppV1 $interact $starting $config $client $appname $path]
+	set theapp [CreateAppV1 $interact $starting $defersd $config $client $appname $path]
 	# result is the appname.
     }
 
@@ -2338,17 +2456,17 @@ proc ::stackato::cmd::app::Create {interact starting config appname} {
     return $theapp
 }
 
-proc ::stackato::cmd::app::CreateAppV2 {interact starting config appname path} {
+proc ::stackato::cmd::app::CreateAppV2 {interact starting defersd config appname path} {
     debug.cmd/app {}
 
     set theapp [v2 app new]
-    ConfigureAppV2 $theapp 0 $interact $starting $config $appname $path
+    ConfigureAppV2 $theapp 0 $interact $starting $defersd $config $appname $path
 
     debug.cmd/app {/done ==> ($theapp)}
     return $theapp
 }
 
-proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting config appname path} {
+proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defersd config appname path} {
     debug.cmd/app {}
 
     set thespace [cspace get]
@@ -2470,33 +2588,62 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting confi
 	display {No changes}
     }
 
-    # # ## ### ##### ######## ############# #####################
-    ## Relationships: urls, services.
+    # Capture issues with all actions done after app creation
+    # (!update) for rollback -- Bug 101992
+    try {
+	# # ## ### ##### ######## ############# #####################
+	## Relationships: urls, services, drains
 
-    if {$update} {
-	# Compare, show, apply (on sync)
+	if {$update} {
+	    # Compare, show, apply (on sync)
 
-	set old [$theapp uris]
-	lassign [struct::set intersect3 $urls $old] \
-	    unchanged added removed
+	    set old [$theapp uris]
+	    lassign [struct::set intersect3 $urls $old] \
+		unchanged added removed
 
-	unmap-urls $config $theapp $removed $sync
-	kept-urls  $theapp $unchanged
-	map-urls   $theapp $added   $sync
+	    unmap-urls $config $theapp $removed $sync
+	    kept-urls          $theapp $unchanged
+	    map-urls   $config $theapp $added 0 $sync
 
-    } else {
-	# Push, add all.
-	map-urls $theapp $urls
+	} else {
+	    # Push, add all. Rollback app creation in case of trouble.
+	    # Note that this is not caught in the trap clauses below.
+	    # (code: STACKATO CLIENT CLI CLI-EXIT)
+	    map-urls $config $theapp $urls 1
+	}
+
+	# When coming from Push we cannot do this here, but have to wait
+	# until after RegenerateManifest has incorporated any name changes
+	# in full.
+	if {!$defersd} {
+	    # Run for 'create-app', and push-as-update.
+	    AppServices $config $theapp
+	    AppDrains   $config $theapp
+	}
+
+    } trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} - \
+      trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} - \
+      trap {STACKATO CLIENT V2 AUTHERROR}       {e o} - \
+      trap {STACKATO CLIENT V2 TARGETERROR}     {e o} {
+	# Bug 101992
+	if {!$update} {
+	    # Errors after creation must cause rollback of the
+	    # application. Internal errors are an exception to this
+	    # however. Keeping the state is likely useful and rollback
+	    # would disturb it. It might not even be possible,
+	    # depending on the exact nature of the problem.
+
+	    Delete 0 1 $config $theapp
+	}
+	# Rethrow.
+	return {*}$o $e
     }
-
-    AppServices $config $theapp
-    AppDrains   $config $theapp
 
     debug.cmd/app {/done}
     return
 }
 
-proc ::stackato::cmd::app::CreateAppV1 {interact starting config client appname path} {
+proc ::stackato::cmd::app::CreateAppV1 {interact starting defersd config client appname path} {
     debug.cmd/app {}
 
     set manifest [ManifestOfAppV1 $starting $config $appname $path]
@@ -2516,8 +2663,14 @@ proc ::stackato::cmd::app::CreateAppV1 {interact starting config client appname 
     # # ## ### ##### ######## ############# #####################
 
     # Services check, and binding.
-    AppServices $config $appname
-    AppDrains   $config $appname
+    # When coming from Push we cannot do this here, but have to wait
+    # until after RegenerateManifest has incorporated any name changes
+    # in full.
+    if {!$defersd} {
+	# Run for 'create-app', and push-as-update.
+	AppServices $config $appname
+	AppDrains   $config $appname
+    }
 
     # Environment binding.
     AppEnvironment commit $config $appname replace
@@ -2660,6 +2813,8 @@ proc ::stackato::cmd::app::push {config} {
 	    }
 	}
 
+	RunDebugger $config
+
 	debug.cmd/app {/done, all}
 	return
     }
@@ -2682,6 +2837,8 @@ proc ::stackato::cmd::app::push {config} {
 	# Get config interactively and save.
 	::stackato::cmd::app::Push $config $theapp 1
     }
+
+    RunDebugger $config
 
     debug.cmd/app {/done, single, interactive}
     return
@@ -2753,10 +2910,31 @@ proc ::stackato::cmd::app::Push {config appname {interact 0}} {
     # target.
     client check-app-limit $client
 
-    set theapp [Create $interact $starting $config $appname]
+    set theapp [Create $interact $starting 1 $config $appname]
+    # Note: defersd set! We have to create services and drains
+    # after Regen below, to get any name changes into them.
     # v1: app name, v2: app instance
 
-    RegenerateManifest $config $appname $interact
+    try {
+	RegenerateManifest $config $theapp $appname $interact 1
+	# Note: sd set, to run AppServices|Drains in the proper place
+	# ordering depends on 'interact'.
+    } trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} - \
+      trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} - \
+      trap {STACKATO CLIENT V2 AUTHERROR}       {e o} - \
+      trap {STACKATO CLIENT V2 TARGETERROR}     {e o} {
+        # Bug 101992
+	# Errors after creation must cause rollback of the
+	# application. Internal errors are an exception to this
+	# however. Keeping the state is likely useful and rollback
+	# would disturb it. It might not even be possible, depending
+	# on the exact nature of the problem.
+	Delete 0 1 $config $theapp
+	# Rethrow.
+	return {*}$o $e
+    }
+
+    RunPPHooks $appname create
 
     # Stage and upload the app bits.
     try {
@@ -2806,15 +2984,17 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	GetManifest$api $client $theapp $app
     }
 
-    RegenerateManifest $config $appname $interact
+    RegenerateManifest $config $theapp $appname $interact
 
     display "Updating application '$appname'..."
 
     if {[$client isv2]} {
 	set action [SyncV2 $config $appname $theapp $interact]
     } else {
-	set action [SyncV1 $config $appname $app $interact]
+	set action [SyncV1 $client $config $appname $app $interact]
     }
+
+    RunPPHooks $appname update
 
     Upload $config $theapp $appname
 
@@ -2827,7 +3007,7 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	}
 	default {
 	    display "Note that \[$appname\] was not automatically started because it was STOPPED before the update."
-	    display "You can start it manually using `[self me] start $appname`"
+	    display "You can start it manually [self please "start $appname" using]"
 	}
     }
 
@@ -2835,7 +3015,64 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
     return
 }
 
-proc ::stackato::cmd::app::SyncV1 {config appname app interact} {
+proc ::stackato::cmd::app::RunDebugger {config} {
+    debug.cmd/app {}
+    global env
+    variable dhost
+    variable dport
+
+    # Nothing to do without -d
+    if {![$config @d]} return
+
+    # Nothing to do without a debugger command.
+    if {![info exists env(STACKATO_DEBUG_COMMAND)] ||
+	($env(STACKATO_DEBUG_COMMAND) eq {})} return
+
+    set cmd $env(STACKATO_DEBUG_COMMAND)
+
+    if {($dhost eq {}) || ($dport eq {})} {
+	display [color red "Unable to run $cmd"]
+	display [color red "Host/port information is missing"]
+	return
+    }
+
+    lappend map %HOST% $dhost
+    lappend map %PORT% $dport
+
+    set cmd [string map $map $cmd]
+
+    cd::indir [manifest path] {
+	::exec >@ stdout 2>@ stderr {*}$cmd
+    }
+    return
+}
+
+proc ::stackato::cmd::app::RunPPHooks {appname action} {
+    debug.cmd/app {}
+
+    global env
+    set saved [array get env]
+
+    set env(STACKATO_APP_NAME)    $appname
+    set env(STACKATO_CLIENT)      [self exe]
+    set env(STACKATO_HOOK_ACTION) $action
+
+    try {
+	foreach cmd [manifest hooks pre-push] {
+	    display "[color blue pushing:] -----> $cmd"
+	    cd::indir [manifest path] {
+		exec::run "[color blue pushing:]       " $::env(SHELL) -c $cmd
+	    }
+	}
+    } finally {
+	array unset env
+	array set env $saved
+    }
+    return
+}
+
+
+proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
     debug.cmd/app {}
 
     # Early stop.
@@ -2934,7 +3171,12 @@ proc ::stackato::cmd::app::SyncV1 {config appname app interact} {
 
     # Environment bindings. Controlled by separate option --env-mode
     set newapp [AppEnvironment defered $config $appname preserve]
-    if {[dict sort [dict get $newapp env]] ne [dict sort [dict get $app env]]} {
+
+    # Note: app, newapp are CFv1 data.
+    # Their 'env' is a list of A=B assignments.
+    # Not a dictionary
+
+    if {[lsort -dict [dict get $newapp env]] ne [lsort -dict [dict get $app env]]} {
 	incr changes
     }
     set app $newapp
@@ -2962,8 +3204,8 @@ proc ::stackato::cmd::app::SyncV2 {config appname theapp interact} {
 	# Manifest data exists. Sync to server.
 
 	# Can update while app might be running.
-	# 1 0 0 - update, !interact, !starting
-	ConfigureAppV2 $theapp 1 0 0 \
+	# 1 0 0 - update, !interact, !starting, !defersd
+	ConfigureAppV2 $theapp 1 0 0 0 \
 	    $config $appname [manifest path]
 
     } ;# else nothing
@@ -3052,17 +3294,43 @@ proc ::stackato::cmd::app::GetManifestV2 {client theapp __} {
     return
 }
 
-proc ::stackato::cmd::app::RegenerateManifest {config appname interact} {
+proc ::stackato::cmd::app::RegenerateManifest {config theapp appname interact {sd 0}} {
     debug.cmd/app {}
+
+    # Services and Drains.
+
+    # For 'Update' this is done later, by the SyncV2 our caller
+    # invokes after us. ==> !sd
+
+    # For 'Push' this is done here (==> sd) to get proper ordering in
+    # case of name changes (--as).
+    #
+    # * For interact services are asked for interactively. Must be
+    #   done before saving the manifest, and there are no name-changes
+    #   to take into account.
+    #
+    # * For !interact a name-change is possible and operation has to
+    #   be done after reloading the manifest fully incorporating such
+    #   changes into the system. Without symbol resolution was done on
+    #   the old name, possibly giving is a bogus service|drain name.
 
     if {$interact} {
 	# This transforms the collected outmanifest into the main
 	# manifest to use. The result may be saved to the application
 	# as well.
 
+	if {$sd} {
+	    AppServices $config $theapp
+	    AppDrains   $config $theapp
+	}
+
 	SaveManifestFinal $config
 	# Above internally has a manifest reload from the saved
 	# interaction.
+
+	# Re-select the application we are working with.
+	manifest current= $appname yes
+
     } else {
 	# Bug 93955. Reload manifest. See also file manifest.tcl,
 	# proc 'LoadBase'. This is where the collected outmanifest
@@ -3071,10 +3339,15 @@ proc ::stackato::cmd::app::RegenerateManifest {config appname interact} {
 	    [$config @path] \
 	    [$config @manifest] \
 	    reset
-    }
 
-    # Re-select the application we are working with.
-    manifest current= $appname yes
+	# Re-select the application we are working with.
+	manifest current= $appname yes
+
+	if {$sd} {
+	    AppServices $config $theapp
+	    AppDrains   $config $theapp
+	}
+    }
 
     debug.cmd/app {/done}
     return
@@ -3367,6 +3640,11 @@ proc ::stackato::cmd::app::AppRuntime {config frameobj} {
 	display "Runtime:         <framework-specific default>"
     }
 
+    set as [manifest app-server]
+    if {$as ne {}} {
+	display "App-Server:      $as"
+    }
+
     return $runtime
 }
 
@@ -3435,17 +3713,36 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
 	debug.cmd/app {manifest = [join $urls "\n= "]}
     }
 
-    if {($frameobj eq {}) || [$frameobj require_url?]} {
-	set stock_template "\${name}.\${target-base}"
-	set stock [list scalar $stock_template]
-	manifest resolve stock
-	set stock [lindex $stock 1]
-    } else {
-	set stock None
-    }
-
     debug.cmd/app {url          = $urls}
-    debug.cmd/app {default      = $stock}
+
+    set stock None
+
+    if {![llength $urls]} {
+	if {[[$config @client] isv2]} {
+	    # For a Stackato 3 target use the domain mapped to the current
+	    # space as the base of the default url.
+
+	    set stock_template "\${name}.\${space-base}"
+	    set stock [list scalar $stock_template]
+	    manifest resolve stock
+	    set stock [lindex $stock 1]
+
+	} elseif {($frameobj eq {}) || [$frameobj require_url?]} {
+	    # For a Stackato 2 target use the target location as base of
+	    # the default url, if required by the framework or framework
+	    # unknown.
+
+	    set stock_template "\${name}.\${target-base}"
+	    set stock [list scalar $stock_template]
+	    manifest resolve stock
+	    set stock [lindex $stock 1]
+	} else {
+	    # No default url available/wanted.
+	    set stock None
+	}
+
+	debug.cmd/app {default      = $stock}
+    }
 
     if {![llength $urls] &&
 	[cmdr interactive?] &&
@@ -3594,7 +3891,7 @@ proc ::stackato::cmd::app::AppFrameworkComplete {frameobj supported {check 1}} {
     }
 
     if {$check && ([$frameobj name] ni $supported)} {
-	err "The specified framework \[[$frameobj name]\] is not supported by the target.\nPlease use '[self me] frameworks' to get the list of supported frameworks."
+	err "The specified framework \[[$frameobj name]\] is not supported by the target.\n[self please frameworks] to get the list of supported frameworks."
     }
 
     display "Framework:       [$frameobj name]"
@@ -3725,9 +4022,10 @@ proc ::stackato::cmd::app::AppDrains {config theapp} {
     if {[$client isv2]} {
 	set json  [$theapp drain-list]
     } else {
-	if {![package vsatisfies [client server-version $client] 2.9]} {
+	set have [client server-version $client]
+	if {![package vsatisfies $have 2.9]} {
 	    display "  Ignoring drain specifications."
-	    display "  Have version [my ServerVersion], need 2.10 or higher"
+	    display "  Have version $have, need 2.10 or higher"
 
 	    debug.cmd/app {/done, skip}
 	    return
@@ -3892,13 +4190,23 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 
 	    if {$cred eq {}} {
 		display "Debugging now enabled on [color red unknown] port."
+
+		# Signal to RunDebugger that we do not have the information it needs.
+		SaveDebuggerInfo {} {}
 	    } elseif {![dict exists $cred port]} {
 		display "Debugging now enabled on [color red unknown] port."
 		display [color red "Service failed to transmit its port information"]
 		display [color red "Please contact the administrator for \[[ctarget get]\]"]
+
+		# Signal to RunDebugger that we do not have the information it needs.
+		SaveDebuggerInfo {} {}
 	    } else {
 		set port [dict get $cred port]
-		display "Debugging now enabled on port [color cyan $port]."
+		set host [dict get $cred host]
+		display "[color green {Debugging now enabled}] on host [color cyan $host], port [color cyan $port]"
+
+		# Stash information for RunDebugger.
+		SaveDebuggerInfo $host $port
 	    }
 	}
     }
@@ -4050,6 +4358,7 @@ proc ::stackato::cmd::app::GetCred2 {theservice} {
 }
 
 proc ::stackato::cmd::app::ListKnown {client {all 0}} {
+    debug.cmd/app {}
     # See also cmd::servicemgr::list-instances
 
     # result  = dict (label --> details)
@@ -4069,8 +4378,11 @@ proc ::stackato::cmd::app::ListKnown {client {all 0}} {
 }
 
 proc ::stackato::cmd::app::ListKnown1 {client all} {
+    debug.cmd/app {}
     set res {}
     foreach s [$client services] {
+	debug.cmd/app { known :: $s}
+
  	#checker -scope line exclude badOption
 	set name [dict getit $s name]
 	set type [dict getit $s vendor]
@@ -4079,12 +4391,16 @@ proc ::stackato::cmd::app::ListKnown1 {client all} {
 	lappend details $detail
 	lappend details [dict create type $type]
 
-	dict set res $name $detail
+	debug.cmd/app {++ $name = ($details)}
+	dict set res $name $details
     }
+
+    debug.cmd/app {==> ($res)}
     return $res
 }
 
 proc ::stackato::cmd::app::ListKnown2 {} {
+    debug.cmd/app {}
     # 3 levels deep, get all related things on both sides, i.e.
     # - service-bindings and applications, and
     # - plans and services.
@@ -4132,8 +4448,11 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 
     set client [$config @client]
 
+    set oenv [AE_CmdlineGet  $config]
     set menv [AE_ManifestGet $config]
-    if {![llength $menv]} {
+
+    if {![dict size $menv] &&
+	![dict size $oenv]} {
 	debug.cmd/app {/done, do nothing}
 	if {[$client isv2]} {
 	    return {}
@@ -4141,8 +4460,6 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	    return [$client app_info $theapp]
 	}
     }
-
-    set oenv [AE_CmdlineGet $config]
 
     set mode [$config @env-mode]
     if {$mode eq {}} { set mode $defaultmode }
@@ -4152,11 +4469,16 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
     lassign [AE_ApplicationGet $client $theapp $mode] appenv app
     # v1: app = app data, v2: app empty, irrelevant
 
-    # Process the manifest environment specifications.
+    # Process the manifest environment specifications. Associated oenv
+    # settings are used and then removed (= implicitly marked as done).
     foreach {k v} $menv {
 	debug.cmd/app {  Aenv $k = ($v)}
 
-	if {($mode eq "preserve") && [dict exists $appenv $k]} {
+	# Note: user settings (oenv) override preserve mode,
+	# get applied regardless.
+	if {![dict exists $oenv $k] &&
+	    ($mode eq "preserve") &&
+	    [dict exists $appenv $k]} {
 	    # In preserve mode, stronger than append, we do NOT
 	    # overwrite existing variables with manifest
 	    # information.
@@ -4165,6 +4487,8 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	}
 
 	lassign [AE_DetermineValue $k $v $oenv] value hidden
+	# Mark as done.
+	dict unset oenv $k
 
 	# ===========================================================
 	# inlined proc 'EnvAdd', see this file.
@@ -4182,6 +4506,21 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	    regsub -all . $value * value
 	}
 	set item ${k}=$value
+	display "  $cmd Environment Variable \[$item\]"
+    }
+
+    # Process all leftover command line environment variables,
+    # i.e. those not done by the previous loop. They are always
+    # written, regardless of mode.
+
+    foreach {k v} $oenv {
+	set cmd Adding
+	if {[dict exists $appenv $k]} {
+	    set cmd Overwriting
+	}
+
+	dict set appenv $k $v
+	set item ${k}=$v
 	display "  $cmd Environment Variable \[$item\]"
     }
 
@@ -4519,13 +4858,13 @@ proc ::stackato::cmd::app::Prefixes {s} {
 proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {known {}} {bound {}}} {
     debug.cmd/app {}
 
-    # vendor  = v1: service name
-    #           v2: plan instance
+    # vendor  = v1: service name  | requested service type|plan
+    #           v2: plan instance |
 
     # Under v2 vendor eq "" indicates UPSI and details == credentials.
     #          vendor ne "" is MSI, and details is ignored.
 
-    # service = instance name (to be)
+    # service = instance name (to be) | requested service, by name
 
     # known = dict (s-i name -> (s-i name,     minfo)) v1
     #         dict (s-i name -> (s-i instance, minfo)) v2
@@ -4537,8 +4876,63 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
     # Unknown services are created and bound, known services just bound.
 
     if {[dict exists $known $service]} {
+	# Requested service is known.
+	# Need existing type|plan
+
 	set theservice [lindex [dict get $known $service] 0]
 	# v1: name, v2: instance
+
+	# Verify that the found service matches the expectations of
+	# the application. I.e. not just the proper name, but also the
+	# proper service-plan and -type. It is a bit complicated to
+	# deal with the MSI vs UPSI difference as well.
+
+	if {[$client isv2]} {
+	    # v2: theservice - instance, s-i, existing
+	    #     theplan    - instance, s-plan, existing
+	    #     vendor     - instance, s-plan, requested
+
+	    if {[catch {
+		set theplan [$theservice @service_plan]
+	    }]} {
+		# This branch is v2 only!! theservice has no plan, i.e. is
+		# an UPSI. Check that we are given an UPSI as well, and
+		# that it is the same (in terms of credentials).
+
+		if {$vendor ne {}} {
+		    ServiceConflict $service [$vendor name] user-provided
+		} elseif {[dict sort $details] ne [dict sort [$theservice @credentials]]} {
+		    ServiceConflict $service user-provided user-provided { and different credentials}
+		}
+	    } else {
+		# theservice has a plan, i.e. is an MSI. Check that we
+		# were are given an MSI as well, and that it is the same
+		# in terms of plans.
+
+		if {$vendor eq {}} {
+		    ServiceConflict $service user-provided [$theplan name]
+		} elseif {![$vendor == $theplan]} {
+		    ServiceConflict $service [$vendor name] [$theplan name]
+		}
+	    }
+	} else {
+	    # v1: theservice - name | existing service instance
+	    #     theplan    - name | existing type
+	    #     vendor     - name | requested type|plan
+
+	    debug.cmd/app {/v1}
+	    debug.cmd/app { service = $theservice}
+	    debug.cmd/app { - spec  = [dict get $known $service]}
+	    debug.cmd/app { - minfo = [lindex [dict get $known $service] 1]}
+	    debug.cmd/app { - stype = [dict get [lindex [dict get $known $service] 1] type]}
+	    debug.cmd/app { vendor  = $vendor}
+	    # known.(s-i-name).[1].(type) -> s-type.
+
+	    set theplan [dict get [lindex [dict get $known $service] 1] type]
+	    if {$vendor ne $theplan} {
+		ServiceConflict $service $vendor $theplan
+	    }
+	}
     } else {
 	# Unknown, create
 	# v1: name, v2: instance
@@ -4555,6 +4949,10 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 
     debug.cmd/app {==> ($theservice)}
     return $theservice
+}
+
+proc ::stackato::cmd::app::ServiceConflict {service need have {suffix {}}} {
+    err "The application's request for a $need service \"$service\" conflicts with a $have service of the same name${suffix}."
 }
 
 proc ::stackato::cmd::app::BindServices {client theapp appname} {
@@ -4765,14 +5163,15 @@ proc ::stackato::cmd::app::DbShell {config theapp} {
     if {[$client isv2]} {
 	set service [DbShellV2 $config $theapp]
     } else {
-	set service [DbShellV1 $config $theapp]
+	set service [DbShellV1 $client $config $theapp]
     }
 
     ssh run $config [list dbshell $service] $theapp 0
     return
 }
 
-proc ::stackato::cmd::app::DbShellV1 {config theapp} {
+proc ::stackato::cmd::app::DbShellV1 {client config theapp} {
+    debug.cmd/app {}
 
     set app [$client app_info $theapp]
 
@@ -4834,6 +5233,7 @@ proc ::stackato::cmd::app::DbShellV1 {config theapp} {
 }
 
 proc ::stackato::cmd::app::DbShellV2 {config theapp} {
+    debug.cmd/app {}
     # All services bound to the chosen application.
     set services [$theapp @service_bindings @service_instance]
 
@@ -4995,12 +5395,33 @@ proc ::stackato::cmd::app::securesh {config} {
 
 proc ::stackato::cmd::app::SSH {config theapp} {
     debug.cmd/app {}
-
-    set instance [$config @instance]
-    set args     [$config @command]
     # @dry
 
-    ssh run $config $args $theapp $instance
+    set args [$config @command]
+    if {[$config @all]} {
+	if {![llength $args]} {
+	    err "No command to run, required for --all"
+	}
+
+	if {[[$config @client] isv2]} {
+	    set appname [$theapp @name]
+	} else {
+	    set appname $theapp
+	}
+
+	foreach {n i} [$theapp instances] {
+	    if {![$config @banner]} {
+		ssh run $config $args $theapp $n
+	    } else {
+		display "=== run $appname\#$n: $args ==="
+		ssh run $config $args $theapp $n
+		display ""
+	    }
+	}
+    } else {
+	set instance [$config @instance]
+	ssh run $config $args $theapp $instance
+    }
     return
 }
 
@@ -5224,7 +5645,7 @@ proc ::stackato::cmd::app::DrainAdd {config theapp} {
 
     if {[$client isv2]} {
 	$theapp drain-create $drain $uri $json
-    } {
+    } else {
 	$client app_drain_create $theapp $drain $uri $json
     }
 
@@ -6001,6 +6422,13 @@ proc ::stackato::cmd::app::Epoch {epoch} {
     clock format [expr {int($epoch)}] -format "%m/%d/%Y %I:%M%p"
 }
 
+proc ::stackato::cmd::app::SaveDebuggerInfo {h p} {
+    debug.cmd/app {}
+    variable dhost $h
+    variable dport $p
+    return
+}
+
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::cmd::app {
@@ -6009,6 +6437,10 @@ namespace eval ::stackato::cmd::app {
     # Communication between the SaveManifest* procedures.
     variable savemode check
     variable savedst  {}
+
+    # Communication between AppServices and RunDebugger.
+    variable dhost {}
+    variable dport {}
 }
 
 # # ## ### ##### ######## ############# #####################

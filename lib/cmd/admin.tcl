@@ -17,7 +17,7 @@ package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::ctarget
-package require stackato::mgr::exit
+package require stackato::mgr::ssh
 package require struct::list
 package require table
 
@@ -36,7 +36,7 @@ namespace eval ::stackato::cmd::admin {
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::ctarget
-    namespace import ::stackato::mgr::exit
+    namespace import ::stackato::mgr::ssh
     namespace import ::stackato::v2
 }
 
@@ -52,17 +52,8 @@ proc ::stackato::cmd::admin::patch {config} {
     set client [$config @client]
     set patch  [$config @patch]
 
-    set ssh [auto_execok ssh]
-    if {![llength $ssh]} {
-	err "Local helper application ssh not found in PATH.$helpsuffix"
-    }
-
-    set target [ctarget get]
-    regsub ^https?:// $target {} target
-
     lassign [GetPatchFile $client $patch] transient patch
 
-    debug.cmd/admin {Target    = $target}
     debug.cmd/admin {File      = $patch}
     debug.cmd/admin {Transient = $transient}
 
@@ -91,18 +82,10 @@ proc ::stackato::cmd::admin::patch {config} {
 	lappend cmd "\"$dst\""
 
 	debug.cmd/admin {Command = [join $cmd "\n Command = "]}
-	debug.cmd/admin {Transfer via "$ssh -t stackato@${target}"}
 	#return
 
-	exec 2>@ stderr >@ stdout <@ stdin \
-	    {*}$ssh -t stackato@${target} [join $cmd { ; }]
-    } trap {CHILDSTATUS} {e o} {
-	set status [lindex [dict get $o -errorcode] end]
-	if {$status == 255} {
-	    err "Server closed connection."
-	} else {
-	    exit fail $status
-	}
+	ssh cc $config [::list [join $cmd { ; }]]
+
     } finally {
 	if {$transient} { file delete $patch }
     }
@@ -246,6 +229,10 @@ proc ::stackato::cmd::admin::RevokeV2 {client theuser} {
     if {![$theuser @admin]} {
 	display "User \[$email\] is already a regular user"
     } else {
+	if {$email eq [$client current_user_mail]} {
+	    err "Forbidden to revoke your own administrator privileges"
+	}
+
 	display "Revoking administrator privileges from \[$email\] ... " false
 
 	$theuser admin! no

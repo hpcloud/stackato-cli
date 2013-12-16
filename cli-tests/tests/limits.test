@@ -50,7 +50,7 @@ test limits-1.2 {limits, non-admin login good enough} -constraints cfv2uaa -setu
 
 # # ## ### ##### ######## ############# #####################
 
-test limits-1.3 {limits, user, query} -setup {
+test limits-1.3 {limits, user, query} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -69,7 +69,7 @@ test limits-1.3 {limits, user, query} -setup {
 | sudo     | * |
 +----------+-------+}
 
-test limits-1.4 {limits, user, modify} -setup {
+test limits-1.4 {limits, user, modify} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -81,7 +81,7 @@ test limits-1.4 {limits, user, modify} -setup {
     stage-close
 } -result {Updating Group Limits ... OK}
 
-test limits-1.5 {limits, user, persist} -setup {
+test limits-1.5 {limits, user, persist} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -106,7 +106,7 @@ test limits-1.5 {limits, user, persist} -setup {
 
 # # ## ### ##### ######## ############# #####################
 
-test limits-1.6 {limits, explicit group, query} -setup {
+test limits-1.6 {limits, explicit group, query} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -127,7 +127,7 @@ test limits-1.6 {limits, explicit group, query} -setup {
 | sudo     | * |
 +----------+-------+}
 
-test limits-1.7 {limits, explicit group, modify} -setup {
+test limits-1.7 {limits, explicit group, modify} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -140,7 +140,7 @@ test limits-1.7 {limits, explicit group, modify} -setup {
     stage-close
 } -result {Updating Group Limits ... OK}
 
-test limits-1.8 {limits, explicit group, persist} -setup {
+test limits-1.8 {limits, explicit group, persist} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -166,7 +166,7 @@ test limits-1.8 {limits, explicit group, persist} -setup {
 
 # # ## ### ##### ######## ############# #####################
 
-test limits-1.9 {limits, current group, query} -setup {
+test limits-1.9 {limits, current group, query} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -188,7 +188,7 @@ test limits-1.9 {limits, current group, query} -setup {
 | sudo     | * |
 +----------+-------+}
 
-test limits-1.10 {limits, current group, modify} -setup {
+test limits-1.10 {limits, current group, modify} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -202,7 +202,7 @@ test limits-1.10 {limits, current group, modify} -setup {
     stage-close
 } -result {Updating Group Limits ... OK}
 
-test limits-1.11 {limits, current group, persist} -setup {
+test limits-1.11 {limits, current group, persist} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -229,7 +229,7 @@ test limits-1.11 {limits, current group, persist} -setup {
 
 # # ## ### ##### ######## ############# #####################
 
-test limits-2.0 {limits, bad app value} -setup {
+test limits-2.0 {limits, bad app value} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -239,7 +239,7 @@ test limits-2.0 {limits, bad app value} -setup {
     stage-close
 } -returnCodes error -result {Expected an integer >= 0 for option "--apps", got "X"}
 
-test limits-2.1 {limits, bad app uri value} -setup {
+test limits-2.1 {limits, bad app uri value} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -249,7 +249,7 @@ test limits-2.1 {limits, bad app uri value} -setup {
     stage-close
 } -returnCodes error -result {Expected an integer >= 0 for option "--appuris", got "X"}
 
-test limits-2.2 {limits, bad drain value} -setup {
+test limits-2.2 {limits, bad drain value} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -259,7 +259,7 @@ test limits-2.2 {limits, bad drain value} -setup {
     stage-close
 } -returnCodes error -result {Expected an integer >= 0 for option "--drains", got "X"}
 
-test limits-2.3 {limits, bad service value} -setup {
+test limits-2.3 {limits, bad service value} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -269,7 +269,7 @@ test limits-2.3 {limits, bad service value} -setup {
     stage-close
 } -returnCodes error -result {Expected an integer >= 0 for option "--services", got "X"}
 
-test limits-2.4 {limits, bad mem value} -setup {
+test limits-2.4 {limits, bad mem value} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {

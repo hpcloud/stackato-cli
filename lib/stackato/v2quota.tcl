@@ -24,10 +24,11 @@ oo::class create ::stackato::v2::quota_definition {
 
     constructor {{url {}}} {
 	my Attribute name                       string
-	my Attribute non_basic_services_allowed boolean label {Paid Services Allowed }
-	my Attribute total_services             integer label {Max Number Of Services}
-	my Attribute memory_limit               integer label {Memory Limit          }
-	my Attribute trial_db_allowed           boolean label {Trial Database Allowed}
+	my Attribute non_basic_services_allowed boolean label {Paid Services Allowed      }
+	my Attribute total_services             integer label {Max Number Of Services     }
+	my Attribute memory_limit               integer label {Memory Limit               }
+	my Attribute trial_db_allowed           boolean label {Trial Database Allowed     }
+	my Attribute allow_sudo                 boolean label {Allow use of 'sudo' by Apps}
 
 	#my SearchableOn name
 

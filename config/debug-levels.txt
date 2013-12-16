@@ -67,6 +67,7 @@ misc
 rest
 tunnel
 tunnel/data
+tunnel/http
 v2
 v2/app
 v2/app_event
@@ -90,6 +91,7 @@ validate/alias
 validate/appname
 validate/appname-api
 validate/appname-dot
+validate/appname-lex
 validate/common
 validate/envassign
 validate/envmode
@@ -97,6 +99,7 @@ validate/hostport
 validate/http-header
 validate/http-operation
 validate/instance
+validate/interval
 validate/memspec
 validate/notappname
 validate/notorgname

@@ -37,7 +37,7 @@ test delete-user-1.2 {delete-user, requires login} -setup {
     stage-close
 } -returnCodes error -result [login-required];#v1
 
-test delete-user-1.3 {delete-user, requires admin login}  -setup {
+test delete-user-1.3.1 {delete-user, requires admin login} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user -n ex@as --password P
@@ -49,15 +49,36 @@ test delete-user-1.3 {delete-user, requires admin login}  -setup {
     run delete-user ex@as
     remove-non-admin
     stage-close
-} -returnCodes error -result \
-    [per-api \
-	 {Error 200: Operation not permitted} \
-	 {Expected a user name for input "email", got "ex@as"}]
+} -returnCodes error -result {Error 200: Operation not permitted}
 
-test delete-user-1.4 {delete-user}  -setup {
+test delete-user-1.3.2 {delete-user, requires admin login} -constraints cfv2 -setup {
     stage-open
     go-admin
-    run add-user -n e@as  --password P
+    run add-user -n ex@as --email ex@as --password P
+    go-non-admin
+} -body {
+    run delete-user ex@as
+} -cleanup {
+    be-admin
+    run delete-user ex@as
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test delete-user-1.4.1 {delete-user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --password P
+} -body {
+    run delete-user e@as
+} -cleanup {
+    stage-close
+} -result {Deleting User ... OK}
+
+test delete-user-1.4.2 {delete-user} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --email ex@as --password P
 } -body {
     run delete-user e@as
 } -cleanup {

@@ -20,7 +20,7 @@ test groups-users-1.0 {groups users, wrong args, too many} -setup {
     stage-close
 } -returnCodes error -match glob -result "wrong#args, too many*"
 
-test groups-users-1.1 {groups users, wrong args, not enough} -setup {
+test groups-users-1.1 {groups users, wrong args, not enough} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -39,7 +39,7 @@ test groups-users-1.2 {groups users, login required} -setup {
 } -returnCodes error -result {Login Required
 Please use 'stackato login'}
 
-test groups-users-1.3 {groups users, admin login required} -setup {
+test groups-users-1.3 {groups users, admin login required} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
@@ -51,7 +51,7 @@ test groups-users-1.3 {groups users, admin login required} -setup {
     stage-close
 } -returnCodes error -result {Error 100: Bad request}
 
-test groups-users-1.4 {groups users, bogus group} -setup {
+test groups-users-1.4 {groups users, bogus group} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -60,7 +60,7 @@ test groups-users-1.4 {groups users, bogus group} -setup {
     stage-close
 } -returnCodes error -result {Error 100: Bad request}
 
-test groups-users-1.5 {groups users, nothing} -setup {
+test groups-users-1.5 {groups users, nothing} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -71,7 +71,7 @@ test groups-users-1.5 {groups users, nothing} -setup {
     stage-close
 } -result {No Users}
 
-test groups-users-1.6 {groups users, nothing, json} -setup {
+test groups-users-1.6 {groups users, nothing, json} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -82,7 +82,7 @@ test groups-users-1.6 {groups users, nothing, json} -setup {
     stage-close
 } -result {[]}
 
-test groups-users-1.7 {groups users, with users} -setup {
+test groups-users-1.7 {groups users, with users} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user        grouper@test --passwd hush
@@ -101,7 +101,7 @@ test groups-users-1.7 {groups users, with users} -setup {
 | grouper@test |
 +--------------+}
 
-test groups-users-1.8 {groups users, with users, json} -setup {
+test groups-users-1.8 {groups users, with users, json} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user        grouper@test --passwd hush
@@ -119,7 +119,7 @@ test groups-users-1.8 {groups users, with users, json} -setup {
 # # ## ### ##### ######## ############# #####################
 ## Implied group, through current group
 
-test groups-users-1.9 {groups users, current group, nothing} -setup {
+test groups-users-1.9 {groups users, current group, nothing} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -131,7 +131,7 @@ test groups-users-1.9 {groups users, current group, nothing} -setup {
     stage-close
 } -result {No Users}
 
-test groups-users-1.10 {groups users, current group, nothing, json} -setup {
+test groups-users-1.10 {groups users, current group, nothing, json} -constraints cfv1 -setup {
     stage-open
     go-admin
     run groups create test-group
@@ -143,7 +143,7 @@ test groups-users-1.10 {groups users, current group, nothing, json} -setup {
     stage-close
 } -result {[]}
 
-test groups-users-1.11 {groups users, current group, with users} -setup {
+test groups-users-1.11 {groups users, current group, with users} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user        grouper@test --passwd hush
@@ -163,7 +163,7 @@ test groups-users-1.11 {groups users, current group, with users} -setup {
 | grouper@test |
 +--------------+}
 
-test groups-users-1.12 {groups users, current group, with users, json} -setup {
+test groups-users-1.12 {groups users, current group, with users, json} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user        grouper@test --passwd hush
@@ -179,5 +179,6 @@ test groups-users-1.12 {groups users, current group, with users, json} -setup {
     stage-close
 } -result {["grouper@test"]}
 
+## TODO: Proper error against CFV2 target.
 # # ## ### ##### ######## ############# #####################
 cleanupTests

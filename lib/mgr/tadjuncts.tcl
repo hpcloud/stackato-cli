@@ -21,7 +21,7 @@ namespace eval ::stackato::mgr {
 namespace eval ::stackato::mgr::tadjunct {
     namespace export \
 	has add remove remove-all known store \
-	set-path get-path keyfile reset
+	set-path get-path keyfile reset get get'
     namespace ensemble create
 
     namespace import ::stackato::mgr::cfile
@@ -46,13 +46,24 @@ proc ::stackato::mgr::tadjunct::add {url key value} {
     return
 }
 
+proc ::stackato::mgr::tadjunct::get {url key} {
+    debug.mgr/tadjunct {}
+    return [dict get [known] $url $key]
+}
+
+proc ::stackato::mgr::tadjunct::get' {url key default} {
+    debug.mgr/tadjunct {}
+    #checker -scope line exclude badOption
+    return [dict get' [known] $url $key $default]
+}
+
 proc ::stackato::mgr::tadjunct::remove {url {key {}}} {
     debug.mgr/tadjunct {}
     set tadjunct [known] ;#dict
 
     if {$key eq {}} {
 	dict unset tadjunct $url
-    } else {
+    } elseif {[dict exists $tadjunct $url $key]} {
 	dict unset tadjunct $url $key
     }
     Store $tadjunct

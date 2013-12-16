@@ -21,10 +21,8 @@ package require base64
 package require json 1.2       ;# requiring many-json2dict
 package require stackato::jmap
 package require stackato::form2
-
-package require http
-#puts [package ifneeded http [package present http]]
 package require restclient
+package require url
 
 # # ## ### ##### ######## ############# #####################
 ## Pull in the entity support and other foundation code.
@@ -117,13 +115,6 @@ oo::class create ::stackato::v2::client {
 		set auth_token [lindex $auth_token 1]
 		my decode_token $auth_token
 	    }
-	}
-
-	proc ::http::Log {args} {}
-	proc ::http::Log {args} { return
-	    set prefix "[::stackato::color cyan HTTP:] "
-	    set text $prefix[join [split [join $args] \n] "\n$prefix"]
-	    ::stackato::log say $text
 	}
 
 	# Initialize the integrated REST client. Late initialization
@@ -366,7 +357,8 @@ oo::class create ::stackato::v2::client {
 	debug.v2/client {token/old = ($myauth_token)}
 
 	# Refresh all in-memory copies of the token for any future
-	# rest calls, here and in the superclass.
+	# rest calls, here and in the superclass. See also method
+	# 'login' for the same for the first token.
 
 	set myauth_token    "$token_type $access_token"
 	dict set myheaders AUTHORIZATION $myauth_token
@@ -429,37 +421,41 @@ oo::class create ::stackato::v2::client {
 
 	# Provide rest/http with the content-length information for
 	# the non-seekable channel
-	dict set myheaders content-length $dlength
-	my configure -headers $myheaders
+	try {
+	    dict set myheaders Content-Length $dlength
+	    my configure -headers $myheaders
 
-	set tries 10
+	    set tries 10
 
-	set myprogress 1
-	while {$tries} {
-	    incr tries -1
-	    try {
-		if {[my cc-nginx]} {
-		    my http_post $dst $data $contenttype
-		} else {
-		    my http_put $dst $data $contenttype
-		}
-	    } \
-		trap {REST HTTP REFUSED} {e o} - \
-		trap {REST HTTP BROKEN} {e o} {
-		    if {!$tries} { return {*}$o $e }
+	    set myprogress 1
+	    while {$tries} {
+		incr tries -1
+		try {
+		    if {[my cc-nginx]} {
+			my http_post $dst $data $contenttype
+		    } else {
+			my http_put $dst $data $contenttype
+		    }
+		} trap {REST HTTP REFUSED} {e o} - \
+		  trap {REST HTTP BROKEN} {e o} {
+		      if {!$tries} {
+			  return {*}$o $e
+		      }
 
-		    say! \n[color red "$e"]
-		    say "Retrying in a second... (trials left: $tries)"
-		    after 1000
-		    continue
-		}
-	    break
+		      say! \n[color red "$e"]
+		      say "Retrying in a second... (trials left: $tries)"
+		      after 1000
+		      continue
+		  }
+		break
+	    }
+	} finally {
+	    dict unset myheaders Content-Length
+	    my configure -headers $myheaders
+	    display ""
+	    clearlast ;# (**)
+	    set myprogress 0
 	}
-
-	dict unset myheaders content-length
-	my configure -headers $myheaders
-
-	set myprogress 0
 	return
     }
 
@@ -472,8 +468,8 @@ oo::class create ::stackato::v2::client {
 	again+ ${p}%
 
 	if {$n >= $total} {
-	    display " [color green OK]"
-	    clearlast
+	    display " [color green OK]" false
+	    #clearlast - see (**) upload-by-url/finally
 	    #display ""
 	}
 	return
@@ -570,7 +566,7 @@ oo::class create ::stackato::v2::client {
         # (2) aud        list of something
         #     cid        "cf"
         #     client_id  "cf"
-        #     email      user email == user_name
+        #     email      user email
         #     exp        token expiration, seconds since epoch
         #     grant_type password
         #     iat        token generation, seconds since epoch
@@ -606,7 +602,12 @@ oo::class create ::stackato::v2::client {
 
     method login {user password} {
 	debug.v2/client {}
+	# Standard fields. Standard result: token+sshkey, missing here, still a list.
+	::list [login-by-fields [dict create username $user password $password]]
+    }
 
+    method login-by-fields {fields} {
+	debug.v2/client {}
 	# NOTE: This is an extreme shortcut through the morass of what
 	# code I saw in the ruby client.
 
@@ -647,10 +648,8 @@ oo::class create ::stackato::v2::client {
 	set    authorizer [dict get $info authorization_endpoint]
 	append authorizer /oauth/token
 
-	set query [http::formatQuery       \
-		       grant_type password \
-		       username   $user    \
-		       password   $password]
+	set query [http::formatQuery \
+		       grant_type password {*}$fields]
 
 	try {
 	    # Custom headers for the authorizer
@@ -691,10 +690,13 @@ oo::class create ::stackato::v2::client {
 	# Currently only using access_token and token_type.
 
 	# Note: Standard v2 API does not provide an ssh key.
-	# Only a token. And we have to assemble it.
+	# Only a token. And we have to assemble it. Also refresh all
+	# in-memory copies of it, for use by future calls. See also
+	# method 'refresh'.
 
-	set myuser          $user
 	set myauth_token    "$token_type $access_token"
+	dict set myheaders AUTHORIZATION $myauth_token
+	my configure -headers $myheaders
 
 	if {[info exists refresh_token]} {
 	    set myrefresh_token $refresh_token
@@ -705,8 +707,9 @@ oo::class create ::stackato::v2::client {
 	debug.v2/client {token = ($myauth_token)}
 
 	my decode_token $access_token
+	set myuser [my current_user]
 
-	return [list $myauth_token]
+	return $myauth_token
     }
 
     method change_password {new_password old_password} {
@@ -725,7 +728,14 @@ oo::class create ::stackato::v2::client {
 	return
     }
 
+    method login-fields {} {
+	debug.v2/client {}
+	dict get [my UAA GET /login {}] prompts
+    }
+
     method stackato-change-admin {uuid admin} {
+	debug.v2/client {}
+
 	set payload [dict create admin $admin]
 
 	set payload [jmap map {dict {admin nbool}} $payload]
@@ -749,6 +759,8 @@ oo::class create ::stackato::v2::client {
     }
 
     method stackato-create-user {username email password admin} {
+	debug.v2/client {}
+
 	set payload [dict create \
 			 email       $email \
 			 username    $username \
@@ -1169,8 +1181,21 @@ oo::class create ::stackato::v2::client {
 		"Can't parse response into JSON [lindex $e 1]"
 	}
 
+	lassign $result _ response headers
+
+	# Canonicalize the headers to lower-case keys
+	dict for {k v} $headers {
+	    dict set headers [string tolower $k] $v
+	}
+
+	set ctype [dict get $headers content-type]
+	if {![string match application/json* $ctype]} {
+	    return -code error -errorcode {STACKATO SERVER DATA ERROR} \
+		"Expected JSON, instead received $ctype from server"
+	}
+
 	try {
-	    set response [json::json2dict [lindex $result 1]]
+	    set response [json::json2dict $response]
 	} on error {e o} {
 	    return -code error -errorcode {STACKATO SERVER DATA ERROR} \
 		"Received invalid JSON from server; Error: $e"
@@ -1224,6 +1249,7 @@ oo::class create ::stackato::v2::client {
 	# authentication server also.
 
 	set    uaa [dict get $info token_endpoint]
+	set    uaahost [lindex [split [url domain $uaa] /] 0]
 	append uaa $url
 
 	debug.v2/client {uaa = $uaa}
@@ -1232,8 +1258,11 @@ oo::class create ::stackato::v2::client {
 
 	try {
 	    # Custom headers for the ucreator
-	    dict set authheaders AUTHORIZATION $myauth_token
-	    dict set authheaders Accept "application/json;charset=utf-8"
+	    if {($url ne "/login") &&
+		($myauth_token ne {})} {
+		dict set authheaders AUTHORIZATION $myauth_token
+	    }
+	    dict set authheaders Accept $qtype
 
 	    my configure -headers $authheaders -accept-no-location 1
 
@@ -1241,8 +1270,21 @@ oo::class create ::stackato::v2::client {
 	    # standard REST baseurl.
 	    lassign [my DoRequest $method $uaa $qtype $query] \
 		code data _
+
+	} trap {POSIX ECONNREFUSED} {e o} - \
+	  trap {HTTP SOCK OPEN} {e o} {
+	    my BadTarget $e "UAA $uaahost"
+	    # Code from local modified copy of the http package.
+	    # Better than <string match {*couldn't open socket*} $e>
+
 	} finally {
 	    my configure -headers $myheaders -accept-no-location $savedflag
+	}
+
+	if {$method eq "DELETE"} {
+	    # Ignore response. Irrelevant. Return nothing.
+	    debug.v2/client {uaa delete, done}
+	    return
 	}
 
 	# The response is a json object (plain dictionary).
@@ -1293,14 +1335,19 @@ oo::class create ::stackato::v2::client {
 	    # else rethrow
 	    return {*}$o $e
 
-	} trap {REST REDIRECT} {e o} {
+	} trap {REST REDIRECT} {e o} - \
+	  trap {REST SSL}      {e o} - \
+	  trap {HTTP URL}      {e o} {
 	    # Rethrow
 	    return {*}$o $e
 
-	} trap {POSIX ECONNREFUSED} {e o} {
+	} trap {POSIX ECONNREFUSED} {e o} - \
+	  trap {HTTP SOCK OPEN} {e o} {
 	    my BadTarget $e
 
 	} on error {e o} {
+	    # See also HTTP SOCK OPEN above. Dependent on local
+	    # modified copy of the http package.
 	    if {
 		[string match {*couldn't open socket*} $e]
 	    } {
@@ -1385,7 +1432,8 @@ oo::class create ::stackato::v2::client {
 		# else rethrow
 		return {*}$o $e
 
-	    } trap {REST REDIRECT} {e o} {
+	    } trap {REST REDIRECT} {e o} - \
+	      trap {HTTP URL} {e o} {
 		# Rethrow
 		return {*}$o $e
 
@@ -1421,6 +1469,11 @@ oo::class create ::stackato::v2::client {
 
     method PEM {status data} {
 	debug.v2/client {}
+
+	if {$status == 413} {
+	    return "Error $status: Request too large"
+	}
+
 	try {
 	    set parsed [json::json2dict $data]
 	    if {($parsed ne {}) &&
@@ -1499,10 +1552,12 @@ oo::class create ::stackato::v2::client {
 	      ([dict get $dict $key] ne {})}
     }
 
-    method BadTarget {text} {
+    method BadTarget {text {thetarget {}}} {
 	debug.v2/client {}
+	if {$thetarget eq {}} { set thetarget $mytarget }
+
 	return -code error -errorcode {STACKATO CLIENT V2 BADTARGET} \
-	    "Cannot access target '$mytarget' ($text)"
+	    "Cannot access target '$thetarget' ($text)"
     }
 
     method TargetError {msg} {
@@ -1529,6 +1584,13 @@ oo::class create ::stackato::v2::client {
 	debug.v2/client {}
 	return -code error -errorcode {STACKATO CLIENT V2 INTERNAL} \
 	    [list $e $::errorInfo $::errorCode]
+    }
+
+    # For debugging, error generation directly in a try. Must be
+    # thrown from within method to be properly caught by the
+    # try/finally.
+    method E {e c} {
+	return -code error -errorcode $c $e
     }
 
     # # ## ### ##### ######## #############

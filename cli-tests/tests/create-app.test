@@ -34,7 +34,7 @@ test create-app-1.1 {create-app, wrong args, not enough} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application create-app]
 
 test create-app-1.2 {create-app, login required} -setup {
     stage-open

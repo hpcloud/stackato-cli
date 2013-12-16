@@ -29,7 +29,7 @@ test mem-1.1 {mem, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: No application specified, and none found in the manifest.}
+} -returnCodes error -match glob -result [no-application mem]
 
 test mem-1.3 {mem, bogus app} -setup {
     stage-open

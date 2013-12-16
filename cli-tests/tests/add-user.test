@@ -29,15 +29,40 @@ test add-user-1.1 {add-user, wrong args, not enough} -setup {
     run add-user -n
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error: Need a valid email}
+} -returnCodes error \
+    -result [per-api \
+		 {Error: Need a valid email} \
+		 {Error: Need a valid user-name}]
 
-test add-user-1.2 {add-user, wrong args, not enough} -setup {
+test add-user-1.2.1 {add-user, wrong args, not enough} -constraints cfv1 -setup {
     stage-open
     # NOTE: Validation of the email argument requires a proper
     # target, and being logged in as admin.
     go-admin
 } -body {
     run add-user -n E
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: Need a password}
+
+test add-user-1.2.2.0 {add-user, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    # NOTE: Validation of the email argument requires a proper
+    # target, and being logged in as admin.
+    go-admin
+} -body {
+    run add-user -n E
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: Need a valid --email}
+
+test add-user-1.2.2.1 {add-user, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    # NOTE: Validation of the email argument requires a proper
+    # target, and being logged in as admin.
+    go-admin
+} -body {
+    run add-user -n E --email E@e
 } -cleanup {
     stage-close
 } -returnCodes error -result {Error: Need a password}
@@ -60,7 +85,7 @@ test add-user-1.4 {add-user, name must look like email address} -constraints cfv
     stage-close
 } -returnCodes error -result {Error 100: Bad request}
 
-test add-user-1.5 {add-user, requires admin login} -setup {
+test add-user-1.5.1 {add-user, requires admin login} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
@@ -70,12 +95,21 @@ test add-user-1.5 {add-user, requires admin login} -setup {
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result \
-    [per-api \
-	 {Error 200: Operation not permitted} \
-	 {{"error":"access_denied","error_description":"Access is denied"}}]
+} -returnCodes error -result {Error 200: Operation not permitted}
 
-test add-user-1.6 {add-user} -setup {
+test add-user-1.5.2 {add-user, requires admin login} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run add-user -n au15@as --email au15@as --password P
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test add-user-1.6.1 {add-user} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -84,6 +118,16 @@ test add-user-1.6 {add-user} -setup {
     run delete-user -n e@as
     stage-close
 } -result {Creating New User ... OK}
+
+test add-user-1.6.2 {add-user} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run add-user -n e@as --email e@as --password P
+} -cleanup {
+    run delete-user -n e@as
+    stage-close
+} -result "Creating New User ... \nCommit ... OK\nAdding new user to [theorg] ... OK"
 
 test add-user-1.7 {add-user, add admin, too short a name for admin} -constraints cfv1 -setup {
     stage-open
@@ -122,7 +166,7 @@ test add-user-1.8 {add-user, add admin} -constraints knownBug -setup {
 } -result {Creating New User ... OK
 Granting administrator privileges to [admin2@as] ... OK}
 
-test add-user-1.9 {add-user, duplicate user name} -setup {
+test add-user-1.9.1 {add-user, duplicate user name} -constraints cfv1 -setup {
     stage-open
     go-admin
     run add-user -n e@as --password P
@@ -132,6 +176,17 @@ test add-user-1.9 {add-user, duplicate user name} -setup {
     run delete-user -n e@as
     stage-close
 } -returnCodes error -result {Expected an unused user name for input "email", got "e@as"}
+
+test add-user-1.9.2 {add-user, duplicate user name} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --email e@as --password P
+} -body {
+    run add-user -n e@as --email e@as --password P
+} -cleanup {
+    run delete-user -n e@as
+    stage-close
+} -returnCodes error -result {Expected an unused user name for input "name", got "e@as"}
 
 # TODO: --group, the various limits (--appuris --apps --services --sudo --drains --mem)
 
