@@ -11,7 +11,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -31,11 +31,11 @@ namespace eval ::stackato::validate::serviceplan {
 	get-candidates
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::serviceplan::default  {p}   { return {} }
@@ -74,7 +74,7 @@ proc ::stackato::validate::serviceplan::validate {p x} {
 	return $x
     }
     debug.validate/serviceplan {FAIL}
-    fail $p SERVICEPLAN "a [$vendor @label] service plan" $x
+    expected $p SERVICEPLAN "service plan" $x " for '[$vendor @label]'"
 }
 
 # # ## ### ##### ######## ############# #####################

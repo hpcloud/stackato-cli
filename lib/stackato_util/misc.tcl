@@ -17,13 +17,32 @@ namespace eval ::stackato {
 }
 
 namespace eval ::stackato::misc {
-    namespace export fix-credentials health full-normalize
+    namespace export fix-credentials health full-normalize \
+	sort-aod
     namespace ensemble create
 
     namespace import ::stackato::mgr::ctarget
 }
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::misc::sort-aod {key odict args} {
+    set result {}
+
+    if {[llength $odict] < 2} {
+	return $odict
+    }
+
+    foreach o $odict {
+	dict set pername [dict getit $o $key] $o
+    }
+
+    foreach name [lsort {*}$args [dict keys $pername]] {
+	lappend result [dict get $pername $name]
+    }
+
+    return $result
+}
 
 proc ::stackato::misc::full-normalize {path} {
     return [file dirname [file normalize $path/___]]

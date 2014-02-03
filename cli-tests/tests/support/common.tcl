@@ -102,6 +102,11 @@ proc indir {dir script} {
 	cd $dir
 	uplevel 1 $script
     } finally {
+	# Move kept files, if any, out of the temp directory to the
+	# persistent place.
+	foreach f [glob -nocomplain kept.*] {
+	    file rename -force $f $here
+	}
 	cd $here
     }
 }
@@ -123,6 +128,12 @@ proc touch {path} {
     set path [thehome]/$path
     file mkdir [file dirname $path]
     fileutil::touch $path
+    return $path
+}
+
+proc touchdir {path} {
+    set path [thehome]/$path
+    file mkdir $path
     return $path
 }
 
@@ -260,8 +271,8 @@ proc make-non-admin {} {
 	run add-user -n [theuser] --password P
     } else {
 	run add-user -n [theuser] --email [theuser] --password P --organization [theorg]
-	run link-user-org   [theuser] [theorg]   --developer
-	run link-user-space [theuser] [thespace] --developer
+	run link-user-org   [theuser] [theorg] ;# --developer implied and default
+	run link-user-space [theuser] [thespace]  --developer
     }
 }
 
@@ -297,7 +308,9 @@ proc remove-test-app {{name TEST}} {
     global isv1
     run delete -n $name
     if {$isv1} return
-    run delete-route -n [string tolower $name].[targetdomain]
+    catch {
+	run delete-route -n [string tolower $name].[targetdomain]
+    }
     return
 }
 

@@ -11,7 +11,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::corg
 package require stackato::mgr::manifest
@@ -33,12 +33,12 @@ namespace eval ::stackato::validate::instance {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::validate::integer0
 }
 
@@ -71,14 +71,14 @@ proc ::stackato::validate::instance::default {p}   {
 	}
 
 	# No instances, abort.
-	fail $p INSTANCE "an instance index" 0
+	expected $p INSTANCE "instance index" 0 " for application '[$theapp @name]'"
 
     } else {
-    debug.validate/instance {/v1 = 0}
+	debug.validate/instance {/v1 = 0}
 	# v1, just an instance number
 	return 0
     }
- }
+}
 proc ::stackato::validate::instance::release  {p x} { return }
 proc ::stackato::validate::instance::complete {p x} {
     if {[[refresh-client $p] isv2]} {
@@ -98,6 +98,14 @@ proc ::stackato::validate::instance::validate {p x} {
     if {[[refresh-client $p] isv2]} {
 	# v2 -- query application entity for its instances
 
+	manifest config= $p _
+
+	# See also '::stackato::cmd::app::files'.
+	if {[$p config @application set?] && ([$p config @application] eq ".")} {
+	    # Fake 'undefined' for 'user_all' below.
+	    $p config @application reset
+	}
+
 	manifest user_1app_do theapp {
 	    set imap [$theapp instances]
 	}
@@ -109,7 +117,7 @@ proc ::stackato::validate::instance::validate {p x} {
 	    return $x
 	}
 	debug.validate/instance {FAIL}
-	fail $p INSTANCE "an instance index" $x
+	expected $p INSTANCE "instance index" $x " for application '[$theapp @name]'"
     } else {
 	# v1 ... Validate as plain integer0
 	integer0 validate $p $x

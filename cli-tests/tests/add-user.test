@@ -107,7 +107,7 @@ test add-user-1.5.2 {add-user, requires admin login} -constraints cfv2 -setup {
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result [not-authorized]
+} -returnCodes error -result {{"error":"access_denied","error_description":"You are not permitted to access this resource."}}
 
 test add-user-1.6.1 {add-user} -constraints cfv1 -setup {
     stage-open

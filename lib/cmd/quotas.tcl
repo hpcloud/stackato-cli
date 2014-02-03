@@ -35,28 +35,36 @@ namespace eval ::stackato::cmd::quotas {
     namespace import ::stackato::term
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
+
+    variable map {
+	non_basic_services_allowed {ID paid-services-allowed}
+	total_services             {ID services}
+	memory_limit               {MEM mem}
+	trial_db_allowed           {ID trial-db-allowed}
+	allow_sudo                 {ID allow-sudo}
+    }
 }
 
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::quotas::create {config} {
+    variable map
     debug.cmd/quotas {}
     # @name - String, validated to not exist
 
     set name [$config @name]
     set qd [v2 quota_definition new]
 
-    $qd @name                       set $name
-    $qd @non_basic_services_allowed set [$config @paid-services-allowed]
-    $qd @total_services             set [$config @services]
-    $qd @memory_limit               set [$config @mem]
-
     display "Creating new quota definition $name ... "
-    display "  Paid services allowed:  [$qd @non_basic_services_allowed]"
-    display "  Max number of services: [$qd @total_services]"
-    display "  Memory limit:           [psz [MB [$qd @memory_limit]]]"
-    display "Committing ... " false
+    $qd @name set $name
 
+    foreach {a def} $map {
+	lassign $def convert k
+	$qd @$a set [$config @$k]
+	display "  [$qd @$a label]: [$convert [$qd @$a]]"
+    }
+
+    display "Committing ... " false
     $qd commit
     display [color green OK]
 
@@ -64,6 +72,7 @@ proc ::stackato::cmd::quotas::create {config} {
 }
 
 proc ::stackato::cmd::quotas::configure {config} {
+    variable map
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
 
@@ -71,13 +80,8 @@ proc ::stackato::cmd::quotas::configure {config} {
 
     # Map config to entity.
     # Might be a useful utility procedure.
-    foreach {a k} {
-	non_basic_services_allowed paid-services-allowed
-	total_services             services
-	memory_limit               mem
-	trial_db_allowed           trial-db-allowed
-	allow_sudo                 allow-sudo
-    } {
+    foreach {a def} $map {
+	lassign $def __ k
 	if {![$config @$k set?]} continue
 	$qd @$a set [$config @$k]
     }
@@ -152,7 +156,7 @@ proc ::stackato::cmd::quotas::list {config} {
 	display "In [ctarget get]..."
     }
 
-    set thequotas [v2 quota_definition list 1]
+    set thequotas [v2 sort @name [v2 quota_definition list 1] -dict]
 
     if {[$config @json]} {
 	set tmp {}
@@ -244,6 +248,11 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
 
     return [dict get $map $name]
 }
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::quotas::ID  {x} { return $x }
+proc ::stackato::cmd::quotas::MEM {x} { psz [MB $x] }
 
 # # ## ### ##### ######## ############# #####################
 

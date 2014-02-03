@@ -28,6 +28,7 @@ oo::class create ::stackato::v2::user {
 
 	#my Attribute guid          string
 	my Attribute admin         boolean
+	my Attribute active        boolean
 	my Attribute default_space &space
 
 	my Many spaces
@@ -225,7 +226,8 @@ oo::class create ::stackato::v2::user {
 	# TODO: Catch CC errors and perform rollback in the UAA.
 
 	debug.v2/user {UAA add-user}
-	set uuid [[my client] uaa_add_user $username $email $password]
+	set client [my client]
+	set uuid [$client uaa_add_user $username $email $password]
 
 	try {
 	    # For CC we force an uuid on the target
@@ -244,7 +246,7 @@ oo::class create ::stackato::v2::user {
     puts |$e|
     puts |$o|
 	    # Roll back in the UAA.
-	    [my client] uaa_delete_user $uuid
+	    $client uaa_delete_user $uuid
 	    # Rethrow
 	    return {*}$o $e
 	}

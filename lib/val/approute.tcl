@@ -12,7 +12,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::manifest
 package require stackato::validate::common
@@ -32,10 +32,10 @@ namespace eval ::stackato::validate::approute {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::v2
 }
 
@@ -75,7 +75,7 @@ proc ::stackato::validate::approute::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/approute {FAIL}
-    fail $p APPROUTE "a route name for '[$theapp @name]'" $x
+    expected $p APPROUTE "route" $x " for application '[$theapp @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

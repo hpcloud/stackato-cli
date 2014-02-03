@@ -69,7 +69,7 @@ proc ::stackato::cmd::routes::list {config} {
     }
 
     [table::do t {Url Space Applications Space} {
-	foreach route [v2 route list 2] {
+	foreach route [v2 sort name [v2 route list 2] -dict] {
 	    set adata {}
 	    foreach a [$route @apps] {
 		lappend adata [::list [$a @name] [$a @space full-name]]

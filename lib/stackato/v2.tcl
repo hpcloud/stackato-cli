@@ -56,8 +56,30 @@ namespace eval ::stackato::v2 {
 debug level  v2
 debug prefix v2 {[debug caller] | }
 
+debug level  v2/memory
+debug prefix v2/memory {}
+
 # # ## ### ##### ######## ############# #####################
 ## Public API.
+
+proc ::stackato::v2::sort {field objects args} {
+    debug.v2 {}
+
+    if {[llength $objects] < 2} {
+	return $objects
+    }
+
+    foreach o $objects {
+	dict set per [$o $field] $o
+    }
+
+    set result {}
+    foreach key [lsort {*}$args [dict keys $per]] {
+	lappend result [dict get $per $key]
+    }
+
+    return $result
+}
 
 proc ::stackato::v2::types {} {
     debug.v2 {}
@@ -191,6 +213,7 @@ proc ::stackato::v2::get-for {json} {
 
     $obj = $json ; # TODO: strict check of modification dates?
     debug.v2 {==> $obj}
+    debug.v2/memory { KNOWN [$obj url]}
     return $obj
 }
 
@@ -265,6 +288,7 @@ proc ::stackato::v2::Enter {cmd} {
     dict set isobject $cmd on
     dict set toobject [$cmd url] $cmd
 
+    debug.v2/memory { ENTER_ [$cmd url]}
     debug.v2 {/done}
     return
 }
@@ -282,6 +306,7 @@ proc ::stackato::v2::Drop {cmd} {
     dict unset isobject $cmd
     dict unset toobject [$cmd url]
 
+    debug.v2/memory { DROP__ [$cmd url]}
     debug.v2 {/done}
     return
 }

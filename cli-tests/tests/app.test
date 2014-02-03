@@ -152,7 +152,7 @@ test app-1.4.2 {app, json} -constraints cfv2 -setup {
         "instances"            : 1,
         "memory"               : *,
         "name"                 : "node-env",
-        "production"           : "false",
+        "production"           : *,
         "routes"               : \[*\],
         "routes_url"           : "/v2/apps/*/routes",
         "service_bindings"     : \[\],

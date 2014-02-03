@@ -17,7 +17,7 @@ package require stackato::validate::memspec
 package require stackato::validate::stackname
 package require stackato::yaml
 package require varsub ; # Utility package, local, variable extraction and resolution
-package require cmdr 0.4
+package require cmdr
 
 namespace eval ::stackato::mgr {
     namespace export manifest
@@ -220,6 +220,14 @@ proc ::stackato::mgr::manifest::instances= {n} {
     variable outmanifest
     InitializeOutManifest
     yaml dict set outmanifest instances [Cscalar $n]
+    return
+}
+
+proc ::stackato::mgr::manifest::zone= {name} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest zone [Cscalar $name]
     return
 }
 
@@ -427,6 +435,15 @@ proc ::stackato::mgr::manifest::instances {} {
     return [yaml dict get' $currentappinfo instances 1]
 }
 
+proc ::stackato::mgr::manifest::zone {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo zone {}]
+}
+
 proc ::stackato::mgr::manifest::runtime {} {
     debug.mgr/manifest/core {}
     InitCurrent
@@ -534,22 +551,20 @@ proc ::stackato::mgr::manifest::exec {} {
     return [yaml dict get' $currentappinfo exec {}]
 }
 
-proc ::stackato::mgr::manifest::urls {} {
+proc ::stackato::mgr::manifest::urls {av} {
+    upvar 1 $av appdefined
     debug.mgr/manifest/core {}
     InitCurrent
 
     variable currentappinfo
     if {[info exists currentappinfo] &&
-	([yaml dict find-tagged $currentappinfo ulist url] ||
-	 [yaml dict find-tagged $currentappinfo ulist urls])} {
-	debug.mgr/manifest/core {Found = $ulist}
-
-	yaml tags!do $ulist {key "url(s)"} tag data {
-	    scalar   { return [list $data] }		
-	    sequence { return [yaml strip-tags $ulist] }
-	}
+	[yaml dict find $currentappinfo ulist urls]} {
+	debug.mgr/manifest/core {Found = ($ulist)}
+	set appdefined 1
+	return $ulist
     } else {
-	debug.mgr/manifest/core {Nothing}
+	debug.mgr/manifest/core {Nothing, empty mapping is implicit, not user-specified}
+	set appdefined 0
 	return {}
     }
 }
@@ -1769,6 +1784,12 @@ proc ::stackato::mgr::manifest::ResolveSymbol {contextlist already symbol} {
     }
     dict set already $symbol .
 
+    # Special syntax for interactive query of manifest symbol values.
+    if {[string match {ask *} $symbol]} {
+	regexp {^ask (.*)$} $symbol -> label
+	return [term ask/string "${label}: "]
+    }
+
     switch -exact -- $symbol {
 	space-base {
 	    return [SpaceBase $contextlist]
@@ -2102,8 +2123,9 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
     set s {}
     foreach k {
 	name instances mem memory disk framework services processes
-	min_version env ignores hooks cron requirements drain
-	command app-dir url urls depends-on buildpack stack
+	min_version env ignores hooks cron requirements drain subdomain
+	command app-dir url urls depends-on buildpack stack host domain
+	zone
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2163,10 +2185,10 @@ proc ::stackato::mgr::manifest::TransformASStackato {yml} {
     }
 
     # Consolidate different spellings for mem|memory
-    if {[dict exists $value mem]} {
-	dict set value memory [dict get $value mem]
-	dict unset value mem
-    }
+    set value [T_Memory $value]
+
+    # Url processing. Merge up all possible inputs into a single list.
+    set value [T_Urls $value]
 
     # move into stackato sub-map
     # - requirements processes min_version env drain ignores hooks cron
@@ -2607,10 +2629,10 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
     }
 
     # Consolidate different spellings for mem|memory
-    if {[dict exists $value mem]} {
-	dict set value memory [dict get $value mem]
-	dict unset value mem
-    }
+    set value [T_Memory $value]
+
+    # Url processing. Merge up all possible inputs into a single list.
+    set value [T_Urls $value]
 
     # At this point 'framework is either missing, or exists as a mapping.
 
@@ -2625,6 +2647,76 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
     #array set __ $value ; parray __ ; unset __
 
     return [Cmapping {*}$value]
+}
+
+proc ::stackato::mgr::manifest::T_Memory {value} {
+    debug.mgr/manifest/core {}
+
+    # Consolidate different spellings for mem|memory
+    if {[dict exists $value mem]} {
+	dict set value memory [dict get $value mem]
+	dict unset value mem
+    }
+
+    return $value
+}
+
+proc ::stackato::mgr::manifest::T_Urls {value} {
+    # Merge up all possible inputs into a single list.
+    # I.e. url, urls, and (host|subdomain)+domain
+    # become -> urls.
+
+    debug.mgr/manifest/core {}
+
+    set hasurls 0
+    set urls    {}
+
+    foreach key {url urls} {
+	if {[dict exists $value $key]} {
+	    set uvalue [dict get $value $key]
+	    dict unset value $key
+	    incr hasurls
+
+	    yaml tags!do $uvalue "key \"$key\"" tag data {
+		scalar   {
+		    lappend urls $uvalue
+		}
+		sequence {
+		    lappend urls {*}$data
+		}
+	    }
+	}
+    }
+
+    if {[dict exists $value domain]} {
+	yaml tags!do [dict get $value domain] {key "domain"} tag data {
+	    scalar {
+		set domain $data
+	    }
+	}
+	dict unset value domain
+    } else {
+	set domain {${space-base}}
+    }
+
+    foreach key {host subdomain} {
+	if {[dict exists $value $key]} {
+	    yaml tags!do [dict get $value $key] "key \"$key\"" tag data {
+		scalar {
+		    set host $data
+		    lappend urls [Cscalar ${data}.${domain}]
+		}
+	    }
+	    dict unset value $key
+	    incr hasurls
+	}
+    }
+
+    if {$hasurls} {
+	dict set value urls [Csequence {*}$urls]
+    }
+
+    return $value
 }
 
 proc ::stackato::mgr::manifest::TCF_Framework {value} {
@@ -2679,7 +2771,18 @@ proc ::stackato::mgr::manifest::TransformGlobal {yml} {
 			foreach {name appdef} $apps {
 			    lappend new $name [TG_FixDependencies $name $appdef $nameof]
 			}
+			set apps $new
 
+			# Check for worker (cleared processes:web, or
+			# "standalone" framework) application using
+			# the legacy build pack (existence of
+			# framework:name). Force a 'urls: []' into the
+			# representation, except if 'urls' exists,
+			# then we have a conflict and error.
+
+			foreach {name appdef} $apps {
+			    lappend new $name [TG_LegacyWorker $name $appdef]
+			}
 			set apps $new
 		    }
 		}
@@ -2691,6 +2794,37 @@ proc ::stackato::mgr::manifest::TransformGlobal {yml} {
     }
 
     return [Cmapping {*}$value]
+}
+
+proc ::stackato::mgr::manifest::TG_LegacyWorker {name appdef} {
+    debug.mgr/manifest/core {}
+
+    set legacy [yaml dict find $appdef fwname  framework name]
+    set pweb   [yaml dict find $appdef pwvalue stackato processes web]
+    set worker [expr {($legacy && ($fwname eq "standalone")) ||
+		      ($pweb   && ($pwvalue in {null Null NULL ~}))}]
+
+    debug.mgr/manifest/core {legacy = $legacy}
+    debug.mgr/manifest/core {p-web  = $pweb}
+    debug.mgr/manifest/core {worker = $worker}
+
+    if {$legacy && $worker} {
+	# legacy worker.
+	# - force empty url list if nothing was specified.
+	# - error if urls are specified.
+	#   - If empty url list is specified nothing has to be done.
+
+	if {[yaml dict exists $appdef urls] &&
+	    [llength [yaml dict get $appdef urls]]} {
+	    Error "Legacy-based worker application requesting an url mapping"
+	} else {
+	    debug.mgr/manifest/core {clear url mapping}
+	    yaml dict set appdef urls [Csequence]
+	}
+    }
+
+    debug.mgr/manifest/core {/done}
+    return $appdef
 }
 
 proc ::stackato::mgr::manifest::TG_NormalizePath {name appdef mapvar} {
@@ -2804,9 +2938,13 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 	    path      -
 	    buildpack -
 	    stack     -
-	    command   { yaml tag! scalar $avalue "key \"$akey\"" }
-	    url        -
-	    urls       -
+	    zone      -
+	    command   {
+		yaml tag! scalar $avalue "key \"$akey\""
+	    }
+	    urls {
+		yaml tag! sequence $avalue "key \"$akey\""
+	    }
 	    depends-on {
 		yaml tags! {scalar sequence} $avalue "key \"$akey\""
 	    }
@@ -3171,7 +3309,7 @@ proc ::stackato::mgr::manifest::MinVersionChecks {} {
 	}
     }
     if {[minVersionServer require]} {
-	set have [client server-version [$theconfig @client]]
+	set have [[$theconfig @client] server-version]
 
 	debug.mgr/manifest/core { server require = $require}
 	debug.mgr/manifest/core { server have    = $have}

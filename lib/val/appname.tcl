@@ -10,7 +10,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client
 package require stackato::mgr::cspace
 package require stackato::validate::common
@@ -30,12 +30,12 @@ namespace eval ::stackato::validate::appname {
     namespace export default validate complete release known
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::validate::common::nospace
+    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::appname::default  {p }  { return {} }
@@ -116,7 +116,7 @@ proc ::stackato::validate::appname::validate {p x} {
     if {[known $c $x intrep]} {
 	return $intrep
     }
-    fail $p APPNAME "an application name" $x
+    expected $p APPNAME "application" $x " in space '[[cspace get] @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

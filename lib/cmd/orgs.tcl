@@ -54,7 +54,7 @@ proc ::stackato::cmd::orgs::set-quota {config} {
     set org [$config @name]
     set qd  [$config @quota]
 
-    display "Setting quota of [$org @name] to [$qd @name] ... " false
+    display "Setting quota of \"[$org @name]\" to \"[$qd @name]\" ... " false
     $org @quota_definition set $qd
     $org commit
     display [color green OK]
@@ -104,6 +104,13 @@ proc ::stackato::cmd::orgs::create {config} {
 	display "Adding you as developer ... " false
 	set user [v2 deref-type user [[$config @client] user]]
 	$org @users add $user
+	display [color green OK]
+    }
+
+    if {[$config @quota set?]} {
+	set thequota [$config @quota]
+	display "Setting quota \"[$thequota @name]\" ... " false
+	$org @quota_definition set $thequota
 	display [color green OK]
     }
 
@@ -203,7 +210,7 @@ proc ::stackato::cmd::orgs::list {config} {
 	set depth 2
     }
 
-    set theorgs [v2 organization list $depth]
+    set theorgs [v2 sort @name [v2 organization list $depth] -dict]
 
     if {[$config @json]} {
 	set tmp {}

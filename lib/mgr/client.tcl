@@ -33,11 +33,12 @@ namespace eval ::stackato::mgr::client {
 	reset plain-reset authenticated-reset \
 	confer-group frameworks runtimes \
 	the-users-groups check-group-support \
-	check-login server-version app-exists? \
+	check-login app-exists? max-version \
 	app-started-properly? check-capacity \
 	check-app-limit notv2 isv2 isv2cmd notv2cmd \
 	trace= plainc authenticatedc restlog \
-	get-ssh-key full-server-version description
+	get-ssh-key description min-version \
+	hasdrains chasdrains is-stackato
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -370,25 +371,6 @@ proc ::stackato::mgr::client::the-users-groups {client} {
     return $groups
 }
 
-proc ::stackato::mgr::client::server-version {client} {
-    debug.mgr/client {}
-    set v [dict get' [$client info] vendor_version 0.0]
-    # drop -gXXXX suffix (git revision)
-    regsub -- {-g.*$} $v {} v
-    # convert a -betaX clause into bX, proper beta syntax for Tcl
-    regsub -- {-beta} $v {b} v
-    # drop leading 'v', dashes to dots
-    set v [string map {v {} - .} $v]
-    # done
-    debug.mgr/client {= $v}
-    return $v
-}
-
-proc ::stackato::mgr::client::full-server-version {client} {
-    debug.mgr/client {}
-    return [dict get' [$client info] vendor_version 0.0]
-}
-
 proc ::stackato::mgr::client::notv2 {p x} {
     debug.mgr/client {}
     # when-set callback of the 'login' command's --group option
@@ -410,6 +392,47 @@ proc ::stackato::mgr::client::notv2cmd {p} {
 	err "This command requires a target exporting the CF v1 API"
     }
     return
+}
+
+proc ::stackato::mgr::client::hasdrains {p} {
+    debug.mgr/client {}
+    # generate callback to commands having to
+    # test if drain API is supported.
+    # Dependencies: @client (implied @target)
+    if {![chasdrains [$p config @client]]} {
+	err "This command requires a target exporting the Stackato drain API"
+    }
+}
+
+proc ::stackato::mgr::client::chasdrains {client} {
+    debug.mgr/client {}
+    if {[$client isv2]} {
+	return [$client is-stackato]
+    } else {
+	# v1 API, S2 target version.
+	# Drain supported started with 2.6
+	return [package vsatisfies [$client server-version] 2.5]
+    }
+    return
+}
+
+proc ::stackato::mgr::client::max-version {version p} {
+    debug.mgr/client {}
+    if {[package vcompare [[$p config @client] server-version] $version] <= 0} return
+    err "This command requires a target with version $version or earlier."
+    return
+}
+
+proc ::stackato::mgr::client::min-version {version p} {
+    debug.mgr/client {}
+    if {[package vsatisfies [[$p config @client] server-version] $version]} return
+    err "This command requires a target with version $version or later."
+    return
+}
+
+proc ::stackato::mgr::client::is-stackato {p} {
+    debug.mgr/client {}
+    return [[$p config @client] is-stackato]
 }
 
 proc ::stackato::mgr::client::isv2 {p x} {

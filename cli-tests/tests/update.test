@@ -70,6 +70,7 @@ foreach {n excode label theapp} {
     13 ok    {install package already present}     requirements-already
     15 ok    {url mapping}                         urls
     23 ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
+    25 ok    {host/domain urls}                    hostdomain
 } {
     set appdir   [example  $theapp]
     set expected [string map [list @BASE@ [thebase]] [result $theapp -up]]

@@ -22,6 +22,7 @@ namespace eval ::stackato::validate {
 namespace eval ::stackato::validate::envassign {
     namespace export default validate complete release
     namespace ensemble create
+
     namespace import ::cmdr::validate::common::fail
 }
 

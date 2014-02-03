@@ -7,7 +7,7 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tcl 8.5
-package require cmdr 0.4
+package require cmdr
 package require dictutil
 package require stackato::log
 package require stackato::color
@@ -163,8 +163,8 @@ proc ::stackato::mgr::app::hasharbor {p x} {
     # dependencies: @client (implied @target)
     set client [$p config @client]
     set harbor [expr {
-      (![$client isv2] && [package vsatisfies [client server-version $client] 2.7]) ||
-      ( [$client isv2] && [package vsatisfies [client server-version $client] 3])
+      (![$client isv2] && [package vsatisfies [$client server-version] 2.7]) ||
+      ( [$client isv2] && [$client is-stackato])
     }]
 
     if {!$harbor} {

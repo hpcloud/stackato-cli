@@ -91,6 +91,7 @@ foreach {n label theapp} {
     22 {multi app Stackato}                  multi-stackato.yml-s
     23 {env vars via manifest.yml, v2}       env-manifest.yml-v2
     24 {multi app, dependencies, v2}         multi-depends-on-v2
+    25 {host/domain urls}                    hostdomain
 } {
     # - -- --- ----- -------- -------------
 

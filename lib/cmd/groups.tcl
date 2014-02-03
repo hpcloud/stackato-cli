@@ -176,7 +176,7 @@ proc ::stackato::cmd::groups::users {config} {
 	err "Need a valid group name"
     }
 
-    set users [$client group_list_users $group]
+    set users [lsort -dict [$client group_list_users $group]]
 
     if {[$config @json]} {
 	display [jmap map array $users]

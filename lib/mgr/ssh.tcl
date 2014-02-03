@@ -8,6 +8,7 @@
 ## Requisites
 
 package require Tcl 8.5
+package require base64
 package require exec
 package require platform
 package require url
@@ -72,6 +73,12 @@ proc ::stackato::mgr::ssh::quote1 {w} {
     }
 }
 
+proc ::stackato::mgr::ssh::quote1a {w} {
+    debug.mgr/ssh {}
+    set map [list \" \\\"]
+    return \"[string map $map $w]\"
+}
+
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::mgr::ssh::cc {config arguments} {
@@ -96,6 +103,15 @@ proc ::stackato::mgr::ssh::cc {config arguments} {
 
 proc ::stackato::mgr::ssh::run {config args theapp instance {bg 0} {eincmd {}} {eocmd {}}} {
     # eincmd = External INput Command.
+    # eocmd  = External Output Command.
+
+    # bg modes
+    # 0 - Synchronous child process.
+    # 1 - Background child process.
+    # 2 - See 0, result is process status.
+    # 3 - See 0, no pty (8bit clean, scp)
+    # 4 - See 0, result is cmd stdout.
+
     debug.mgr/ssh {}
     global env
 
@@ -177,7 +193,7 @@ proc ::stackato::mgr::ssh::copy {config paths theapp instance} {
     foreach s $src {
 	set s [PClass $s sc]
 	if {($sclass ne {}) && ($sc ne $sclass)} {
-	    return -code error -errorcode {STACKATO USAGE} \
+	    return -code error -errorcode {STACKATO CLIENT CLI} \
 		{Illegal mix of local and remote source paths}
 	}
 	set sclass $sc
@@ -235,6 +251,7 @@ proc ::stackato::mgr::ssh::copy {config paths theapp instance} {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::mgr::ssh::PClass {path cvar} {
+    debug.mgr/ssh {}
     upvar 1 $cvar class
     if {[string match :* $path]} {
 	set class remote
@@ -242,6 +259,8 @@ proc ::stackato::mgr::ssh::PClass {path cvar} {
     } else {
 	set class local
     }
+
+    debug.mgr/ssh {==> $class ($path)}
     return $path
 }
 
@@ -266,7 +285,7 @@ proc ::stackato::mgr::ssh::CopyLocalRemote {config theapp instance src dst} {
     # no:  copy file or directory, create destination
     #
 
-    if {[TestIsFile $dst]} {
+    if {($dst ne {}) && [TestIsFile $dst]} {
 	# destination exists, is a file.
 	# must have single source, must be a file.
 
@@ -288,7 +307,7 @@ proc ::stackato::mgr::ssh::CopyLocalRemote {config theapp instance src dst} {
 	return
     }
 
-    if {[TestIsDirectory $dst]} {
+    if {($dst eq {}) || [TestIsDirectory $dst]} {
 	# (Ad c)
 	CopyLocalRemoteMultiDir $src $dst
 	return
@@ -351,12 +370,9 @@ proc ::stackato::mgr::ssh::CopyRemoteLocal {config theapp instance src dst} {
     # no:  copy file, overwrite existing file (e)
     #
 
-    foreach s $src {
-	if {![TestExists $s]} {
-	    return -code error -errorcode {STACKATO CLIENT CLI} \
-		"$s: No such file or directory"
-	}
-    }
+    lassign [CheckSources $src] src ftype
+    # Expanded list of source paths, plus mapping to path-type
+    # Includes test for existence as well.
 
     if {[file isfile $dst]} {
 	# destination exists, is a file.
@@ -369,7 +385,7 @@ proc ::stackato::mgr::ssh::CopyRemoteLocal {config theapp instance src dst} {
 	}
 
 	set src [lindex $src 0]
-	if {[TestIsDirectory $src]} {
+	if {[dict get $ftype $src] eq "directory"} {
 	    return -code error -errorcode {STACKATO CLIENT CLI} \
 		"cannot overwrite non-directory `$dst' with directory `$src'"
 
@@ -395,7 +411,7 @@ proc ::stackato::mgr::ssh::CopyRemoteLocal {config theapp instance src dst} {
 	# (Ad d)
 
 	set src [lindex $src 0]
-	if {[TestIsDirectory $src]} {
+	if {[dict get $ftype $src] eq "directory"} {
 	    # single directory to non-existing destination.
 	    # destination is created as directory, then src
 	    # contents are streamed.
@@ -438,6 +454,10 @@ proc ::stackato::mgr::ssh::CopyLocalRemoteMultiDir {srclist dst} {
     upvar 1 config config theapp theapp instance instance
 
     debug.mgr/ssh {local/remote */dir}
+
+    # No directory specified, force use of the working directory
+    # <==> app home directory.
+    if {$dst eq {}} { set dst . }
 
     set dst [quote1 $dst]
     run $config [list "mkdir -p $dst ; cd $dst ; tar xf -"] \
@@ -485,6 +505,60 @@ proc ::stackato::mgr::ssh::CopyRemoteLocalDirDir {src dst} {
 }
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::mgr::ssh::CheckSources {paths} {
+    upvar 1 config config theapp theapp instance instance
+    variable csscript
+
+    debug.mgr/ssh {}
+
+    # Generate a script to bulk check all source-path patterns on the remote side.
+    # Bad patterns result in an early MISS we report, and ok patterns are glob-expanded,
+    # with the results checked for type, and returned.
+
+    set cmd {}
+    foreach src $paths { append cmd " [quote1a $src]" }
+    set script [string map [list @@@ $cmd] $csscript]
+
+    # Transfer the script, run it, and collect results. The system for
+    # transfering commands currently does not like multi-line
+    # commands. Transfering everything base64-coded gets around the
+    # issue.
+
+    set script [base64::encode -maxlen 0 $script]
+    set lines [run $config [list "echo $script | base64 -d - | bash"] $theapp $instance 4]
+
+    # Process the result into Tcl structures for the caller (list of
+    # paths, plus mapping from paths to their types).
+
+    debug.mgr/ssh {==============================}
+    set paths {}
+    set ftype {}
+
+    foreach line [split $lines \n] {
+	debug.mgr/ssh {=== $line}
+
+        set cmd   [string range $line 0 3]
+        set value [string range $line 5 end]
+        switch -exact -- $cmd {
+	    MISS {
+		return -code error -errorcode {STACKATO CLIENT CLI} \
+		    "$value: No such file or directory"
+	    }
+	    FILE {
+		lappend paths  $value
+		dict set ftype $value file
+	    }
+	    DIRE {
+		lappend paths  $value
+		dict set ftype $value directory
+	    }
+	}
+    }
+    debug.mgr/ssh {==============================}
+
+    list $paths $ftype
+}
 
 proc ::stackato::mgr::ssh::TestIsFile {path} {
     upvar 1 config config theapp theapp instance instance
@@ -588,13 +662,22 @@ proc ::stackato::mgr::ssh::GetStatus {options} {
 
 proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} {
     # eincmd = External INput Command.
-    # eocmd = External Output Command.
+    # eocmd  = External Output Command.
     debug.mgr/ssh {}
     global env
 
     if {[$config @dry]} {
 	display [join [quote {*}$cmd] { }]
 	return
+    }
+
+    if {$bg == 4} {
+	try {
+	    set lines [exec 2>@ stderr <@ stdin {*}$cmd]
+	} trap {CHILDSTATUS} {e o} {
+	    exit fail [GetStatus $o]
+	}
+	return $lines
     }
 
     if {$bg == 2} {
@@ -633,6 +716,43 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 	exit fail [GetStatus $o]
     }
     return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+namespace eval ::stackato::mgr::ssh {
+    # See CheckSources for use. Inserts the pattersn to check at @@@.
+    # Needs a temp script file for the type-determination as xargs
+    # cannot call a bash function. And xargs is required because it
+    # gets the separation of paths right in face of spaces and quotes.
+    # A plain 'for'-loop does not.
+
+    variable csscript [string map {{	} {}} {cat > .__stackato_type <<'EOF'
+	if [ -d "$1" ] ; then
+	  echo DIRE "$1"
+	else
+	  echo FILE "$1"
+	fi
+	EOF
+	chmod u+x .__stackato_type
+	function __stackato_check ()
+	{
+	    for pattern in "$@"
+	    do
+	      n=$(ls -Q $pattern 2>/dev/null|wc -l)
+	      if [ $n -eq 0 ] ; then
+	        echo MISS "$pattern"
+	        exit
+	      fi
+	    done
+	    for pattern in "$@"
+	    do
+	      ls -Q $pattern | xargs -n1 ./.__stackato_type
+	    done
+	}
+	__stackato_check @@@
+	rm .__stackato_type
+    }]
 }
 
 # # ## ### ##### ######## ############# #####################

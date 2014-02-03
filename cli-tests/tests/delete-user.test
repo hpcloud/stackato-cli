@@ -63,7 +63,7 @@ test delete-user-1.3.2 {delete-user, requires admin login} -constraints cfv2 -se
     run delete-user ex@as
     remove-non-admin
     stage-close
-} -returnCodes error -result [not-authorized]
+} -returnCodes error -result {Expected a user name for input "email", got "ex@as"}
 
 test delete-user-1.4.1 {delete-user} -constraints cfv1 -setup {
     stage-open

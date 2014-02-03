@@ -217,16 +217,16 @@ proc ::stackato::cmd::spaces::list {config} {
 
     [table::do t $titles {
 	# TODO: spaces list - Depth 1/2 - How to specify ?
-	foreach space [[corg get] @spaces get 2] {
+	foreach space [v2 sort @name [[corg get] @spaces get 2] -dict] {
 	    lappend values [expr {($cs ne {}) && [$cs == $space] ? "x" : ""}]
 	    lappend values [$space @name]
 	    lappend values [join [lsort -dict [$space @apps @name]] \n]
 	    lappend values [join [lsort -dict [$space @service_instances get* {user-provided true} @name]] \n]
 
 	    if {$full} {
-		lappend values [join [$space @developers the_name] \n]
-		lappend values [join [$space @managers   the_name] \n]
-		lappend values [join [$space @auditors   the_name] \n]
+		lappend values [join [lsort -dict [$space @developers the_name]] \n]
+		lappend values [join [lsort -dict [$space @managers   the_name]] \n]
+		lappend values [join [lsort -dict [$space @auditors   the_name]] \n]
 	    }
 
 	    $t add {*}$values

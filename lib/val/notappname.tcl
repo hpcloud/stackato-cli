@@ -12,7 +12,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client
 package require stackato::mgr::cspace
 package require stackato::validate::appname-lex
@@ -38,6 +38,7 @@ namespace eval ::stackato::validate::notappname {
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::not
     namespace import ::stackato::validate::appname-lex
 }
 
@@ -104,7 +105,7 @@ proc ::stackato::validate::notappname::validate {p x} {
     }
 
     debug.validate/notappname {FAIL}
-    fail $p NOTAPPNAME "an unused application name" $x
+    not $p NOTAPPNAME "application" $x
 }
 
 # # ## ### ##### ######## ############# #####################

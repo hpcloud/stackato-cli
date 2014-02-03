@@ -100,9 +100,13 @@ proc ::stackato::cmd::admin::report {config} {
 
     display "Generating report $destination ..."
 
+    set thereport [$client report]
+
+    debug.cmd/admin {size: [string length $thereport]}
+
     fileutil::writeFile -translation binary \
-	$destination \
-	[$client report]
+	$destination $thereport
+	
 
     display [color green OK]
     return
@@ -251,6 +255,8 @@ proc ::stackato::cmd::admin::list {config} {
 	set admins [ListV1 $config $client]
     }
 
+    set admins [lsort -dict $admins]
+
     if {[$config @json]} {
 	display [jmap map array $admins]
 	return
@@ -293,7 +299,7 @@ proc ::stackato::cmd::admin::GetPatchFile {client path} {
 	# Do http retrieval, construct the url
 	# to the AS patch server.
 
-	set version [client server-version $client]
+	set version [$client server-version]
 	debug.cmd/admin {Server = $version}
 
 	lassign [split $version .] major minor

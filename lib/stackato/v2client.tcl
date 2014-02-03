@@ -44,11 +44,15 @@ package require stackato::v2::service_plan
 package require stackato::v2::space
 package require stackato::v2::stack
 package require stackato::v2::user
+package require stackato::v2::zone
 
 # # ## ### ##### ######## ############# #####################
 
 debug level  v2/client
 debug prefix v2/client {[debug caller] | }
+
+debug level  v2/memory
+debug prefix v2/memory {}
 
 namespace eval ::stackato {
     namespace export v2
@@ -160,9 +164,34 @@ oo::class create ::stackato::v2::client {
 	return $v
     }
 
+    method is-stackato {} {
+	set r [dict exists [my info] stackato]
+	debug.v2/client {==> $r}
+	return $r
+    }
+
     method version {} {
 	debug.v2/client { = [package present stackato::v2::client]}
 	return [package present stackato::v2::client]
+    }
+
+    method full-server-version {} {
+	debug.client {}
+	return [dict get' [my info] vendor_version 0.0]
+    }
+
+    method server-version {} {
+	debug.client {}
+	set v [dict get' [my info] vendor_version 0.0]
+	# drop -gXXXX suffix (git revision)
+	regsub -- {-g.*$} $v {} v
+	# convert a -betaX clause into bX, proper beta syntax for Tcl
+	regsub -- {-beta} $v {b} v
+	# drop leading 'v', dashes to dots
+	set v [string map {v {} - .} $v]
+	# done
+	debug.client {= $v}
+	return $v
     }
 
     method group? {} {
@@ -819,7 +848,23 @@ oo::class create ::stackato::v2::client {
 
     method uaa_list_users {} {
 	debug.v2/client {}
-	return [dict get [my UAA GET /Users {}] resources]
+
+	set query {}
+	set result {}
+	set start 1
+
+	while {1} {
+	    set data [my UAA GET /Users$query {}]
+
+	    lappend result {*}[dict get $data resources]
+
+	    if {[llength $result] >= [dict get $data totalResults]} break
+
+	    incr start [dict get $data itemsPerPage]
+	    set query ?[http::formatQuery startIndex $start]
+	}
+
+	return $result
     }
 
     method uaa_scope_get {gname} {
@@ -920,12 +965,21 @@ oo::class create ::stackato::v2::client {
     method list-by-url {url {config {}}} {
 	debug.v2/client {}
 
+	debug.v2/memory { LOAD-L $url}
+
 	set sep ?
+	set force 0
+
 	foreach {k v} $config {
 	    # Map client names to proper cgi parameters.
 	    switch -exact -- $k {
-		depth         { set k inline-relations-depth }
-		user-provided { set k return_user_provided_service_instances }
+		depth         {
+		    set k inline-relations-depth
+		    if {$v > 0} { set force 1 }
+		}
+		user-provided {
+		    set k return_user_provided_service_instances
+		}
 		default       {
 		    # No mapping
 		}
@@ -936,20 +990,29 @@ oo::class create ::stackato::v2::client {
 	}
 
 	set result {}
+	set objpool {}
+
 	while {1} {
 	    debug.v2/client {<== $url}
-
 	    set page [my json_get $url]
 
 	    foreach item [dict get $page resources] {
 		set obj [stackato v2 get-for $item]
 		lappend result [$obj url]
+		lappend objpool $obj
+		#$obj dump_inlined
 	    }
 
 	    set url [dict get $page next_url]
 	    if {$url eq "null"} break
 	}
 
+	if {$force} {
+	    # Make all inlined objects known, not just on-demand/use
+	    foreach o $objpool { $o force-inlined }
+	}
+
+	debug.v2/memory { LOADED $url}
 	return $result
     }
 
@@ -959,6 +1022,7 @@ oo::class create ::stackato::v2::client {
 
     method get-by-url {url args} {
 	debug.v2/client {}
+	debug.v2/memory { LOAD__ $url}
 	#TODO load - handle query args (inlined depth etc.)
 
 	try {
@@ -1092,6 +1156,26 @@ oo::class create ::stackato::v2::client {
 	debug.v2/client {}
 	my AsyncCancel $handle
 	return
+    }
+
+    method report {} {
+	debug.v2/client {}
+
+	# S3. Changed API to report retrieval compared to S2.
+	set sv [my server-version]
+	debug.v2/client {sv = $sv}
+
+	if {[package vsatisfies $sv 3.1]} {
+	    # 3.1+ => /v2/stackato/report (changed location, same API).
+	    return [lindex [my http_get /v2/stackato/report application/octet-stream] 1]
+	} else {
+	    # 3.0  => double-request via token.
+	    #         1. PUT /v2/stackato/report/token/:mytoken
+	    #         2. GET /v2/stackato/report/file/:mytoken
+	    set token stackato-cli-[pid]-[clock clicks -milliseconds]
+	    my http_put /v2/stackato/report/token/$token {}
+	    return [lindex [my http_get /v2/stackato/report/file/$token application/octet-stream] 1]
+	}
     }
 
     method instances-of {url} {
@@ -1492,7 +1576,7 @@ oo::class create ::stackato::v2::client {
 		}
 
 		if {$errcode == 10000} {
-		    debug.v2/client {unkown request}
+		    debug.v2/client {unknown request}
 		    return -code error \
 			-errorcode {STACKATO CLIENT V2 UNKNOWN REQUEST} \
 			$desc

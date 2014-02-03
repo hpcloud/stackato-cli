@@ -26,7 +26,7 @@ test info-1.1 {target information, transient target} -setup {
     run info --target [thetarget]
 } -cleanup {
     stage-close
-} -match glob -result "ActiveState Stackato v*\nFor support visit *\n*Target:   [thetarget] (v*)\nClient:   v*"
+} -match glob -result "ActiveState Stackato v*\nFor support visit *\n*Target:   [thetarget] (API v*)\nClient:   v*"
 
 test info-1.2 {target information, transient target is such} -setup {
     stage-open
@@ -52,7 +52,7 @@ test info-1.3.2 {target information, json, v2} -constraints cfv2 -setup {
 } -cleanup {
     stage-close
 } -match glob -result {{
-    "allow_debug"            : "true",
+    "allow_debug"            : true,
     "authorization_endpoint" : "*/uaa",
     "build"                  : "*",
     "description"            : "*",
@@ -74,7 +74,7 @@ test info-1.4.1 {target information for admin} -constraints cfv1 -setup {
     run info
 } -cleanup {
     stage-close
-} -match glob -result "ActiveState Stackato v*\nFor support visit *\n\nTarget:   [thetarget] (v*)\nClient:   v*\n\nUser:     [adminuser]\nGroups:   \nUsage:    Memory   (* of * total)\n          Services (* of * total)\n          Apps     (* of * total)"
+} -match glob -result "ActiveState Stackato v*\nFor support visit *\n\nTarget:   [thetarget] (API v*)\nClient:   v*\n\nUser:     [adminuser]\nGroups:   \nUsage:    Memory   (* of * total)\n          Services (* of * total)\n          Apps     (* of * total)"
 
 test info-1.4.2 {target information for admin} -constraints cfv2 -setup {
     stage-open
@@ -83,7 +83,7 @@ test info-1.4.2 {target information for admin} -constraints cfv2 -setup {
     run info
 } -cleanup {
     stage-close
-} -match glob -result "ActiveState Stackato v*\nFor support visit *\n\nTarget:   [thetarget] (v*)\nClient:   v*\n\nUser:     [adminuser]"
+} -match glob -result "ActiveState Stackato v*\nFor support visit *\n\nTarget:   [thetarget] (API v*)\nClient:   v*\n\nUser:     [adminuser]"
 
 test info-1.5 {target information, transient target by environment} -setup {
     stage-open
@@ -93,7 +93,7 @@ test info-1.5 {target information, transient target by environment} -setup {
     } STACKATO_TARGET [thetarget]
 } -cleanup {
     stage-close
-} -match glob -result "ActiveState Stackato v*\nFor support visit *\n*Target:   [thetarget] (v*)\nClient:   v*"
+} -match glob -result "ActiveState Stackato v*\nFor support visit *\n*Target:   [thetarget] (API v*)\nClient:   v*"
 
 test info-1.6 {target information, transient target by environment is such} -setup {
     stage-open

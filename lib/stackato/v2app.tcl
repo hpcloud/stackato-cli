@@ -56,6 +56,12 @@ oo::class create ::stackato::v2::app {
 	my Attribute buildpack        string  label {Buildpack  } default {}
 	my Attribute stack            &stack  label {Stack      } default {}
 	my Attribute debug            string  label {Debug      } default {}
+	my Attribute production       boolean label {Production } default off
+
+	# NOTE! While the attribute is the guid (<==> name) of the
+	# application's zone this is not a standard 1-relation,
+	# i.e. not a &zone. All dereferencing must be done manually.
+	my Attribute distribution_zone string  label {DEA Zone   } default {}
 
 	my Many service_bindings
 	my Many	routes

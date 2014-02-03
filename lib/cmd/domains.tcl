@@ -25,7 +25,7 @@ namespace eval ::stackato::cmd {
 }
 namespace eval ::stackato::cmd::domains {
     namespace export \
-	create map unmap list
+	create map unmap list create delete
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -39,6 +39,7 @@ namespace eval ::stackato::cmd::domains {
 }
 
 # # ## ### ##### ######## ############# #####################
+# S3.0 commands
 
 proc ::stackato::cmd::domains::map {config} {
     debug.cmd/domains {}
@@ -111,23 +112,108 @@ proc ::stackato::cmd::domains::unmap {config} {
     return
 }
 
+# # ## ### ##### ######## ############# #####################
+# S3.2+ commands
+
+proc ::stackato::cmd::domains::create {config} {
+    debug.cmd/domains {}
+    # @name   - name of new domain
+    # @shared - flag, true if domain shall have no owner and be shared across all.
+
+    # @space        - object, implied in cspace
+    # @organization - object, implied in corg
+
+    set name   [$config @name]
+    set shared [$config @shared]
+
+    # Check if the domain exists. If not, create it.
+    try {
+	set domain [v2 domain find-by-name $name]
+    } on ok {e o} {
+	err "Unable to create domain $name, it exists already."
+
+    } trap {STACKATO CLIENT V2 DOMAIN NAME NOTFOUND} {e o} {
+
+	debug.cmd/domains {domain unknown, create}
+
+	set domain [v2 domain new]
+	$domain @name                set $name
+	$domain @wildcard            set 1
+
+	if {!$shared} {
+	    $domain @owning_organization set [corg get]
+	    set note "Owned by [[corg get] @name]"
+	} else {
+	    set note "Shared"
+	}
+
+	display "Creating new domain $name ($note) ... " false
+	$domain commit
+	display [color green OK]
+    }
+
+    debug.cmd/domains {domain = $domain ([$domain @name])}
+    return
+}
+
+proc ::stackato::cmd::domains::delete {config} {
+    debug.cmd/domains {}
+    # @name - domain name
+
+    set name [$config @name]
+
+    # Check if the domain exists. If not, fail.
+    # TODO: Move to validation type and dispatcher.
+    try {
+	set domain [v2 domain find-by-name $name]
+    } trap {STACKATO CLIENT V2 DOMAIN NAME NOTFOUND} {e o} {
+	err "Unknown domain $name"
+    }
+
+    debug.cmd/domains {domain = $domain ([$domain @name])}
+
+    if {[cmdr interactive?] &&
+	![term ask/yn \
+	      "\nReally delete \"[$domain @name]\" ? " \
+	      no]} return
+
+    if {![$domain @owning_organization defined?]} {
+	set type shared
+    } else {
+	set type private
+    }
+
+    $domain delete
+
+    display "Deleting $type domain [$domain @name] ... " false
+    $domain commit
+    display [color green OK]
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::domains::list {config} {
     debug.cmd/domains {}
     # @all, @space
     # No arguments.
 
-    [table::do t {Name Owner} {
+    [table::do t {Name Owner Shared} {
 	if {[$config @all]} {
 	    set domains [v2 domain list 1]
 	} else {
 	    set domains [[cspace get] @domains get 1]
 	    display [[cspace get] @name]...
 	}
-	foreach domain $domains {
-	    set owner [expr {[$domain @owning_organization defined?]
-			     ? [$domain @owning_organization @name]
-			     : ""}]
-	    $t add [$domain @name] $owner
+	foreach domain [v2 sort @name $domains -dict] {
+	    if {[$domain @owning_organization defined?]} {
+		set owner  [$domain @owning_organization @name]
+		set shared {}
+	    } else {
+		set owner  {}
+		set shared *
+	    }
+	    $t add [$domain @name] $owner $shared
 	}
     }] show display
     return

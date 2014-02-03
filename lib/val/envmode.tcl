@@ -7,7 +7,8 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
+package require stackato::validate::common
 
 debug level  validate/envmode
 debug prefix validate/envmode {[debug caller] | }
@@ -24,8 +25,8 @@ namespace eval ::stackato::validate::envmode {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::stackato::validate::common::expected
 
     variable legalvalues {append preserve replace}
 }
@@ -46,7 +47,7 @@ variable legalvalues
 	return $x
     }
     debug.validate/envmode {FAIL}
-    fail $p ENVMODE "an env-mode" $x
+    expected $p ENVMODE "env-mode" $x
 }
 
 # # ## ### ##### ######## ############# #####################

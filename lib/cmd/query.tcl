@@ -18,6 +18,7 @@ package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
 package require stackato::mgr::manifest
+package require stackato::mgr::self
 package require stackato::misc
 package require stackato::v2
 package require stackato::validate::spacename
@@ -43,7 +44,7 @@ namespace eval ::stackato::cmd::query {
 	frameworks general runtimes services usage \
 	applications manifest appinfo context stacks \
 	target-version trace map-named-entity \
-	named-entities raw-rest
+	named-entities raw-rest list-packages
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -57,6 +58,7 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::misc
     namespace import ::stackato::v2
     namespace import ::stackato::validate::spacename
@@ -74,9 +76,10 @@ proc ::stackato::cmd::query::context {config} {
 
 proc ::stackato::cmd::query::target-version {config} {
     debug.cmd/query {}
-    display "Server [client full-server-version [client plain]]"
-    display "Version [client server-version [client plain]]"
-    display "API [[client plain] api-version]"
+    set client [client plain]
+    display "Server  [$client full-server-version]"
+    display "Version [$client server-version ]"
+    display "API     [$client api-version]"
     return
 }
 
@@ -139,6 +142,37 @@ proc ::stackato::cmd::query::MaxLen {list} {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::query::list-packages {config} {
+    debug.cmd/query {}
+
+    foreach p [lsort -dict [self packages]] {
+	try {
+	    set v [package require $p]
+	    dict set ok $p 1
+	} on error {e o} {
+	    set v $e
+	    dict set ok $p 0
+	}
+	lappend info $p $v
+    }
+
+    if {[$config @json]} {
+	display [jmap map dict $info]
+	return
+    }
+
+    [table::do t {Package Version} {
+	foreach {p v} $info {
+	    if {0 && ![dict get $ok $p]} {
+		set p [color red $p]
+		set v [color red $v]
+	    }
+	    $t add $p $v
+	}
+    }] show display
+    return
+}
+
 proc ::stackato::cmd::query::named-entities {config} {
     debug.cmd/query {}
 
@@ -161,11 +195,9 @@ proc ::stackato::cmd::query::map-named-entity {config} {
     regsub {s$} $type {} type
 
     # Note: How to handle entities without @name ?
-
-    set matches [struct::list filter [v2 $type list] [lambda {pattern o} {
+    set matches [v2 sort id [struct::list filter [v2 $type list] [lambda {pattern o} {
 	string equal $pattern [$o @name]
-    } $name]]
-
+    } $name]] -dict]
 
     if {[$config @json]} {
 	set ids [struct::list map $matches [lambda o {
@@ -228,18 +260,21 @@ proc ::stackato::cmd::query::AppinfoV1 {config client} {
     display [$config @application]
     [table::do t {Key Value} {
 	$t add State        [dict get $app state]
-	$t add Uris         [join [dict get $app uris] \n]
+	$t add Uris         [join [lsort -dict [dict get $app uris]] \n]
 	$t add Health       [misc health $app]
 	$t add Instances    [dict get $app instances]
 	$t add Memory       [psz [MB [dict get $app resources memory]]]
 	$t add {Disk Quota} [psz [MB [dict get $app resources disk]]]
-	$t add Services     [join [dict get $app services] \n]
+	$t add Services     [join [lsort -dict [dict get $app services]] \n]
 	$t add Environment:
 
 	foreach item [lsort -dict [dict get $app env]] {
-	    regexp {^([^=]*)=(.*)$} $e -> k v
+	    regexp {^([^=]*)=(.*)$} $item -> k v
 	    $t add "- $k" $v
 	}
+
+	$t add Drains [join [lsort -dict [DrainListV1 $client $app]] \n]
+
     }] show display
     return
 }
@@ -270,16 +305,28 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
     display [ctx format-short " -> [$theapp @name]"]
     [table::do t {Key Value} {
 	$t add State        [$theapp @state]
-	$t add Uris         [join [$theapp uris] \n]
+	$t add Uris         [join [lsort -dict [$theapp uris]] \n]
 	$t add $htitle      $health
 	$t add Instances    [$theapp @total_instances]
+
+	if {[$theapp @distribution_zone defined?]} {
+	    set z [$theapp @distribution_zone]
+	    # z :: name <=> guid. NOT entity.
+	} else {
+	    # no zone supported by target.
+	    set z "N/A (not supported by target)"
+	}
+
+	$t add Zone         $z
 	$t add Memory       [psz [MB [$theapp @memory]]]
 	$t add {Disk Quota} [psz [MB [$theapp @disk_quota]]]
-	$t add Services     [join [$theapp @service_bindings @service_instance @name] \n]
+	$t add Services     [join [lsort -dict [$theapp services]] \n]
 	$t add Environment:
 	dict for {k v} [dict sort [$theapp @environment_json]] {
 	    $t add "- $k" $v
 	}
+
+	$t add Drains [join [lsort -dict [DrainListV2 $theapp]] \n]
     }] show display
     return
 }
@@ -295,6 +342,27 @@ proc ::stackato::cmd::query::Plus {label key} {
     } else {
 	$t add $label [$theapp {*}$key]
     }
+}
+
+proc ::stackato::cmd::query::DrainListV1 {client app} {
+    if {![client chasdrains $client]} { return {} }
+
+    set drains {}
+    set appname [dict getit $app name]
+    foreach d [$client app_drain_list $appname] {
+	lappend drains "[dict get $d name] @ [dict get $d uri]"
+    }
+    return $drains
+}
+
+proc ::stackato::cmd::query::DrainListV2 {app} {
+    if {![client chasdrains [client plain]]} { return {} }
+
+    set drains {}
+    foreach d [$app drain-list] {
+	lappend drains "[dict get $d name] @ [dict get $d uri]"
+    }
+    return $drains
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -325,7 +393,7 @@ proc ::stackato::cmd::query::stacks {config} {
     # through when-complete and force.
 
     set client [$config @client]
-    set stacks [v2 stack list 1]
+    set stacks [v2 sort @name [v2 stack list 1] -dict]
 
     if {[$config @json]} {
 	display [jmap v2-stacks [struct::list map $stacks [lambda s {
@@ -421,7 +489,7 @@ proc ::stackato::cmd::query::general {config} {
 	}
 	display "For support visit $support"
 	display ""
-	display "Target:   [ctarget get] (v$version)"
+	display "Target:   [ctarget get] (API v$version)"
 	display "Client:   v[package present stackato::cmdr]"
     }
 
@@ -587,19 +655,15 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	    $cs summarize
 	    set applications [$cs @apps]
 	} trap {STACKATO CLIENT V2 AUTHERROR} {e o} {
-
-	    set applications [v2 app list]
+	    set applications [v2 app list 2]
 	}
     } else {
-	set applications [v2 app list]
+	set applications [v2 app list 2]
     }
 
     # TODO: query/apps - Filter by name/url
 
-    # Sort by name...
-    set applications [lsort -command [lambda {a b} {
-	string compare [$a @name] [$b @name]
-    }] $applications]
+    set applications [v2 sort @name $applications -dict]
 
     if {[$config @json]} {
 	set tmp {}
@@ -616,11 +680,12 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	return
     }
 
-    [table::do t {Application \# Mem Health URLS Services} {
+    [table::do t {Application \# Mem Health URLS Services Drains} {
 	foreach app $applications {
 	    try {
 		set health [$app health]
-	    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+	    } trap {STACKATO CLIENT V2 STAGING FAILED}      {e o} - \
+	      trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 		debug.cmd/query {not staged}
 		set health 0%
 	    }
@@ -628,10 +693,11 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	    set name         [$app @name]
 	    set numinstances [$app @total_instances]
 	    set mem          [$app @memory]
-	    set uris         [join [$app uris] \n]
-	    set services     [join [$app services] \n]
+	    set uris         [join [lsort -dict [$app uris]] \n]
+	    set services     [join [lsort -dict [$app services]] \n]
+	    set drains       [join [lsort -dict [DrainListV2 $app]] \n]
 
-	    $t add $name $numinstances $mem $health $uris $services
+	    $t add $name $numinstances $mem $health $uris $services $drains
 	}
     }] show display
 
@@ -646,9 +712,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
     set applications [$client apps]
     #@type apps = list (...) /@todo fill element type
 
-    set applications [lsort -command [lambda {a b} {
-	string compare [dict getit $a name] [dict getit $b name]
-    }] $applications]
+    set applications [misc sort-aod name $applications -dict]
 
     if {[$config @json]} {
 	# Same hack as done in service_dbshell,
@@ -675,7 +739,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 	return
     }
 
-    [table::do t {Application \# Health URLS Services} {
+    [table::do t {Application \# Health URLS Services Drains} {
 	foreach app $applications {
 	    set health [misc health $app]
 	    if {[string is double -strict $health]} {
@@ -685,8 +749,9 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 		[dict getit $app name] \
 		[dict getit $app instances] \
 		$health \
-		[join [dict getit $app uris] \n] \
-		[join [dict getit $app services] \n]
+		[join [lsort -dict [dict getit $app uris]] \n] \
+		[join [lsort -dict [dict getit $app services]] \n] \
+		[join [lsort -dict [DrainListV1 $client $app]] \n]
 	}
     }] show display
     return

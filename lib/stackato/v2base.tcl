@@ -44,6 +44,9 @@ debug level  v2/base/summary
 debug prefix v2/base/summary {}
 # {[::string map [::list [self] [[self] show]] [debug caller]] | }
 
+debug level  v2/memory
+debug prefix v2/memory {}
+
 # # ## ### ##### ######## ############# #####################
 
 oo::class create ::stackato::v2::base::pp {
@@ -73,6 +76,17 @@ oo::class create ::stackato::v2::base::pp {
 oo::class create ::stackato::v2::base {
     # # ## ### ##### ######## #############
     ## Instance state
+
+    # Introspection: attributes, references, many-relations
+    # Each returns a dictionary mapping name to type.
+
+    method attrs {} { return $myattr }
+    method refs {}  { return $myone  }
+    method many {}  { return $mymany }
+
+    # Map from attribute name to json name.
+    method json-names   {}     { return $myjname }
+    method json-name-of {name} { dict get $myjname $name  }
 
     # Attribute data management
     # - - -- --- ----- --------
@@ -133,7 +147,7 @@ oo::class create ::stackato::v2::base {
     variable \
 	myjson mydata mydiff mylog mydefault mydelete mymap myfullmap \
 	myattr myone mymany myexcluded mysumaction mynote mydelargs \
-	mylabel mypp myheaders
+	mylabel mypp myheaders myjname
 
     # # ## ### ##### ######## #############
     ## Life cycle
@@ -163,6 +177,7 @@ oo::class create ::stackato::v2::base {
 	if {![info exists myattr]}      { set myattr {} }
 	if {![info exists myone ]}      { set myone  {} }
 	if {![info exists mymany]}      { set mymany {} }
+	if {![info exists myjname]}     { set myjname {} }
 	if {![info exists mysumaction]} { set mysumaction {} }
 
 	# Convert to full hint structure for json map.
@@ -517,6 +532,24 @@ oo::class create ::stackato::v2::base {
 	return
     }
 
+    method force-inlined {} {
+	debug.v2/memory { EXPAND [my url] BEGIN}
+
+	dict for {k v} $myone {
+	    if {![my @$k inlined?]} continue
+	    [my @$k] force-inlined
+	}
+	dict for {k v} $mymany {
+	    if {![my @$k inlined?]} continue
+	    foreach ref [my @$k] {
+		$ref force-inlined
+	    }
+	}
+
+	debug.v2/memory { EXPAND [my url] END}
+	return
+    }
+
     # # ## ### ##### ######## #############
     ## General information
 
@@ -739,7 +772,7 @@ oo::class create ::stackato::v2::base {
 	}
 
 	set args [lassign $args method]
-	if {$method in {set unset defined?}} {
+	if {$method in {set unset defined? inlined?}} {
 	    return [my A1$method $name $jname $type {*}$args]
 	}
 
@@ -771,7 +804,7 @@ oo::class create ::stackato::v2::base {
 	}
 
 	set args [lassign $args method]
-	if {$method in {set get get* unset defined?}} {
+	if {$method in {set get get* unset defined? inlined?}} {
 	    return [my AN$method $name $jname $type {*}$args]
 	}
 
@@ -961,6 +994,25 @@ oo::class create ::stackato::v2::base {
 	return 0
     }
 
+    method A1inlined? {name jname type} {
+	# Cached, no.
+	if {[dict exists $mydata $name]} { return 0 }
+
+	# Not cached, new => No.
+	if {[my is new]} { return 0 }
+
+	my ResolvePhantom ^$name
+
+	# A replica, and inline defined => Yes.
+	if {[dict exists $myjson entity $jname] &&
+	    [dict exists $myjson entity ${jname}_url]} {
+	    return 1
+	}
+
+	# Overall no.
+	return 0
+    }
+
     method A1get {name jname type} {
 	debug.v2/base {}
 
@@ -1125,6 +1177,25 @@ oo::class create ::stackato::v2::base {
 	# A replica, and defined => Yes.
 	if {[dict exists $myjson entity $jname]}       { return 1 }
 	if {[dict exists $myjson entity ${jname}_url]} { return 1 }
+
+	# Overall no.
+	return 0
+    }
+
+    method ANinlined? {name jname type} {
+	# Cached, no. (any inline is resolved)
+	if {[dict exists $mydata $name]} { return 0 }
+
+	# Not cached, new => No.
+	if {[my is new]} { return 0 }
+
+	my ResolvePhantom ^^$name
+
+	# A replica, and defined => Yes.
+	if {[dict exists $myjson entity $jname] &&
+	    [dict exists $myjson entity ${jname}_url]} {
+	    return 1
+	}
 
 	# Overall no.
 	return 0
@@ -1539,7 +1610,7 @@ oo::class create ::stackato::v2::base {
     method Map {name jname type cmdprefix} {
 	debug.v2/base {}
 	# ?struct::list map
-	my MapCore [my ANget $name $jname $type 1] $cmdprefix
+	my MapCore [my ANget $name $jname $type] $cmdprefix
     }
 
     method Filter {name jname type cmdprefix} {
@@ -1601,7 +1672,8 @@ oo::class create ::stackato::v2::base {
 	    # @x <m> ...    : invoke (<x> <m>...) for the referenced object <x>.
 	    #                 (get shortcut)
 
-	    dict set myone $name $type
+	    dict set myone   $name $type
+	    dict set myjname $name $jsonname
 
 	    debug.v2/base {to-one   = ($type)}
 	    oo::objdefine [self] forward @$name my Access1 $name $jsonname $type
@@ -1621,16 +1693,18 @@ oo::class create ::stackato::v2::base {
 
 	    # types = dict integer url string boolean
 	    switch -exact -- $type {
-		boolean { set hint nbool   }
-		integer { set hint nnumber }
-		dict    { set hint dict    }
-		default { set hint nstring }
+		boolean     { set hint nbool   }
+		integer     { set hint nnumber }
+		dict        { set hint dict    }
+		list-string { set hint {array string} }
+		default     { set hint nstring }
 	    }
 
 	    debug.v2/base {json hint = ($hint)}
 	    dict set mymap $jsonname $hint
 
-	    dict set myattr $name $type
+	    dict set myattr  $name $type
+	    dict set myjname $name $jsonname
 
 	    set type [my ValidatorOf $type]
 
@@ -1657,7 +1731,8 @@ oo::class create ::stackato::v2::base {
 	    set xname $name
 	}
 	debug.v2/base {to-many  = ($type)}
-	dict set mymany $name $type
+	dict set mymany  $name $type
+	dict set myjname $name $name
 
 	debug.v2/base {json hint = (narray)}
 	dict set mymap ${xname}_guids narray
@@ -1735,7 +1810,12 @@ oo::class create ::stackato::v2::base {
 	}
 	if {$type eq "dict"} {
 	    # TODO: Proper type for dict attr in the future
-	    debug.v2/base { string special /rewrite}
+	    debug.v2/base { dict special /rewrite}
+	    return ::cmdr::validate::identity
+	}
+	if {$type eq "list-string"} {
+	    # TODO: Proper type for list-of-string attr in the future
+	    debug.v2/base { list-string special /rewrite}
 	    return ::cmdr::validate::identity
 	}
 
@@ -1774,6 +1854,50 @@ oo::class create ::stackato::v2::base {
 	return -code error \
 	    -errorcode [list STACKATO CLIENT V2 {*}$args] \
 	    "client v2: $message"
+    }
+
+    # # ## ### ##### ######## #############
+    method dump_inlined {} {
+	# Show the entities inlined in the json, if any.
+	my DUMP1 $myjson "  "
+	return
+    }
+    method DUMP1 {json prefix} {
+	set who  [dict get $json metadata url]
+	set json [dict get $json entity]
+
+	foreach k [lsort -dict [dict keys $json]] {
+	    # x_url => x is inlined value (single, or list)
+	    if {![string match *_url $k]} continue
+
+	    regsub {_url$} $k {} stem
+	    if {![dict exists $json $stem]} continue
+
+	    set sub [dict get $json $stem]
+
+	    # determine 1 vs N, i.e single vs list.
+	    # Do it as local, we have myone|many only for the top json, and not for the nested.
+
+	    if {$sub eq {}} continue
+
+	    # Treat as dict if possible and check for special keys indicating single object.
+	    if {(([llength $sub] %2) == 0) &&
+		[dict exists $sub metadata]} {
+		# 1 - single ref
+		my SHOW1 $sub $prefix
+	    } else {
+		# Not a dict, or missing the marker. Must be list.
+		puts "${prefix}LIST__ $who                         "
+		foreach el $sub {
+		    my SHOW1 $el "- $prefix"
+		}
+	    }
+	}
+    }
+    method SHOW1 {json prefix} {
+	puts "${prefix}INLINE [dict get $json metadata url]"
+	# Recurse, look for more.
+	my DUMP1 $json "  $prefix"
     }
 
     # # ## ### ##### ######## #############

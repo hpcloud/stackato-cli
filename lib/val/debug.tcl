@@ -13,9 +13,10 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr::validate ;# fail utility command.
+package require cmdr::validate
 package require fileutil
 package require stackato::mgr::self
+package require stackato::validate::common
 
 # # ## ### ##### ######## ############# #####################
 ## Definition
@@ -28,8 +29,8 @@ namespace eval ::stackato::validate {
 namespace eval ::stackato::validate::debug {
     namespace export default validate complete release levels
     namespace ensemble create
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::mgr::self
 }
 
@@ -41,7 +42,7 @@ proc ::stackato::validate::debug::complete {p x} {
 
 proc ::stackato::validate::debug::validate {p x} {
     if {$x in [levels]} { return $x }
-    fail $p DEBUG-LEVEL "a debug level" $x
+    expected $p DEBUG-LEVEL "debug level" $x
 }
 
 # # ## ### ##### ######## ############# #####################

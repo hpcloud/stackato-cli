@@ -268,11 +268,11 @@ proc ::stackato::mgr::logstream::Fast {client} {
     }
     if {[$client isv2]} {
 	debug.mgr/logstream {/v2}
-	# TODO: v2 feature check (stackato / CF differentiation)
-	set fast 1
+	# v2 feature check, differentiate S3 vs. CF.
+	set fast [$client is-stackato]
     } else {
 	debug.mgr/logstream {/v1}
-	set fast [package vsatisfies [client server-version $client] 2.3]
+	set fast [package vsatisfies [$client server-version] 2.3]
     }
     debug.mgr/logstream {/done ==> $fast}
     return $fast

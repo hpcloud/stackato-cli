@@ -7,7 +7,8 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
+package require stackato::validate::common
 
 debug level  validate/notclicmd
 debug prefix validate/notclicmd {[debug caller] | }
@@ -24,8 +25,8 @@ namespace eval ::stackato::validate::notclicmd {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::stackato::validate::common::not
     namespace import ::stackato::mgr::notclicmd
 }
 
@@ -40,7 +41,7 @@ proc ::stackato::validate::notclicmd::validate {p x} {
 	return $x
     }
     debug.validate/notclicmd {FAIL}
-    fail $p NOTCLICMD "an unused '[stackato-cli name]' command name" $x
+    not $p NOTCLICMD "'[stackato-cli name]' command" $x
 }
 
 # # ## ### ##### ######## ############# #####################

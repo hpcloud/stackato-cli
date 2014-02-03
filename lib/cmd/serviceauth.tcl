@@ -7,7 +7,7 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr 0.4
+package require cmdr
 package require stackato::color
 package require stackato::jmap
 package require stackato::log

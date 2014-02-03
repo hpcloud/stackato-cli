@@ -37,6 +37,7 @@ package ifneeded stackato::validate::path                0 [list source [file jo
 package ifneeded stackato::validate::quotaname           0 [list source [file join $dir quotaname.tcl]]
 package ifneeded stackato::validate::routename           0 [list source [file join $dir routename.tcl]]
 package ifneeded stackato::validate::serviceauthtoken    0 [list source [file join $dir serviceauthtoken.tcl]]
+package ifneeded stackato::validate::servicebroker       0 [list source [file join $dir servicebroker.tcl]]
 package ifneeded stackato::validate::serviceinstance     0 [list source [file join $dir serviceinstance.tcl]]
 package ifneeded stackato::validate::serviceplan         0 [list source [file join $dir serviceplan.tcl]]
 package ifneeded stackato::validate::servicetype         0 [list source [file join $dir servicetype.tcl]]
@@ -46,6 +47,7 @@ package ifneeded stackato::validate::stackname           0 [list source [file jo
 package ifneeded stackato::validate::target              0 [list source [file join $dir target.tcl]]
 package ifneeded stackato::validate::username            0 [list source [file join $dir username.tcl]]
 package ifneeded stackato::validate::vappname            0 [list source [file join $dir vappname.tcl]]
+package ifneeded stackato::validate::zonename            0 [list source [file join $dir zonename.tcl]]
 
 # Code common to various validation types. Not a VT in itself.
 package ifneeded stackato::validate::common       0 [list source [file join $dir common.tcl]]

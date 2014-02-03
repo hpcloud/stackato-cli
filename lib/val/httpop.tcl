@@ -6,7 +6,8 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
+package require stackato::validate::common
 
 debug level  validate/http-operation
 debug prefix validate/http-operation {[debug caller] | }
@@ -23,8 +24,8 @@ namespace eval ::stackato::validate::http-operation {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::stackato::validate::common::expected
 
     variable legalvalues {get put post head}
 }
@@ -45,7 +46,7 @@ variable legalvalues
 	return [string toupper $x]
     }
     debug.validate/http-operation {FAIL}
-    fail $p HTTP-OPERATION "an http operation" $x
+    expected $p HTTP-OPERATION "http operation" $x
 }
 
 # # ## ### ##### ######## ############# #####################

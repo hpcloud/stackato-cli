@@ -7,7 +7,7 @@
 ## Requisites
 
 package require Tcl 8.5
-package require cmdr 0.4
+package require cmdr
 package require dictutil
 package require stackato::cmd::app
 package require stackato::color
@@ -20,6 +20,7 @@ package require stackato::mgr::manifest
 package require stackato::mgr::service
 package require stackato::mgr::tclients
 package require stackato::mgr::tunnel
+package require stackato::misc
 package require stackato::term
 package require stackato::v2
 package require stackato::validate::appname
@@ -56,6 +57,7 @@ namespace eval ::stackato::cmd::servicemgr {
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::mgr::service
     namespace import ::stackato::mgr::tclients
+    namespace import ::stackato::misc
     namespace import ::stackato::term
     namespace import ::stackato::v2
     namespace import ::stackato::validate::appname
@@ -178,15 +180,12 @@ proc ::stackato::cmd::servicemgr::DisplayProvisionedServicesV2 {services} {
     display "\n=========== Provisioned Services ============\n"
     if {$services eq {}} return
 
-    # Map for sorting by name.
-    set map {}
-    foreach s $services {
-	dict set map [$s @name] $s
-    }
+    set services [v2 sort @name $services -dict]
 
     [table::do t {Space Name Service Provider Version Plan Applications} {
-	dict for {name service} [dict sort $map] {
+	foreach service $services {
 	    set space [$service @space]
+	    set name  [$service @name]
 
 	    if {[catch {
 		set plan [$service @service_plan]
@@ -224,12 +223,8 @@ proc ::stackato::cmd::servicemgr::ListInstancesV1 {config client} {
     #@type DESC      = dict (<any-name>/dict (<any-version>/VERSION)
     #@type VERSION
 
-    set provisioned [$client services]
+    set provisioned [misc sort-aod name [$client services] -dict]
     #@type provisioned = list (services?)
-
-    set provisioned [lsort -command [lambda {a b} {
-	string compare [dict getit $a name] [dict getit $b name]
-    }] $provisioned]
 
     if {[$config @json]} {
 	display [jmap services \
@@ -431,6 +426,10 @@ proc ::stackato::cmd::servicemgr::create {config} {
 
 proc ::stackato::cmd::servicemgr::CreateV2 {config client} {
     debug.cmd/servicemgr {}
+
+    if {[cspace get] eq {}} {
+	err "Unable to create a service. No space specified."
+    }
 
     # @provider already processed (validate, generate)
     # @version  already processed (validate, generate)
@@ -666,7 +665,7 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 	}
 	$t add {} {}
 
-	$t add Applications [join [$service @service_bindings @app @name] \n]
+	$t add Applications [join [lsort -dict [$service @service_bindings @app @name]] \n]
     }] show display
 
     debug.cmd/servicemgr {/done}
@@ -1312,6 +1311,8 @@ proc ::stackato::cmd::servicemgr::DisplayTunnelConnectionInfo {info} {
 
     debug.cmd/servicemgr {TunnelInfo = [dict print $info]}
 
+    # Special sorting, with User, Password, and Name at the top, in
+    # this order.
     set to_show {{} {} {}}
     foreach k [dict keys $info] {
 	switch -exact -- $k {

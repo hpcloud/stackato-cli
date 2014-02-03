@@ -741,13 +741,13 @@ proc http::Connected { token proto phost srvurl} {
     # Send data in cr-lf format, but accept any line terminators
 
     fconfigure $sock -translation {auto crlf} -buffersize $state(-blocksize)
-    Log Config/1($sock)=[fconfigure $sock]
+    Log Config/1($sock)=[fconfigure $sock -buffersize]
 
     # The following is disallowed in safe interpreters, but the socket is
     # already in non-blocking mode in that case.
 
     catch {fconfigure $sock -blocking off}
-    Log Config/2($sock)=[fconfigure $sock]
+    Log Config/2($sock)=[fconfigure $sock -blocking]
 
     set how GET
     if {$isQuery} {
@@ -881,7 +881,7 @@ proc http::Connected { token proto phost srvurl} {
 	    }
 	    puts $sock ""
 	    fconfigure $sock -translation {auto binary}
-	    Log Config/3($sock)=[fconfigure $sock]
+	    Log Config/3($sock)=[fconfigure $sock -translation]
 	    Log "Event writable $sock $token - Write"
 	    fileevent $sock writable [list http::Write $token]
 	} else {
@@ -1161,7 +1161,7 @@ proc http::Event {sock token} {
 
 	    # We have to use binary translation to count bytes properly.
 	    fconfigure $sock -translation binary
-	    Log Config/4($sock)=[fconfigure $sock]
+	    Log Config/4($sock)=[fconfigure $sock -translation]
 
 	    if {
 		$state(-binary) || ![string match -nocase text* $state(type)]
@@ -1270,10 +1270,10 @@ proc http::Event {sock token} {
 		    if {$size != 0} {
 			set bl [fconfigure $sock -blocking]
 			fconfigure $sock -blocking 1
-			Log Config/5($sock)=[fconfigure $sock]
+			Log Config/5($sock)=[fconfigure $sock -blocking]
 			set chunk [read $sock $size]
 			fconfigure $sock -blocking $bl
-			Log Config/6($sock)=[fconfigure $sock]
+			Log Config/6($sock)=[fconfigure $sock -blocking]
 			set n [string length $chunk]
 			if {$n >= 0} {
 			    append state(body) $chunk
@@ -1347,12 +1347,12 @@ proc http::getTextLine {sock} {
     set bl [fconfigure $sock -blocking]
     fconfigure $sock -translation crlf -blocking 1
 
-    Log Config/7($sock)=[fconfigure $sock]
+    Log Config/7($sock)=[fconfigure $sock -translation]
     Log get-line
 
     set r [gets $sock]
     fconfigure $sock -translation $tr -blocking $bl
-    Log Config/8($sock)=[fconfigure $sock]
+    Log Config/8($sock)=[fconfigure $sock -translation]
 
     return $r
 }

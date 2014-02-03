@@ -11,7 +11,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -31,11 +31,11 @@ namespace eval ::stackato::validate::servicetype {
 	get-candidates
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::servicetype::default  {p}   { return {} }
@@ -83,7 +83,7 @@ proc ::stackato::validate::servicetype::validate {p x} {
 	return $x
     }
     debug.validate/servicetype {FAIL}
-    fail $p SERVICETYPE "a[FilterHint $p] service" $x
+    expected $p SERVICETYPE "service" $x [FilterHint $p]
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -140,15 +140,15 @@ proc ::stackato::validate::servicetype::FilterHint {p} {
     } {
 	set p [$p config @provider]
 	set v [$p config @version]
-	return " ($p $v)"
+	return "(with provider '$p', and version $v)"
     }
     if {[$p config @provider set?]} {
 	set p [$p config @provider]
-	return " ($p)"
+	return " (with provider '$p')"
     }
     if {[$p config @version set?]} {
 	set v [$p config @version]
-	return " ($v)"
+	return " (with version $v)"
     }
     return ""
 }

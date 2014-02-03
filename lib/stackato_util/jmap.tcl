@@ -348,6 +348,7 @@ proc ::stackato::jmap::usageinfo {ui} {
 
 proc ::stackato::jmap::clientinfo {ci} {
     map {dict {
+	allow_debug bool
 	all_groups array
 	usage  dict
 	limits {dict {

@@ -9,7 +9,7 @@
 package require Tcl 8.5
 package require struct::list
 package require lambda
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -28,9 +28,9 @@ namespace eval ::stackato::validate::notservicebroker {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::not
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -44,8 +44,8 @@ proc ::stackato::validate::notservicebroker::validate {p x} {
 
     refresh-client $p
 
-    set matches [struct::list filter [v2 service_broker list 1] [lambda {x o} {
-	string equal $x	[$o @label]
+    set matches [struct::list filter [v2 service_broker list] [lambda {x o} {
+	string equal $x	[$o @name]
     } $x]]
 
     if {![llength $matches]} {
@@ -53,7 +53,7 @@ proc ::stackato::validate::notservicebroker::validate {p x} {
 	return $x
     }
     debug.validate/notservicebroker {FAIL}
-    fail $p NOTSERVICEBROKER "an unused service broker name" $x
+    not $p NOTSERVICEBROKER "service broker" $x
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -10,7 +10,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::cspace
 package require stackato::validate::common
@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::notserviceinstance {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::validate::common::not
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -69,7 +69,7 @@ proc ::stackato::validate::notserviceinstance::validate {p x} {
 	return $x
     }
     debug.validate/notserviceinstance {FAIL}
-    fail $p NOTSERVICEINSTANCE "an unused service instance name" $x
+    not $p NOTSERVICEINSTANCE "service instance" $x
 }
 
 # # ## ### ##### ######## ############# #####################

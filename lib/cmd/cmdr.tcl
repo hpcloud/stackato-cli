@@ -2,7 +2,7 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tcl 8.5
-package require cmdr 0.13 ;# defered/immediate + section (help category setup) + *in-shell* marker + no-promotion.
+package require cmdr 1 ;# defered/immediate + section (help category setup) + *in-shell* marker + no-promotion.
 package require cmdr::help
 package require lambda
 package require try
@@ -11,6 +11,7 @@ package require stackato::color
 package require stackato::log
 package require stackato::mgr::alias
 package require stackato::mgr::exit
+package require stackato::mgr::self
 
 debug level  cmdr
 debug prefix cmdr {[debug caller] | }
@@ -65,7 +66,7 @@ proc bgerror {msg} {
 
 #cmdr::config interactive 1
 
-cmdr create stackato-cli stackato {
+cmdr create stackato-cli [::stackato::mgr::self::me] {
     description {
 	The command line client
     }
@@ -123,10 +124,17 @@ cmdr create stackato-cli stackato {
 	    presence
 	    when-set [lambda {p x} {
 		package require s-http
+		proc ::http::Now {} { clock clicks -milliseconds }
+		global shpre
+		set    shpre [http::Now]
 		proc ::http::Log {args} {
-		    set prefix "[::stackato::color cyan HTTP:] "
+		    global shpre
+		    set n [Now]
+		    set d [expr {$n - $shpre}]
+		    set prefix "[::stackato::color cyan HTTP:] [format %10d $d] [format %15d $n] "
 		    set text $prefix[join [split [join $args] \n] "\n$prefix"]
 		    puts $text
+		    set shpre [Now]
 		}
 	    }]
 	}
@@ -243,6 +251,34 @@ cmdr create stackato-cli stackato {
 	    supports CF API v1. Use in commands which are v1 only.
 	    Note: Requires proper client arguments coming before it.
 	} { immediate ; generate [call@mgr client notv2cmd] }
+    }
+    common .hasdrains {
+	state checkdrains {
+	    Invisible state argument checking that the chosen target
+	    supports the Stackato drain API.
+	    Note: Requires proper client arguments coming before it.
+	} { immediate ; generate [call@mgr client hasdrains] }
+    }
+    common .isstackato {
+	state checkstackato {
+	    Invisible state argument checking that the chosen target
+	    is a stackato target.
+	    Note: Requires proper client arguments coming before it.
+	} { immediate ; generate [call@mgr client is-stackato] }
+    }
+    common .pre31 {
+	state checkpre31 {
+	    Invisible state argument checking that the chosen target
+	    is before version 3.1
+	    Note: Requires proper client arguments coming before it.
+	} { immediate ; generate [call@mgr client max-version 3.0] }
+    }
+    common .post30 {
+	state checkpost {
+	    Invisible state argument checking that the chosen target
+	    is after version 3.0
+	    Note: Requires proper client arguments coming before it.
+	} { immediate ; generate [call@mgr client min-version 3.1] }
     }
 
     # # ## ### ##### ######## ############# #####################
@@ -671,9 +707,11 @@ cmdr create stackato-cli stackato {
 	private map-named-entity {
 	    description {
 		Map the specified name into a uuid, given the type.
+		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .json
+	    use .prompt
+	    use .v2
 	    input type {
 		The type of the object to convert.
 	    } {
@@ -720,6 +758,13 @@ cmdr create stackato-cli stackato {
 		validate [call@vtype http-header]
 	    }
 	} [jump@cmd query raw-rest]
+
+	private packages {
+	    description {
+		Show the packages used the client, and their versions.
+	    }
+	    use .json
+	} [jump@cmd query list-packages]
     }
 
     alias guid                  = debug map-named-entity
@@ -732,6 +777,7 @@ cmdr create stackato-cli stackato {
     alias debug-manifest        = debug manifest
     alias debug-upload-manifest = debug upload-manifest
     alias debug-target          = debug target
+    alias debug-packages        = debug packages
 
     # # ## ### ##### ######## ############# #####################
 
@@ -876,9 +922,11 @@ cmdr create stackato-cli stackato {
 	section Administration
 	description {
 	    Report the current group, or (un)set it.
+	    This is a Stackato 2 specific command.
 	}
 	use .json
 	use .login
+	use .v1
 	option reset {
 	    Reset the current group to nothing.
 	    Cannot be used together with name.
@@ -984,6 +1032,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		List the supported frameworks of the target.
+		This is a Stackato 2 specific command.
 	    }
 	    use *introspection*
 	    use .v1
@@ -1001,6 +1050,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		List the supported runtimes of the target.
+		This is a Stackato 2 specific command.
 	    }
 	    use *introspection*
 	    use .v1
@@ -1019,6 +1069,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		List the supported stacks of the target.
+		This is a Stackato 3 specific command.
 	    }
 	    use *introspection*
 	    use .v2
@@ -1028,6 +1079,7 @@ cmdr create stackato-cli stackato {
 	    section Services
 	    description {
 		List all available plans of the supported services.
+		This is a Stackato 3 specific command.
 	    }
 	    use .login
 	    use .v2
@@ -1078,6 +1130,7 @@ cmdr create stackato-cli stackato {
 	    undocumented
 	    description {
 		Show the current context (target, organization, and space)
+		This is a Stackato 3 specific command.
 	    }
 	} [jump@cmd query context]
     }
@@ -1106,9 +1159,11 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Add the named user to the specified group.
+		This is a Stackato 2 specific command.
 	    }
 	    use .prompt
 	    use .login
+	    use .v1
 	    input group { The name of the group to add the user to. }
 	    input user  { The name of the user to add to the group. }
 	    # TODO: Validate group/user name (using target, client)
@@ -1118,9 +1173,11 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Remove the named user from the specified group.
+		This is a Stackato 2 specific command.
 	    }
 	    use .prompt
 	    use .login
+	    use .v1
 	    input group { The name of the group to remove the user from. }
 	    input user  { The name of the user to remove from the group. }
 	    # TODO: Validate group/user name (using target, client)
@@ -1130,9 +1187,11 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Create a new group with the specified name.
+		This is a Stackato 2 specific command.
 	    }
 	    use .prompt
 	    use .login
+	    use .v1
 	    input name { The name of the group to create. }
 	    # TODO: Validate group name (using target, client)
 	} [jump@cmd groups create]
@@ -1141,9 +1200,11 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Delete the named group.
+		This is a Stackato 2 specific command.
 	    }
 	    use .prompt
 	    use .login
+	    use .v1
 	    input name { The name of the group to delete. }
 	    # TODO: Validate group name (using target, client)
 	} [jump@cmd groups delete]
@@ -1153,9 +1214,11 @@ cmdr create stackato-cli stackato {
 	    description {
 		Show and/or modify the limits applying to applications
 		in the named group.
+		This is a Stackato 2 specific command.
 	    }
 	    use .json
 	    use .login
+	    use .v1
 	    use .limits
 	    input group {
 		The name of the group (including users) to show and/or
@@ -1173,18 +1236,22 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Show the list of groups known to the target.
+		This is a Stackato 2 specific command.
 	    }
 	    use .json
 	    use .login
+	    use .v1
 	} [jump@cmd groups show]
 
 	private users {
 	    section Administration
 	    description {
 		Show the list of users in the named group.
+		This is a Stackato 2 specific command.
 	    }
 	    use .json
 	    use .login
+	    use .v1
 	    input group {
 		The name of the group to list the users for.
 		Defaults to the current group.
@@ -1511,7 +1578,7 @@ cmdr create stackato-cli stackato {
 	    use .prompt
 	    use .login
 	    use .v2
-	    option developer { Affect the developer role }       { presence }
+	    state developer  { Affect the developer role }       { default no }
 	    option manager   { Affect the manager role }         { presence }
 	    option billing   { Affect the billing manager role } { presence }
 	    option auditor   { Affect the auditor role }         { presence }
@@ -1639,14 +1706,14 @@ cmdr create stackato-cli stackato {
 	private report {
 	    section Administration
 	    description {
-		Retrieve a report containing the logs
-		of the current or specified target.
+		Retrieve a report containing the logs of the current or specified target.
+		This is a stackato-specific command.
 	    }
 	    use .login
+	    use .isstackato
 	    input destination {
 		The file to store the report into.
-		The default name is derived from the
-		target.
+		The default name is derived from the target.
 	    } {
 		optional
 		generate [call@cmd admin default-report]
@@ -1712,13 +1779,12 @@ cmdr create stackato-cli stackato {
 	    description {
 		Management of service brokers.
 	    }
-	    # TODO: broker - update (token)
-	    # TODO: broker - delete|remove
 
 	    private add {
 		section Services Brokers
 		description {
 		    Make the named service broker known.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
@@ -1747,11 +1813,62 @@ cmdr create stackato-cli stackato {
 		section Services Brokers
 		description {
 		    Show the list of known service brokers.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
 		use .json
 	    } [jump@cmd servicebroker list]
+
+	    private update {
+		section Services Brokers
+		description {
+		    Update the target's knowledge of the named service broker.
+		    This is a Stackato 3 specific command.
+		}
+		use .login-with-group
+		use .v2
+		input name {
+		    Name of the broker to update.
+		} {
+		    optional
+		    validate [call@vtype servicebroker]
+		    interact
+		}
+		option url {
+		    New location of the broker.
+		} {
+		    validate str
+		}
+		option broker-token {
+		    New value of the broker's token.
+		} {
+		    validate str
+		}
+		input newname {
+		    The new name of the service broker.
+		} {
+		    optional
+		    validate [call@vtype notservicebroker]
+		}
+	    } [jump@cmd servicebroker update]
+
+	    private remove {
+		section Services Brokers
+		description {
+		    Remove the named service broker from the target.
+		    This is a Stackato 3 specific command.
+		}
+		use .login-with-group
+		use .v2
+		input name {
+		    Name of the broker to remove.
+		} {
+		    optional
+		    validate [call@vtype servicebroker]
+		    interact
+		}
+	    } [jump@cmd servicebroker remove]
 	}
 
 	officer auth {
@@ -1764,6 +1881,7 @@ cmdr create stackato-cli stackato {
 		section Services {Authentication Tokens}
 		description {
 		    Create a new service authentication token.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
@@ -1793,6 +1911,7 @@ cmdr create stackato-cli stackato {
 		section Services {Authentication Tokens}
 		description {
 		    Update the specified service authentication token.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
@@ -1815,6 +1934,7 @@ cmdr create stackato-cli stackato {
 		section Services {Authentication Tokens}
 		description {
 		    Delete the specified service authentication token.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
@@ -1831,6 +1951,7 @@ cmdr create stackato-cli stackato {
 		section Services {Authentication Tokens}
 		description {
 		    Show all service authentication tokens knowns to the target.
+		    This is a Stackato 3 specific command.
 		}
 		use .login-with-group
 		use .v2
@@ -1934,6 +2055,7 @@ cmdr create stackato-cli stackato {
 	    }
 	    use .prompt
 	    use .login-with-group
+	    use .tail
 	    use .start
 
 	    # ================================================
@@ -2087,6 +2209,7 @@ cmdr create stackato-cli stackato {
 	    section Services Management
 	    description {
 		Rename the specified service instance.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .v2
@@ -2175,9 +2298,11 @@ cmdr create stackato-cli stackato {
     alias update-service-auth-token = servicemgr auth update
     alias service-auth-tokens       = servicemgr auth list
 
-    alias service-brokers    = servicemgr broker list
-    alias add-service-broker = servicemgr broker add
-    # update, delete?
+    alias service-brokers       = servicemgr broker list
+    alias add-service-broker    = servicemgr broker add
+    alias update-service-broker = servicemgr broker update
+    alias remove-service-broker = servicemgr broker remove
+    alias delete-service-broker = servicemgr broker remove
 
     # # ## ### ##### ######## ############# #####################
     ## Application control
@@ -2482,6 +2607,14 @@ cmdr create stackato-cli stackato {
 		when-set [call@mgr client isv2]
 		validate str ; # url
 	    }
+	    option distribution-zone {
+		The zone associated with the application.
+		This is a Stackato 3 specific option.
+	    } {
+		alias zone
+		when-set [call@mgr client isv2]
+		validate [call@vtype zonename]
+	    }
 	    # ====================================================
 	    option instances {
 		The number of application instances to create.
@@ -2585,6 +2718,7 @@ cmdr create stackato-cli stackato {
 		Show recorded application events, for application or space.
 		Without an application given the current or specified space
 		is used, otherwise that application.
+		This is a Stackato 3 specific command.
 	    }
 	    use .application-dot-optional
 	    use .v2
@@ -2595,6 +2729,7 @@ cmdr create stackato-cli stackato {
 	    section Applications Management
 	    description {
 		Rename the specified application.
+		This is a Stackato 3 specific command.
 	    }
 	    use .application
 	    use .v2
@@ -2965,7 +3100,9 @@ cmdr create stackato-cli stackato {
 
 	private dbshell {
 	    section Applications Management
-	    description { Invoke interactive db shell for a bound service. }
+	    description {
+		Invoke interactive db shell for a bound service.
+	    }
 	    use .dry
 	    use .application-test
 	    input service {
@@ -2976,7 +3113,11 @@ cmdr create stackato-cli stackato {
 	private open_browser {
 	    section Applications Management
 	    description {
-		Open the application|URL|target (web console) in a browser
+		Open the url of the specified application in the default
+		web browser. If 'api' is specified as the app name, the
+		Management Console is opened. With no arguments, the
+		'name' value from the stackato.yml/manifest.yml in the
+		current directory is used (if present).
 	    }
 	    use .application-kernel
 	    input application {
@@ -3139,6 +3280,7 @@ cmdr create stackato-cli stackato {
 		    The drain target takes raw json log entries.
 		} { presence }
 		use .application
+		use .hasdrains
 		input drain {
 		    The name of the new drain.
 		}
@@ -3155,6 +3297,7 @@ cmdr create stackato-cli stackato {
 		}
 		use .prompt
 		use .application
+		use .hasdrains
 		input drain {
 		    The name of the drain to remove.
 		}
@@ -3168,9 +3311,82 @@ cmdr create stackato-cli stackato {
 		}
 		use .json
 		use .application
+		use .hasdrains
 	    } [jump@cmd app drain_list]
 	}
+
+	officer zones {
+	    undocumented
+	    description {
+		Manage the distribution zone (a.k.a placement zone)
+		of applications.
+	    }
+
+	    private set {
+		description {
+		    Associate the application with a specific
+		    distribution zone.
+		    This is a Stackato 3.2+ specific command.
+		}
+		use .application-as-option
+		use .post30
+		use .start
+		input zone {
+		    The name of the distribution zone to associate
+		    with the application.
+		} {
+		    optional
+		    validate [call@vtype zonename]
+		    generate [call@cmd zones select-for select]
+		}
+	    } [jump@cmd zones set]
+
+	    private unset {
+		description {
+		    Remove the association between application and its
+		    current distribution zone.
+		    This is a Stackato 3.2+ specific command.
+		}
+		use .application
+		use .post30
+		use .start
+	    } [jump@cmd zones unset]
+
+	    private list {
+		description {
+		    Show the available distribution zones.
+		    This is a Stackato 3.2+ specific command.
+		}
+		use .login
+		use .json
+		use .post30
+	    } [jump@cmd zones list]
+
+	    private show {
+		description {
+		    Show the list of DEAs associated with the specified
+		    distribution zone.
+		    This is a Stackato 3.2+ specific command.
+		}
+		use .login
+		use .post30
+		use .json
+		input zone {
+		    The name of the distribution zone to associate
+		    with the application.
+		} {
+		    optional
+		    validate [call@vtype zonename]
+		    generate [call@cmd zones select-for select]
+		}
+	    } [jump@cmd zones show]
+	}
     }
+
+    alias set-distribution-zone   = application zones set
+    alias unset-distribution-zone = application zones unset
+    alias distribution-zones      = application zones list
+    alias distribution-zone       = application zones show
 
     alias crashes    = application crashes
     alias crashlogs  = application crashlogs
@@ -3231,6 +3447,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		Create a new organization.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3246,6 +3463,12 @@ cmdr create stackato-cli stackato {
 	    # activate is our equivalent of cf create-org --target.
 	    # we can't use --target, because that is already in use as
 	    # common option to use a once-off CC target.
+	    option quota {
+		The named quota of the new organization.
+		Default is the target's choice.
+	    } {
+		validate [call@vtype quotaname]
+	    }
 	    input name {
 		Name of the organization to create.
 		If not specified it will be asked for interactively.
@@ -3260,6 +3483,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		Delete the named organization.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3286,6 +3510,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		Set the quotas for the current or named organization.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3310,6 +3535,7 @@ cmdr create stackato-cli stackato {
 	    description {
 		Switch the current organization to the named organization.
 		This invalidates the current space.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3328,6 +3554,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		Show the named organization's information.
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .prompt
@@ -3353,6 +3580,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		List the available organizations.
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .login
@@ -3366,6 +3594,7 @@ cmdr create stackato-cli stackato {
 	    section Organizations
 	    description {
 		Rename the named organization.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3424,6 +3653,7 @@ cmdr create stackato-cli stackato {
 	    section Spaces
 	    description {
 		Create a new space.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3464,6 +3694,7 @@ cmdr create stackato-cli stackato {
 	    section Spaces
 	    description {
 		Delete the named space.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3490,6 +3721,7 @@ cmdr create stackato-cli stackato {
 	    description {
 		Switch from the current space to the named space.
 		This may switch the organization as well.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3509,6 +3741,7 @@ cmdr create stackato-cli stackato {
 	    section Spaces
 	    description {
 		Show the named space's information.
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .prompt
@@ -3533,6 +3766,7 @@ cmdr create stackato-cli stackato {
 	    description {
 		List the available spaces in the specified organization.
 		See --organization for details
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .login
@@ -3547,6 +3781,7 @@ cmdr create stackato-cli stackato {
 	    section Spaces
 	    description {
 		Rename the named space.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3595,6 +3830,7 @@ cmdr create stackato-cli stackato {
 	    section Routes
 	    description {
 		Delete the named route.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3612,6 +3848,7 @@ cmdr create stackato-cli stackato {
 	    section Routes
 	    description {
 		List all available routes.
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .login
@@ -3644,10 +3881,13 @@ cmdr create stackato-cli stackato {
 	    section Domains
 	    description {
 		Add the named domain to an organization or space.
+		This is a Stackato 3 specific command.
+		This command is not supported by Stackato 3.2 or higher.
 	    }
 	    use .prompt
 	    use .login
 	    use .v2
+	    use .pre31
 	    use .autocurrentspace
 	    input name {
 		Name of the domain to add
@@ -3663,10 +3903,13 @@ cmdr create stackato-cli stackato {
 	    section Domains
 	    description {
 		Remove the named domain from an organization or space.
+		This is a Stackato 3 specific command.
+		This command is not supported by Stackato 3.2 or higher.
 	    }
 	    use .prompt
 	    use .login
 	    use .v2
+	    use .pre31
 	    use .autocurrentspace
 	    input name {
 		Name of the domain to remove
@@ -3678,10 +3921,54 @@ cmdr create stackato-cli stackato {
 	    }
 	} [jump@cmd domains unmap]
 
+	private create {
+	    section Domains
+	    description {
+		Create a new domain.
+		This is a Stackato 3.2+ specific command.
+	    }
+	    use .prompt
+	    use .login
+	    use .v2
+	    use .post30
+	    use .autocurrentspace
+	    option shared {
+		Mark the new domain as shared by all organizations.
+		If not present the new domain will be owned by and
+		private to the current or specified organization.
+	    } { presence }
+	    input name {
+		Name of the domain to create
+	    } {
+		#validate [call@vtype notdomainname]
+	    }
+	} [jump@cmd domains create]
+
+	private delete {
+	    section Domains
+	    description {
+		Delete the named domain.
+		This is a Stackato 3.2+ specific command.
+	    }
+	    use .prompt
+	    use .login
+	    use .v2
+	    use .post30
+	    input name {
+		Name of the domain to delete
+	    } {
+		#validate [call@vtype domainname]
+		#generate [call@cmd domains select-for delete]
+		# Interaction in generate, interact not complex
+		# enough for menu.
+	    }
+	} [jump@cmd domains delete]
+
 	private list {
 	    section Domains
 	    description {
 		List the available domains in the specified space, or all.
+		This is a Stackato 3 specific command.
 	    }
 	    use .login
 	    use .v2
@@ -3715,9 +4002,11 @@ cmdr create stackato-cli stackato {
     }
 
     # check how this works with (un)map commands.
-    alias map-domain   = domainmgr map
-    alias unmap-domain = domainmgr unmap
-    alias domains      = domainmgr list
+    alias create-domain = domainmgr create
+    alias delete-domain = domainmgr delete
+    alias map-domain    = domainmgr map
+    alias unmap-domain  = domainmgr unmap
+    alias domains       = domainmgr list
 
     # # ## ### ##### ######## ############# #####################
     ## CF v2 commands V: Quota definitions
@@ -3755,6 +4044,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Create a new quota definition.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3774,6 +4064,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Reconfigure the named quota definition.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3795,6 +4086,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Delete the named quota definition.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3816,6 +4108,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		List the available quota definitions.
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .login
@@ -3826,6 +4119,7 @@ cmdr create stackato-cli stackato {
 	    section Administration
 	    description {
 		Rename the named quota definition.
+		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
@@ -3855,6 +4149,7 @@ cmdr create stackato-cli stackato {
 	    description {
 		Show the details of the named quota definition.
 		If not specified it will be asked for interactively (menu).
+		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .prompt
@@ -3993,4 +4288,4 @@ proc combine {args} {
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
 
-package provide stackato::cmdr 3.0.1
+package provide stackato::cmdr 3.0.4

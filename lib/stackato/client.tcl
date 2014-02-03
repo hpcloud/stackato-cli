@@ -111,11 +111,36 @@ oo::class create ::stackato::client {
 	return $v
     }
 
+    method is-stackato {} {
+	set r [dict exists [my info] stackato]
+	debug.client {==> $r}
+	return $r
+    }
+
     method isv2 {} { return no }
 
     method current_user {} {
 	debug.client {}
 	return [dict get' [my info] user N/A]
+    }
+
+    method full-server-version {} {
+	debug.client {}
+	return [dict get' [my info] vendor_version 0.0]
+    }
+
+    method server-version {} {
+	debug.client {}
+	set v [dict get' [my info] vendor_version 0.0]
+	# drop -gXXXX suffix (git revision)
+	regsub -- {-g.*$} $v {} v
+	# convert a -betaX clause into bX, proper beta syntax for Tcl
+	regsub -- {-beta} $v {b} v
+	# drop leading 'v', dashes to dots
+	set v [string map {v {} - .} $v]
+	# done
+	debug.client {= $v}
+	return $v
     }
 
     ######################################################

@@ -43,6 +43,7 @@ package ifneeded stackato::v2::service_plan       0 [list source [file join $dir
 package ifneeded stackato::v2::space              0 [list source [file join $dir v2space.tcl]]
 package ifneeded stackato::v2::stack              0 [list source [file join $dir v2stack.tcl]]
 package ifneeded stackato::v2::user               0 [list source [file join $dir v2user.tcl]]
+package ifneeded stackato::v2::zone               0 [list source [file join $dir v2zone.tcl]]
 
 package ifneeded stackato::v2::managed_service_instance       0 [list source [file join $dir v2managedserviceinstance.tcl]]
 package ifneeded stackato::v2::user_provided_service_instance 0 [list source [file join $dir v2userprovidedserviceinstance.tcl]]

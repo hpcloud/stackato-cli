@@ -21,6 +21,7 @@ cmd/servicemgr
 cmd/spaces
 cmd/target
 cmd/usermgr
+cmd/zones
 cmdr
 cmdr/actor
 cmdr/config
@@ -75,18 +76,20 @@ v2/base
 v2/base/summary
 v2/client
 v2/domain
+v2/memory
 v2/organization
 v2/quota_definition
 v2/route
 v2/service
 v2/service_auth_token
-v2/service_broker
 v2/service_binding
+v2/service_broker
 v2/service_instance
 v2/service_plan
 v2/space
 v2/stack
 v2/user
+v2/zone
 validate/alias
 validate/appname
 validate/appname-api
@@ -112,6 +115,7 @@ validate/path
 validate/quotaname
 validate/routename
 validate/serviceauthtoken
+validate/servicebroker
 validate/serviceinstance
 validate/serviceplan
 validate/servicetype
@@ -120,4 +124,5 @@ validate/spaceuuid
 validate/target
 validate/username
 validate/vappname
+validate/zonename
 yaml

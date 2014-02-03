@@ -13,7 +13,7 @@ package require exec
 package require fileutil
 package require stackato::log
 package require stackato::color
-package require cmdr 0.4
+package require cmdr
 package require stackato::mgr::auth
 package require stackato::mgr::cgroup
 package require stackato::mgr::client

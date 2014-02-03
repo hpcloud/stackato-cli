@@ -9,7 +9,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::validate::common
 
 debug level  validate/appname-lex
@@ -27,8 +27,8 @@ namespace eval ::stackato::validate::appname-lex {
     namespace export default validate complete release ok
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::appname-lex::default  {p }  { return {} }
@@ -39,7 +39,7 @@ proc ::stackato::validate::appname-lex::validate {p x} {
     debug.validate/appname-lex {}
 
     if {![ok $p $x]} {
-	fail $p APPNAME-LEX "an application name" $x
+	expected $p APPNAME-LEX "application" $x
     }
     return $x
 }

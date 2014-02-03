@@ -11,6 +11,8 @@
 
 package require Tcl 8.5
 package require cd
+package require struct::list
+package require lambda
 
 namespace eval ::stackato::mgr {
     namespace export self
@@ -18,7 +20,8 @@ namespace eval ::stackato::mgr {
 }
 
 namespace eval ::stackato::mgr::self {
-    namespace export topdir me revision exe plain-revision please
+    namespace export topdir me revision exe plain-revision \
+	please wrapped packages
     namespace ensemble create
 }
 
@@ -27,6 +30,103 @@ debug prefix mgr/self {[debug caller] | }
 
 # # ## ### ##### ######## ############# #####################
 ## API
+
+proc ::stackato::mgr::self::packages {} {
+    variable wrapped
+    if {$wrapped} {
+	# wrapped, deliver exact set known.
+	catch { package require bogus }
+	return [struct::list filter [package names] [lambda {x} {
+	    expr {
+		  ![string match stackato::* $x] &&
+		  ![string match vfs* $x]
+	    }
+	}]]
+    } else {
+	# unwrapped, fixed set.
+	return {
+	    ActiveTcl
+	    Tcl
+	    TclOO
+	    Tclx
+	    Trf
+	    autoproxy
+	    base64
+	    cmdline
+	    cmdr
+	    cmdr::actor
+	    cmdr::config
+	    cmdr::help
+	    cmdr::help::json
+	    cmdr::officer
+	    cmdr::parameter
+	    cmdr::private
+	    cmdr::util
+	    cmdr::validate
+	    cmdr::validate::common
+	    control
+	    crc32
+	    debug
+	    debug::caller
+	    dictutil
+	    fileutil
+	    fileutil::decode
+	    fileutil::magic::mimetype
+	    fileutil::magic::rt
+	    fileutil::traverse
+	    http
+	    json
+	    json::write
+	    linenoise
+	    linenoise::facade
+	    linenoise::repl
+	    logger
+	    md5
+	    ncgi
+	    oo::util
+	    platform
+	    report
+	    s-http
+	    sha1
+	    string::token
+	    string::token::shell
+	    struct::list
+	    struct::matrix
+	    struct::queue
+	    struct::set
+	    tar
+	    tcl::chan::cat
+	    tcl::chan::core
+	    tcl::chan::events
+	    tcl::chan::string
+	    tcllibc
+	    tclyaml
+	    term::ansi::code
+	    term::ansi::code::attr
+	    term::ansi::code::ctrl
+	    term::ansi::ctrl::unix
+	    textutil::adjust
+	    textutil::repeat
+	    textutil::string
+	    tls
+	    try
+	    uri
+	    url
+	    uuid
+	    zipfile::decode
+	    zipfile::encode
+	    zlibtcl
+	}
+    }
+}
+
+proc ::stackato::mgr::self::wrapped {} {
+    debug.mgr/self {}
+    variable wrapped
+
+    debug.mgr/self {= $wrapped}
+    return $wrapped
+}
 
 proc ::stackato::mgr::self::topdir {} {
     debug.mgr/self {}

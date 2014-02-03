@@ -10,7 +10,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require dictutil
-package require cmdr::validate ;# Fail utility command.
+package require cmdr::validate
 package require stackato::mgr::client
 package require stackato::validate::appname
 package require stackato::validate::notappname
@@ -30,8 +30,6 @@ namespace eval ::stackato::validate::vappname {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
-    namespace import ::cmdr::validate::common::complete-enum
     namespace import ::stackato::mgr::client
     namespace import ::stackato::validate::appname
     namespace import ::stackato::validate::notappname

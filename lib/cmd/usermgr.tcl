@@ -27,6 +27,7 @@ package require stackato::mgr::exit
 package require stackato::mgr::service
 package require stackato::mgr::tadjunct
 package require stackato::mgr::targets
+package require stackato::misc
 package require stackato::validate::orgname
 package require stackato::validate::spacename
 package require stackato::validate::username
@@ -71,6 +72,7 @@ namespace eval ::stackato::cmd::usermgr {
     namespace import ::stackato::mgr::service
     namespace import ::stackato::mgr::tadjunct
     namespace import ::stackato::mgr::targets
+    namespace import ::stackato::misc
     namespace import ::stackato::validate::orgname
     namespace import ::stackato::validate::spacename
     namespace import ::stackato::validate::username
@@ -85,6 +87,10 @@ proc ::stackato::cmd::usermgr::link-org {config} {
 
     set theuser [$config @user]
     set theorg  [$config @org]
+
+    # Always link developer role. This goes beyond developer as
+    # default, it happens even when other roles are specified.
+    $config @developer set yes
 
     foreach def [OrgRoles $config] {
 	lassign $def attr label
@@ -120,6 +126,7 @@ proc ::stackato::cmd::usermgr::unlink-org {config} {
     set theuser [$config @user]
     set theorg  [$config @org]
 
+    SetRolesForUnlink $config
     foreach def [OrgRoles $config] {
 	lassign $def attr label
 	display "Removing $label [$theuser @name] from [$theorg @name] ... " false
@@ -148,6 +155,25 @@ proc ::stackato::cmd::usermgr::unlink-space {config} {
     return
 }
 
+proc ::stackato::cmd::usermgr::SetRolesForUnlink {config} {
+    set roles {@manager @billing @auditor}
+    # Check if any of the special roles is requested. If yes, only
+    # these are handled.
+    foreach r $roles {
+	# Ignore unknown parameter (billing, for space)
+	if {![$config has $r]} continue
+	# Any special role is set => no default @developer, no expansion
+	if {[$config $r]} return
+    }
+    # None of the special roles is set.
+    # @developer becomes default, and forces all others as well.
+    $config @developer set yes
+    foreach r $roles {
+	$config $r set yes
+    }
+    return
+}
+
 proc ::stackato::cmd::usermgr::OrgRoles {config} {
     return [Roles $config {
 	@developer {@organizations                 Developer}
@@ -171,6 +197,7 @@ proc ::stackato::cmd::usermgr::Roles {config def} {
 	if {![$config $r]} continue
 	lappend result $a
     }
+    # None is set, use @developer as the default.
     if {![llength $result]} {
 	lappend result [dict get $def @developer]
     }
@@ -378,10 +405,8 @@ proc ::stackato::cmd::usermgr::list {config} {
 
 proc ::stackato::cmd::usermgr::ListV1 {config client} {
     debug.cmd/usermgr {}
-    set users [$client users]
-    set users [lsort -command [lambda {a b} {
-	string compare [dict getit $a email] [dict getit $b email]
-    }] $users]
+
+    set users [misc sort-aod email [$client users] -dict]
     
     if {[$config @json]} {
 	display [jmap users $users]
@@ -423,31 +448,48 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 
     # depth 2 for spaces of the users, and apps in spaces.
     # note: depth 0 for json, maybe.
-    set users [v2 user list 2]
+    debug.cmd/usermgr {query cc /1}
+    set users [v2 user list 1]
 
-    if 0 {
-	# Merge UAA information about users into the list.
-    
-	# Note: We do this despite the v2user's pulling in UAA meta data
-	# on their own because we want to know about users known only to
-	# UAA but not the CC, and show them as well.
+    # Use the UAA list API to get its knowledge of users. This
+    # prevents us from running lots of per-user queries of the same
+    # information by v2user.
 
-	foreach uaau [[client authenticated] uaa_list_users] {
-	    set guid [dict get $uaau id]
-	    debug.cmd/usermgr {uaa has $guid}
-	    dict set umap $guid $uaau
-	}
+    # We can also use this to show users known only to the UAA but not
+    # the CC, i.e. system inconsistencies. This part is disabled.
 
-	foreach u $users {
-	    set guid [$u @guid]
-	    if {![dict exists $umap $guid]} continue
-	    $u uaa= [dict get $umap $guid]
-	    dict unset umap $guid
-	}
-    } else { set umap {} }
+    debug.cmd/usermgr {query uaa}
+    set uaaus [[client authenticated] uaa_list_users]
 
+    debug.cmd/usermgr {U/cc_=[llength $users]}
+    debug.cmd/usermgr {U/uaa=[llength $uaaus]}
+
+    # index by guid
+    foreach uaau $uaaus {
+	set guid [dict get $uaau id]
+	debug.cmd/usermgr {uaa has $guid}
+	dict set umap $guid $uaau
+    }
+
+    # join with CC user data
+    set mapped 0
+    foreach u $users {
+	set guid [$u @guid]
+	if {![dict exists $umap $guid]} continue
+	$u uaa= [dict get $umap $guid]
+	dict unset umap $guid
+	incr mapped
+    }
+
+    debug.cmd/usermgr {U/map=$mapped}
+
+    # disable display of unmapped UAA users.
+    set umap {}
     # The map now contains only entries for users known to UAA but not
     # the main system.
+
+    debug.cmd/usermgr {sort by email}
+    set users [v2 sort email $users -dict]
 
     if {[$config @json]} {
 	set tmp {}
@@ -468,10 +510,12 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 
     set cu [$client current_user_mail]
 
-    [table::do t {{} Name Email Admin Spaces Applications} {
-	foreach u [lsort -command [lambda {a b} {
-	    string compare [$a email] [$b email]
-	}] $users] {
+    debug.cmd/usermgr {begin table @@@@@@@@@@@@@@@@@@@@@@@@@@@}
+
+    table::do t {{} Name Email Admin Spaces Applications} {
+	foreach u $users {
+	    debug.cmd/usermgr {  process [$u url] }
+
 	    set name  [$u the_name]
 	    set email [$u email]
 
@@ -480,11 +524,13 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	    set admin [$u @admin]
 	    set mark  [expr {($cu ne {}) && ($cu eq $email) ? "x" : ""}]
 
+	    debug.cmd/usermgr {  process [$u url] spaces }
 	    set smap {}
 	    foreach space [$u @spaces] {
 		dict set smap [$space full-name] $space
 	    }
 
+	    debug.cmd/usermgr {  process [$u url] apps by space }
 	    set spaces {}
 	    set apps {}
 	    dict for {sname space} [dict sort $smap] {
@@ -507,7 +553,10 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	    }
 	}
 
-    }] show display
+    }
+
+    debug.cmd/usermgr {done_ table @@@@@@@@@@@@@@@@@@@@@@@@@@@}
+    $t show display
     return
 }
 
@@ -550,7 +599,7 @@ proc ::stackato::cmd::usermgr::login-fields {config} {
     debug.cmd/usermgr {}
 
     set client [$config @client]
-    set fields [$client login-fields]
+    set fields [dict sort [$client login-fields]]
 
     if {[$config @json]} {
 	display [jmap map {dict {* array}} $fields]
@@ -1069,7 +1118,6 @@ proc ::stackato::cmd::usermgr::InfoV1 {config client} {
     }
 
     table::do t {Key Value} {
-
 	foreach ai [dict get $info apps] {
 	    lappend apps [dict get $ai name]
 	}
@@ -1077,7 +1125,7 @@ proc ::stackato::cmd::usermgr::InfoV1 {config client} {
 	$t add Email  [dict get $info email]
 	$t add Admin  [dict get $info admin]
 	$t add Groups [join [dict get $info groups] \n]
-	$t add Apps   [join $apps \n]
+	$t add Apps   [join [lsort -dict $apps] \n]
     }
     display ""
     $t show display
@@ -1093,13 +1141,13 @@ proc ::stackato::cmd::usermgr::InfoV2 {config client} {
 	$t add Name                    [$theuser @name]
 	$t add Email                   [$theuser email]
 	$t add Admin                   [$theuser @admin]
-	$t add Spaces                  [join [$theuser @spaces         full-name] \n]
-	$t add {Managed Spaces}        [join [$theuser @managed_spaces full-name] \n]
-	$t add {Audited Spaces}        [join [$theuser @audited_spaces full-name] \n]
-	$t add Organizations           [join [$theuser @organizations                 @name] \n]
-	$t add {Managed Organizations} [join [$theuser @managed_organizations         @name] \n]
-	$t add {Billing Organizations} [join [$theuser @billing_managed_organizations @name] \n]
-	$t add {Audited Organizations} [join [$theuser @audited_organizations         @name] \n]
+	$t add Spaces                  [join [lsort -dict [$theuser @spaces         full-name]] \n]
+	$t add {Managed Spaces}        [join [lsort -dict [$theuser @managed_spaces full-name]] \n]
+	$t add {Audited Spaces}        [join [lsort -dict [$theuser @audited_spaces full-name]] \n]
+	$t add Organizations           [join [lsort -dict [$theuser @organizations                 @name]] \n]
+	$t add {Managed Organizations} [join [lsort -dict [$theuser @managed_organizations         @name]] \n]
+	$t add {Billing Organizations} [join [lsort -dict [$theuser @billing_managed_organizations @name]] \n]
+	$t add {Audited Organizations} [join [lsort -dict [$theuser @audited_organizations         @name]] \n]
     }
     display ""
     $t show display

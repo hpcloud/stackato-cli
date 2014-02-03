@@ -10,7 +10,7 @@
 package require Tcl 8.5
 package require browse
 package require cd
-package require cmdr 0.4
+package require cmdr
 package require dictutil
 package require exec
 package require json
@@ -44,6 +44,8 @@ package require stackato::term
 package require stackato::validate::appname
 package require stackato::validate::memspec
 package require stackato::validate::routename
+package require stackato::validate::stackname
+package require stackato::validate::zonename
 
 # # ## ### ##### ######## ############# #####################
 
@@ -94,6 +96,8 @@ namespace eval ::stackato::cmd::app {
     namespace import ::stackato::validate::appname
     namespace import ::stackato::validate::memspec
     namespace import ::stackato::validate::routename
+    namespace import ::stackato::validate::stackname
+    namespace import ::stackato::validate::zonename
     namespace import ::stackato::v2
 }
 
@@ -168,6 +172,8 @@ proc ::stackato::cmd::app::ListEvents {config theapp} {
 	set events [$theapp @events]
 	set label "For application [$theapp @name]"
     }
+
+    set events [v2 sort @timestamp $events -dict]
 
     if {[$config @json]} {
 	debug.cmd/app {show json}
@@ -1547,7 +1553,7 @@ proc ::stackato::cmd::app::StatsV1 {config client theapp} {
     # CFv1 API...
 
     set appname $theapp
-    set stats   [$client app_stats $theapp]
+    set stats   [misc sort-aod instance [$client app_stats $theapp] -dict]
     #@type stats = list (dict (*/string, usage/dict)) /@todo
 
     debug.cmd/app {= [jmap stats $stats]}
@@ -1631,13 +1637,16 @@ proc ::stackato::cmd::app::StatsV2 {config theapp} {
 
 	    if {$stats ne {}} {
 		set uptime [uptime [dict get $stats uptime]]
+		# Quotas are delivered in B (both mem and disk).
 		set mq [psz [dict get $stats mem_quota]]
 		set dq [psz [dict get $stats disk_quota]]
 
 		set usage [dict get' $stats usage {}]
 		if {$usage ne {}} {
 		    set started [dict get $usage time]
-		    set m [psz [dict get $usage mem]]
+		    # mem usage is delivred in KB
+		    set m [psz [expr {[dict get $usage mem] * 1024}]]
+		    # disk usage is delivered in B
 		    set d [psz [dict get $usage disk]]
 		} else {
 		    set started N/A
@@ -1879,11 +1888,7 @@ proc ::stackato::cmd::app::SIv1 {config theapp client} {
     set instances_info [dict get' $instances_info_envelope instances {}]
     #@type instances_info = list (dict) /@todo determine more.
 
-    # @todo list-util sort on sub-dict key value
-    set instances_info [lsort -command [lambda {a b} {
-	expr {[dict getit $a index] - [dict getit $b index]}
-    }] $instances_info]
-
+    set instances_info [misc sort-aod index $instances_info -dict]
 
     if {[$config @json]} {
 	display [jmap instances $instances_info]
@@ -2494,6 +2499,9 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set stack [AppStack $config]
     debug.cmd/app {stack         = $stack}
 
+    set zone [AppZone $config]
+    debug.cmd/app {zone          = $zone}
+
     set command   [AppStartCommand $config {}]
     debug.cmd/app {command      = $command}
 
@@ -2521,12 +2529,22 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     $theapp @total_instances set $instances
 
     if {$command ne {}} {
+	debug.cmd/app {apply command ($command)}
 	$theapp @command set $command
     }
     if {$stack ne {}} {
+	debug.cmd/app {apply stack $stack}
 	$theapp @stack set $stack
     }
+    if {($zone ne {})} {
+	# incoming zone      :: entity
+	# app zone attribute :: string
+	# => convert
+	debug.cmd/app {apply zone $zone}
+	$theapp @distribution_zone set [$zone @name]
+    }
     if {$buildpack ne {}} {
+	debug.cmd/app {apply buildpack $buildpack}
 	$theapp @buildpack set $buildpack
     }
 
@@ -3535,13 +3553,22 @@ proc ::stackato::cmd::app::AppStack {config} {
     # During cmdr processing current app is not known.
     if {[$config @stack set?]} {
 	set stack [$config @stack]
-	debug.cmd/app {option   = $stack}
+	# stack = entity instance
+	debug.cmd/app {option   = [$stack @name]}
     } else {
 	set stack [manifest stack]
+	# stack = string
 	debug.cmd/app {manifest = $stack}
+	# Convert name into object, if possible
+	if {$stack ne {}} {
+	    set stack [stackname validate [$config @stack self] $stack]
+	}
     }
+    # stack = entity instance
 
-    manifest stack= $stack
+    if {$stack ne {}} {
+	manifest stack= [$stack @name]
+    }
     return $stack
 }
 
@@ -3558,8 +3585,39 @@ proc ::stackato::cmd::app::AppBuildpack {config} {
 	debug.cmd/app {manifest = $buildpack}
     }
 
+    if {$buildpack ne {}} {
+	display "BuildPack:       $buildpack"
+    }
+
     manifest buildpack= $buildpack
     return $buildpack
+}
+
+proc ::stackato::cmd::app::AppZone {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @distribution-zone set?]} {
+	set zone [$config @distribution-zone]
+	# zone = entity instance
+	debug.cmd/app {option   = [$zone @name]}
+    } else {
+	set zone [manifest zone]
+	# zone = string
+	debug.cmd/app {manifest = $zone}
+	# Convert name into object, if possible
+	if {$zone ne {}} {
+	    set zone [zonename validate [$config @distribution-zone self] $zone]
+	}
+    }
+    # zone = entity instance
+
+    if {$zone ne {}} {
+	display "Zone:            [$zone @name]"
+	manifest zone= [$zone @name]
+    }
+    return $zone
 }
 
 proc ::stackato::cmd::app::AppRuntime {config frameobj} {
@@ -3707,44 +3765,24 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     # During cmdr processing current app is not known.
     if {[$config @url set?]} {
 	set urls [$config @url]
+	set appdefined 0
+	# This is ok, because in this branch urls.empty() is not possible.
 	debug.cmd/app {options  = [join $urls "\n= "]}
     } else {
-	set urls [manifest urls]
-	debug.cmd/app {manifest = [join $urls "\n= "]}
+	set urls [manifest urls appdefined]
+	debug.cmd/app {manifest ($appdefined) = [join $urls "\n= "]}
     }
 
     debug.cmd/app {url          = $urls}
 
     set stock None
 
-    if {![llength $urls]} {
-	if {[[$config @client] isv2]} {
-	    # For a Stackato 3 target use the domain mapped to the current
-	    # space as the base of the default url.
-
-	    set stock_template "\${name}.\${space-base}"
-	    set stock [list scalar $stock_template]
-	    manifest resolve stock
-	    set stock [lindex $stock 1]
-
-	} elseif {($frameobj eq {}) || [$frameobj require_url?]} {
-	    # For a Stackato 2 target use the target location as base of
-	    # the default url, if required by the framework or framework
-	    # unknown.
-
-	    set stock_template "\${name}.\${target-base}"
-	    set stock [list scalar $stock_template]
-	    manifest resolve stock
-	    set stock [lindex $stock 1]
-	} else {
-	    # No default url available/wanted.
-	    set stock None
-	}
-
+    if {![llength $urls] && !$appdefined} {
+	set stock [DefaultUrl $config $frameobj]
 	debug.cmd/app {default      = $stock}
     }
 
-    if {![llength $urls] &&
+    if {![llength $urls] && !$appdefined &&
 	[cmdr interactive?] &&
 	(($frameobj eq {}) ||
 	 [$frameobj require_url?])} {
@@ -3782,8 +3820,45 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     }
     set urls $tmp
 
+    if {![llength $urls]} {
+	display "No Application Urls"
+    }
+
     #manifest url= $urls
     return $urls
+}
+
+proc ::stackato::cmd::app::DefaultUrl {config frameobj} {
+    debug.cmd/app {}
+
+    if {[[$config @client] isv2]} {
+	debug.cmd/app {CFv2 - space-specific}
+	# For a Stackato 3 target use the domain mapped to the current
+	# space as the base of the default url.
+
+	set stock_template "\${name}.\${space-base}"
+	set stock [list scalar $stock_template]
+	manifest resolve stock
+	set stock [lindex $stock 1]
+
+    } elseif {($frameobj eq {}) || [$frameobj require_url?]} {
+	debug.cmd/app {CFv1 - target-specific}
+	# For a Stackato 2 target use the target location as base of
+	# the default url, if required by the framework or framework
+	# unknown.
+
+	set stock_template "\${name}.\${target-base}"
+	set stock [list scalar $stock_template]
+	manifest resolve stock
+	set stock [lindex $stock 1]
+    } else {
+	debug.cmd/app {No default}
+	# No default url available/wanted.
+	set stock None
+    }
+
+    debug.cmd/app {==> $stock}
+    return $stock
 }
 
 proc ::stackato::cmd::app::AppFramework {config} {
@@ -4022,7 +4097,7 @@ proc ::stackato::cmd::app::AppDrains {config theapp} {
     if {[$client isv2]} {
 	set json  [$theapp drain-list]
     } else {
-	set have [client server-version $client]
+	set have [$client server-version]
 	if {![package vsatisfies $have 2.9]} {
 	    display "  Ignoring drain specifications."
 	    display "  Have version $have, need 2.10 or higher"
@@ -5351,11 +5426,19 @@ proc ::stackato::cmd::app::OpenBrowser {config theapp} {
 
 	set theapp [appname validate [$config @application self] $theapp]
 	set uri [$theapp uri]
+	set appname [$theapp @name]
     } else {
 	debug.cmd/app {/v1}
 
 	set app [$client app_info $theapp]
 	set uri [lindex [dict get $app uris] 0]
+	set appname $theapp
+    }
+
+    debug.cmd/app {raw ($uri)}
+
+    if {$uri eq {}} {
+	err "Application \[$appname\] has no url to open."
     }
 
     set uri [url canon $uri]
@@ -5441,8 +5524,7 @@ proc ::stackato::cmd::app::SCP {config theapp} {
     set paths    [$config @paths]
 
     if {[llength $paths] < 2} {
-	return -code error -errorcode {STACKATO USAGE} \
-	    {Not enough arguments for [scp]}
+	$config notEnough
     }
 
     ssh copy $config $paths $theapp $instance
@@ -5594,6 +5676,8 @@ proc ::stackato::cmd::app::EnvList {config theapp} {
 	set env [Env2Dict [dict get' $app env {}]]
     }
 
+    set env [dict sort $env]
+
     debug.cmd/app {env = ($env)}
 
     if {[$config @json]} {
@@ -5692,27 +5776,29 @@ proc ::stackato::cmd::app::DrainList {config theapp} {
 
     set client [$config @client]
     if {[$client isv2]} {
-	set json [$theapp drain-list]
+	set thedrains [$theapp drain-list]
     } else {
-	set json [$client app_drain_list $theapp]
+	set thedrains [$client app_drain_list $theapp]
     }
 
+    set thedrains [misc sort-aod name $thedrains -dict]
+
     if {[$config @json]} {
-	puts [jmap map {array {dict {json bool}}} $json]
+	puts [jmap map {array {dict {json bool}}} $thedrains]
 	return
     }
 
-    if {![llength $json]} {
+    if {![llength $thedrains]} {
 	display "No Drains"
 	return
     }
 
     # We have drains. Check for existence of status.
-    if {[dict exists [lindex $json 0] status]} {
+    if {[dict exists [lindex $thedrains 0] status]} {
 	# Likely 2.11+, with status, show the column
 
 	table::do t {Name Json Url Status} {
-	    foreach item $json {
+	    foreach item $thedrains {
 		set n [dict get  $item name]
 		set u [dict get  $item uri]
 		set j [dict get  $item json]
@@ -5724,7 +5810,7 @@ proc ::stackato::cmd::app::DrainList {config theapp} {
 	# 2.10- Regular display, no status.
 
 	table::do t {Name Json Url} {
-	    foreach item $json {
+	    foreach item $thedrains {
 		set n [dict get  $item name]
 		set u [dict get  $item uri]
 		set j [dict get  $item json]

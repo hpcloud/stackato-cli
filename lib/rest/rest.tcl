@@ -193,6 +193,8 @@ oo::class create ::REST {
 	method AsyncDone {handle method url max trials cmd cookie request tok} {
 		debug.rest {}
 		# Async request has completed.
+		my Set $tok x:rest:done  [clock clicks -milliseconds]
+		::http::Log {REST DONE ok}
 
 		if {[http::status $tok] eq "reset"} {
 			# Canceled. Stop. See AsyncCancel.
@@ -400,16 +402,19 @@ oo::class create ::REST {
 
 		if {[catch {
 			debug.rest {http::geturl ...}
+
+			::http::Log {REST START}
 			set reqstart [clock clicks -milliseconds]
 
 			set tok [http::geturl $url {*}$request]
 
 			my Set $tok x:rest:start $reqstart
-			my Set $tok x:rest:done  [clock clicks -milliseconds]
 
 			debug.rest {http::geturl ... $tok}
 
 		} e o]} {
+			::http::Log {REST DONE err}
+
 			if {[string match *handshake* $e]} {
 				set host [join [lrange [split $url /] 0 2] /]
 				return -code error \
@@ -498,13 +503,20 @@ oo::class create ::REST {
 		set data [http::data  $tok]
 		set hdrs [http::meta  $tok]
 
+		debug.rest {binary = [my Get $tok binary]}
+
 		if {
+			![my Get $tok binary] &&
 			[dict exists $hdrs content-type] &&
 			[regexp -- {charset=(.*)$} [dict get $hdrs content-type] --> coding]
 		} {
 			switch -- $coding {
 				utf-8 {
+					debug.rest {Recode to $coding = [string length $data]}
+
 					set data [encoding convertfrom utf-8 $data]
+
+					debug.rest {Recoded as $coding = [string length $data]}
 				}
 				default {
 					my Raise $cookie "Unknown encoding $coding" REST ENCODING UNKNOWN $coding

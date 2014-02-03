@@ -64,9 +64,10 @@ foreach {n cons excode label theapp} {
     11 {}   ok    {min server version check ok}         minserver-ok
     12 {}   ok    {install required packages}           requirements
     13 {}   ok    {install package already present}     requirements-already
-    14 {}   error {install unknown package}             requirements-bad
+    14 knownBug   error {install unknown package}             requirements-bad
     15 {}   ok    {url mapping}                         urls
     23 {}   ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
+    25 {}   ok    {host/domain urls}                    hostdomain
     30 cfv1 error {unsupported framework}               unframework
 } {
     set appdir   [example  $theapp]
