@@ -51,7 +51,16 @@ debug prefix mgr/cspace {[debug caller] | }
 ## API
 
 proc ::stackato::mgr::cspace::setc {p obj} { set $obj }
-proc ::stackato::mgr::cspace::getc {p}     { get      }
+proc ::stackato::mgr::cspace::getc {p} {
+    # A v1 target cannot have spaces, and any information we may have
+    # in the cli state files for it is wrong. Ignore it, don't even
+    # try. And to be sure, squash any bad information.
+    if {[$p config has @client] && ![[$p config @client] isv2]} {
+	tadjunct remove [ctarget get] space
+	return {}
+    }
+    get
+}
 
 proc ::stackato::mgr::cspace::set {obj} {
     debug.mgr/cspace {}
@@ -91,8 +100,13 @@ proc ::stackato::mgr::cspace::get-id {} {
 
 	# Inlined form of spacename validate.
 	# Not using parameter reference here.
-
-	::set matches [[corg get] @spaces filter-by @name $name]
+	::set theorg [corg get]
+	if {$theorg eq {}} {
+	    # No org to look into, no spaces, no match
+	    ::set matches {}
+	} else {
+	    ::set matches [$theorg @spaces filter-by @name $name]
+	}
 	if {[llength $matches] == 1} {
 	    ::set uuid [[lindex $matches] id]
 	} else {
@@ -139,7 +153,13 @@ proc ::stackato::mgr::cspace::get {} {
 	    # Inlined form of spacename validate.
 	    # Not using parameter reference here.
 
-	    ::set matches [[corg get] @spaces filter-by @name $name]
+	    ::set theorg [corg get]
+	    if {$theorg eq {}} {
+		# No org to look into, no spaces, no match
+		::set matches {}
+	    } else {
+		::set matches [$theorg @spaces filter-by @name $name]
+	    }
 	    if {[llength $matches] == 1} {
 		::set uuid [[lindex $matches] id]
 	    } else {
@@ -287,7 +307,13 @@ proc ::stackato::mgr::cspace::select-for {what p {mode noauto}} {
     # Also: usermgr/login: PostLoginV2 proc
 
     # Implied client. Using the current org as our context.
-    ::set choices [[corg get] @spaces]
+    ::set theorg [corg get]
+    if {$theorg eq {}} {
+	# Without org we cannot select a space.
+	::set choices {}
+    } else {
+	::set choices [$theorg @spaces]
+    }
     debug.mgr/cspace {SPACE [join $choices "\nSPACE "]}
 
     if {([llength $choices] == 1) && ($mode eq "auto")} {

@@ -38,7 +38,8 @@ namespace eval ::stackato::mgr::client {
 	check-app-limit notv2 isv2 isv2cmd notv2cmd \
 	trace= plainc authenticatedc restlog \
 	get-ssh-key description min-version \
-	hasdrains chasdrains is-stackato
+	hasdrains chasdrains is-stackato \
+	is-stackato-opt close-restlog
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -51,6 +52,7 @@ namespace eval ::stackato::mgr::client {
     namespace import ::stackato::client
     namespace import ::stackato::v2
     namespace import ::stackato::misc
+    namespace import ::stackato::jmap
     namespace import ::stackato::log::err
     namespace import ::stackato::log::display
     namespace import ::stackato::validate::memspec
@@ -75,11 +77,25 @@ proc ::stackato::mgr::client::restlog {client} {
     return $client
 }
 
+proc ::stackato::mgr::client::close-restlog {} {
+    debug.mgr/client {}
+    variable restlog
+    if {![info exists restlog]} { return 0 }
+    close $restlog
+    unset restlog
+    return 1
+}
+
 proc ::stackato::mgr::client::RestLog {} {
     debug.mgr/client {}
+    variable restlog
     global CHILD ; # See bin/stackato for definition.
     # This is a hack to quickly get the information about
     # process context.
+
+    if {[info exists restlog]} {
+	return $restlog
+    }
 
     if {$CHILD} {
 	# Child, append to master log
@@ -90,17 +106,23 @@ proc ::stackato::mgr::client::RestLog {} {
 	set trace [open [cfile get rest] w]
     }
 
-    # Memoize. All future clients go to the same channel.
-    proc ::stackato::mgr::client::RestLog {} [list return $trace]
+    fconfigure $trace -encoding utf-8
 
     debug.mgr/client {==> $trace (child $CHILD)}
+    set restlog $trace
     return $trace
 }
 
 # # ## ### ##### ######## ############# #####################
 
-proc ::stackato::mgr::client::plainc         {p} { plain         }
-proc ::stackato::mgr::client::authenticatedc {p} { authenticated }
+proc ::stackato::mgr::client::plainc {p} {
+    $p config @motd
+    plain
+}
+proc ::stackato::mgr::client::authenticatedc {p} {
+    $p config @motd
+    authenticated
+}
 
 # # ## ### ##### ######## ############# #####################
 
@@ -136,12 +158,14 @@ proc ::stackato::mgr::client::authenticated {} {
 
 proc ::stackato::mgr::client::auth+group {p} {
     # generate callback
+    $p config @motd
     confer-group [authenticated]
 }
 
 proc ::stackato::mgr::client::reset {} {
     plain-reset
     authenticated-reset
+    close-restlog
     return
 }
 
@@ -173,17 +197,48 @@ proc ::stackato::mgr::client::Make {} {
 
     variable group
 
+    # Validate target first. While the 'target' command does this
+    # before storing the information it is always possible that the
+    # store (~/.stackato/client/target) was manually edited, not to
+    # speak of env(STACKATO_TARGET) as possible source.
+
+    set cc [::stackato-cli get (cc)]
+    set warn [expr { ![$cc has @json] || ![$cc @json] }]
+
+    while {1} {
+	set emessage "Invalid target '[$aclient target]'"
+	switch -exact -- [$aclient target_valid? newtarget emessage] {
+	    0 {
+		return -code error -errorcode {STACKATO CLIENT BADTARGET} \
+		    $emessage
+	    }
+	    1 { break }
+	    2 {
+		# Redirection, follow.
+		$aclient retarget $newtarget
+		if {$warn} {
+		    puts [color blue "Note: Target '[$aclient target]' redirected to: '$newtarget'"]
+		}
+	    }
+	}
+    }
+
     if {[package vcompare [$aclient api-version] 2] >= 0} {
 	# API version 2 or higher. Switch to new client.
 
 	# Note, we keep and save the /info we got, preventing the v2
-	# client from making its own, redundant request.
-	set info [$aclient info]
+	# client from making its own, redundant request. We also track
+	# any changes the client may have made to the in-memory target
+	# (by following redirections issued by the official target).
+	set sinfo   [$aclient info]
+	set starget [$aclient target]
+	set sauth   [$aclient authtoken]
+
 	$aclient destroy
 
 	debug.mgr/client {create V2}
-	set aclient [restlog [v2 client new [ctarget get] [auth get]]]
-	$aclient info= $info
+	set aclient [restlog [v2 client new $starget $sauth]]
+	$aclient info= $sinfo
 
 	debug.mgr/client {= $aclient}
 
@@ -271,6 +326,10 @@ proc ::stackato::mgr::client::confer-group {client {check 1}} {
 
     set group [cgroup get]
     debug.mgr/client {confering ($group)}
+
+    if {($group ne {}) && ($group ni [the-users-groups $client])} {
+	err "The current group \[$group\] is not known to the target."
+    }
 
     $client group $group
     # Squash client information we got without a group set.
@@ -376,6 +435,7 @@ proc ::stackato::mgr::client::notv2 {p x} {
     # when-set callback of the 'login' command's --group option
     # (cmdr.tcl).
     # Dependencies: @client (implied @target)
+    $p config @motd
     set client [$p config @client]
     if {[$client isv2]} {
 	err "This option requires a target exporting the CF v1 API"
@@ -387,6 +447,7 @@ proc ::stackato::mgr::client::notv2cmd {p} {
     debug.mgr/client {}
     # generate callback of the V2-specific commands.
     # Dependencies: @client (implied @target)
+    $p config @motd
     set client [$p config @client]
     if {[$client isv2]} {
 	err "This command requires a target exporting the CF v1 API"
@@ -396,6 +457,7 @@ proc ::stackato::mgr::client::notv2cmd {p} {
 
 proc ::stackato::mgr::client::hasdrains {p} {
     debug.mgr/client {}
+    $p config @motd
     # generate callback to commands having to
     # test if drain API is supported.
     # Dependencies: @client (implied @target)
@@ -418,13 +480,25 @@ proc ::stackato::mgr::client::chasdrains {client} {
 
 proc ::stackato::mgr::client::max-version {version p} {
     debug.mgr/client {}
-    if {[package vcompare [[$p config @client] server-version] $version] <= 0} return
+    $p config @motd
+
+    set  precision [llength [split $version .]]
+    debug.mgr/client {precision = $precision}
+    
+    set found [[$p config @client] server-version]
+    debug.mgr/client {found/* = $found}
+
+    set found [join [lrange [split $found .] 0 [incr precision -1]] .]
+    debug.mgr/client {found/[incr precision] = $found <= $version}
+
+    if {[package vcompare $found $version] <= 0} return
     err "This command requires a target with version $version or earlier."
     return
 }
 
 proc ::stackato::mgr::client::min-version {version p} {
     debug.mgr/client {}
+    $p config @motd
     if {[package vsatisfies [[$p config @client] server-version] $version]} return
     err "This command requires a target with version $version or later."
     return
@@ -432,11 +506,26 @@ proc ::stackato::mgr::client::min-version {version p} {
 
 proc ::stackato::mgr::client::is-stackato {p} {
     debug.mgr/client {}
-    return [[$p config @client] is-stackato]
+    $p config @motd
+    if {![[$p config @client] is-stackato]} {
+	err "This command requires a stackato target."
+    }
+    return
+}
+
+proc ::stackato::mgr::client::is-stackato-opt {p x} {
+    debug.mgr/client {}
+    $p config @motd
+    # when-set callback
+    if {![[$p config @client] is-stackato]} {
+	err "This option requires a stackato target."
+    }
+    return
 }
 
 proc ::stackato::mgr::client::isv2 {p x} {
     debug.mgr/client {}
+    $p config @motd
     # when-set callback of the 'login' command's options
     # --organization and --space (cmdr.tcl).
     # Dependencies: @client (implied @target)
@@ -449,6 +538,7 @@ proc ::stackato::mgr::client::isv2 {p x} {
 
 proc ::stackato::mgr::client::isv2cmd {p} {
     debug.mgr/client {}
+    $p config @motd
     # generate callback of the V2-specific commands.
     # Dependencies: @client (implied @target)
     set client [$p config @client]

@@ -63,7 +63,7 @@ test crashes-1.3 {crashes, explicit app} -setup {
     stage-close
 } -result {No crashed instances for [node-env]}
 
-# todo --target, --group, multiple dependent apps.
+TODO crashes --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

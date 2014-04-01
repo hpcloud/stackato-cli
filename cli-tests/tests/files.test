@@ -39,7 +39,7 @@ test files-1.2 {files, bogus app} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected "." or an application name for input "application", got "A"}
+} -returnCodes error -result [unexpected input application application A]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
@@ -71,12 +71,8 @@ app/ *
 droplet.log *
 etc/ *
 logs/ *
-nodejs-0.10.21.tgz *
-nodejs-0.4.7.tgz *
-npm-1.2.30.tgz *
 run.pid *
 runtime-helper.pl *
-scons-1.2.0.tgz *
 setenv.json *
 setenv.sh *
 setps1.sh *
@@ -112,8 +108,8 @@ test files-1.4 {files, explicit app} -setup {
     stage-close
 } -match glob -result [per-api $flist1 $flist2]
 
-# todo --target, --group, multiple dependent apps.
-# todo path spec.
+TODO files --target, --group, multiple dependent apps.
+TODO files - path spec.
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

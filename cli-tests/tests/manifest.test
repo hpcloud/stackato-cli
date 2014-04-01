@@ -92,7 +92,21 @@ foreach {n label theapp} {
     23 {env vars via manifest.yml, v2}       env-manifest.yml-v2
     24 {multi app, dependencies, v2}         multi-depends-on-v2
     25 {host/domain urls}                    hostdomain
+    26 {legacy worker 1, standalone}         legacy-sa
+    27 {legacy worker 2, any without p:web}  legacy-pw
+    28 {auto-scale attributes}               auto-scale
+    29 {single-sign-on flag}                 sso
+    31 {placement-zone}                      zone
+    32 {auto-scale attributes 2}             auto-scale2
 } {
+    # Related: push/update
+    # slot 28  auto-scale
+    # slot 29  single-sign-on
+    # slot 30  unsupported framework
+    # slot 31  zone spec
+    # slot 32  auto-scale, 2nd (autoscale_enabled)
+    # slot 33+ free
+    # TODO description attribute
     # - -- --- ----- -------- -------------
 
     set appdir [example $theapp]
@@ -182,8 +196,7 @@ foreach {n label theapp} {
 
 # # ## ### ##### ######## ############# #####################
 
-# TODO: examples of all possible manifest errors, and warnings
-# The current cases represent a very limited subset.
+TODO examples of all possible manifest errors, and warnings - The current cases represent a very limited subset.
 
 foreach {n label theapp expected} {
     0 {bad hook command syntax} 
@@ -201,6 +214,36 @@ foreach {n label theapp expected} {
     3 {app without name, manifest.yml}
     no-name-m-v2
     {Manifest error: Application <0> has no name}
+
+    4 {legacy worker mismatch}
+    legacy-err
+    {Manifest error: Legacy-based worker application requesting an url mapping}
+
+    5 {auto-scale instances type 1}
+    as-err-maxi-noint1
+    {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got "foo"}
+    6 {auto-scale instances type 2}
+    as-err-maxi-noint2
+    {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got ""}
+    7 {auto-scale instances range}
+    as-err-maxi-range
+    {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got "0"}
+    8  {auto-scale threshold type 1}
+    as-err-maxt-nodbl1
+    {Manifest error: Expected percentage for key "autoscale:cpu:max", got "foo"}
+    9  {auto-scale threshold type 2}
+    as-err-maxt-nodbl2
+    {Manifest error: Expected percentage for key "autoscale:cpu:max", got ""}
+    10 {auto-scale threshold range 1}
+    as-err-maxt-range1
+    {Manifest error: Expected percentage for key "autoscale:cpu:max", got "-1"}
+    11 {auto-scale threshold range 2}
+    as-err-maxt-range2
+    {Manifest error: Expected percentage for key "autoscale:cpu:max", got "101"}
+
+    12 {single-sign-on, bad type of value}
+    sso_err
+    {Manifest error: Expected boolean value for key "sso-enabled", got "notboolean"}
 } {
     set appdir [example $theapp]
 

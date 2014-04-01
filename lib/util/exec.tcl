@@ -91,9 +91,13 @@ proc ::exec::clear {} {
     debug.exec {files = ($files)}
 
     foreach p $pids {
-	catch { kill $p }
+	catch {
+	    debug.exec {[info level 0] kill $p}
+	    kill $p
+	}
     }
     set pids {}
+    debug.exec {[info level 0] DONE}
     return
 }
 

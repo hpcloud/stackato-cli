@@ -29,7 +29,7 @@ test apps-1.1 {apps, login required} -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test apps-1.2 {apps, non-admin login is ok} -constraints cfv2uaa -setup {
+test apps-1.2 {apps, non-admin login is ok} -setup {
     stage-open
     go-admin
     go-non-admin

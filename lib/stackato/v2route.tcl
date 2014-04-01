@@ -42,13 +42,13 @@ oo::class create ::stackato::v2::route {
 
     # # ## ### ##### ######## #############
 
-    classmethod list-by-host  {host {depth 0}} { my list-filter host $host $depth }
-    classmethod first-by-host {host {depth 0}} { lindex [my list-by-host $host $depth] 0 }
-    classmethod find-by-host  {host {depth 0}} { my find-by host $host $depth }
+    classmethod list-by-host  {host {depth 0} {config {}}} { my list-filter host $host $depth $config }
+    classmethod first-by-host {host {depth 0} {config {}}} { lindex [my list-by-host $host $depth $config] 0 }
+    classmethod find-by-host  {host {depth 0} {config {}}} { my find-by host $host $depth $config }
 
-    classmethod list-by-domain  {domain {depth 0}} { my list-filter domain $domain $depth }
-    classmethod first-by-domain {domain {depth 0}} { lindex [my list-by-domain $domain $depth] 0 }
-    classmethod find-by-domain  {domain {depth 0}} { my find-by domain $domain $depth }
+    classmethod list-by-domain  {domain {depth 0} {config {}}} { my list-filter domain $domain $depth $config }
+    classmethod first-by-domain {domain {depth 0} {config {}}} { lindex [my list-by-domain $domain $depth $config] 0 }
+    classmethod find-by-domain  {domain {depth 0} {config {}}} { my find-by domain $domain $depth $config }
 
     # # ## ### ##### ######## #############
 }

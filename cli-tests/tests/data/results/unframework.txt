@@ -1,2 +1,1 @@
-Error: The specified framework \[unsupported\] is not supported by the target.
-Please use 'stackato frameworks' to get the list of supported frameworks.
+Error: The specified framework \[unsupported\] is not supported by the target. Please use 'stackato frameworks' to get the list of supported frameworks.

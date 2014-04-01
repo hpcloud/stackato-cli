@@ -32,11 +32,10 @@ test limits-1.1 {limits, login required} -setup {
     run limits
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 
-test limits-1.2 {limits, non-admin login good enough} -constraints cfv2uaa -setup {
+test limits-1.2 {limits, non-admin login good enough} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
@@ -57,7 +56,7 @@ test limits-1.3 {limits, user, query} -constraints cfv1 -setup {
     run limits
 } -cleanup {
     stage-close
-} -match glob -result {Group: stackato@stackato.com
+} -match glob -result [string map [list @ [adminuser]] {Group: @
 +----------+-------+
 | Limit    | Value |
 +----------+-------+
@@ -67,7 +66,7 @@ test limits-1.3 {limits, user, query} -constraints cfv1 -setup {
 | app_uris | * |
 | drains   | * |
 | sudo     | * |
-+----------+-------+}
++----------+-------+}]
 
 test limits-1.4 {limits, user, modify} -constraints cfv1 -setup {
     stage-open
@@ -92,7 +91,7 @@ test limits-1.5 {limits, user, persist} -constraints cfv1 -setup {
 } -cleanup {
     restore-limit-defaults
     stage-close
-} -result {Group: stackato@stackato.com
+} -result [string map [list @ [adminuser]] {Group: @
 +----------+-------+
 | Limit    | Value |
 +----------+-------+
@@ -102,7 +101,7 @@ test limits-1.5 {limits, user, persist} -constraints cfv1 -setup {
 | app_uris | 7     |
 | drains   | 6     |
 | sudo     | true  |
-+----------+-------+}
++----------+-------+}]
 
 # # ## ### ##### ######## ############# #####################
 

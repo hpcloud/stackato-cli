@@ -55,7 +55,7 @@ proc ::stackato::validate::common::expected {p code type x {context {}}} {
 # # ## ### ##### ######## ############# #####################
 ## Nicer error message for the not* validation types.
 
-proc ::stackato::validate::common::not {p code type x} {
+proc ::stackato::validate::common::not {p code type x {context {}}} {
     set ptype [$p type]
 
     if {$ptype eq "option"} {
@@ -74,7 +74,7 @@ proc ::stackato::validate::common::not {p code type x} {
     }
 
     return -code error -errorcode [list CMDR VALIDATE {*}$code] \
-	"Found a problem with $ptype \"$name\": $lead$type named \"$x\" already exists. Please use a different name."
+	"Found a problem with $ptype \"$name\": $lead$type named \"$x\" already exists$context. Please use a different name."
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -129,6 +129,7 @@ proc ::stackato::validate::common::refresh-client {p} {
     client authenticated-reset
 
     debug.validate/common {/refresh}
+    $p config @motd
     set c [client authenticated]
     $p config @client set $c
 

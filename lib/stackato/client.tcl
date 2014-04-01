@@ -20,7 +20,6 @@ package require dictutil
 package require ooutil
 package require stackato::jmap
 package require struct::list
-package require ncgi
 package require debug
 package require url
 
@@ -42,6 +41,13 @@ namespace eval ::stackato {
 oo::class create ::stackato::client {
     superclass ::REST
     # # ## ### ##### ######## #############
+
+    method retarget {target} {
+	debug.client {}
+	set mytarget [url canon $target]
+	my rebase $mytarget
+	return
+    }
 
     constructor {{target_url {}} {auth_token {}}} {
 	debug.client {}
@@ -91,6 +97,8 @@ oo::class create ::stackato::client {
 	# NOTE: IN create_app's http_post the server does a redirect
 	# we must not follow. It is unclear if other commands rely on
 	# us following a redirection.  -follow-redirections 1
+
+	# We can get redirections when the chosen target is not quite right.
     }
 
     destructor {
@@ -183,7 +191,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url $stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_logs?num=$n
+	set url $stackato::const::APPS_PATH/[http::mapReply $name]/stackato_logs?num=$n
 	return [lindex [my http_get $url] 1]
     }
 
@@ -191,7 +199,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url $stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_logs?num=$n
+	set url $stackato::const::APPS_PATH/[http::mapReply $name]/stackato_logs?num=$n
 	my http_get_async $cmd $url
     }
 
@@ -217,7 +225,7 @@ oo::class create ::stackato::client {
 	    set sep &
 	}
 	if {$userOrGroup ne {}} {
-	    append url ${sep}group=[ncgi::encode $userOrGroup]
+	    append url ${sep}[http::formatQuery group $userOrGroup]
 	    set sep &
 	}
 
@@ -290,7 +298,7 @@ oo::class create ::stackato::client {
 	my check_login_status
 
 	my http_put \
-	    $stackato::const::APPS_PATH/[ncgi::encode $name] \
+	    $stackato::const::APPS_PATH/[http::mapReply $name] \
 	    [jmap manifest $manifest] \
 	    application/json
 	return
@@ -306,7 +314,7 @@ oo::class create ::stackato::client {
 
 	set resources [jmap resources $resource_manifest]
 
-	set dst $stackato::const::APPS_PATH/[ncgi::encode $name]/application
+	set dst $stackato::const::APPS_PATH/[http::mapReply $name]/application
 
 	# Without a zipfile we have to provide the relevant form
 	# fields (resources, _method) x-www-form-url-encoded.
@@ -397,27 +405,27 @@ oo::class create ::stackato::client {
     method delete_app {name} {
 	debug.client {}
 	my check_login_status
-	my http_delete $stackato::const::APPS_PATH/[ncgi::encode $name]
+	my http_delete $stackato::const::APPS_PATH/[http::mapReply $name]
 	return
     }
 
     method app_info {name} {
 	debug.client {}
 	my check_login_status
-	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]]
+	return [my json_get $stackato::const::APPS_PATH/[http::mapReply $name]]
     }
 
     method app_update_info {name} {
 	debug.client {}
 	my check_login_status
-	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]/update]
+	return [my json_get $stackato::const::APPS_PATH/[http::mapReply $name]/update]
     }
 
     method app_stats {name} {
 	debug.client {}
 	my check_login_status
 	set stats_raw [my json_get \
-			   $stackato::const::APPS_PATH/[ncgi::encode $name]/stats]
+			   $stackato::const::APPS_PATH/[http::mapReply $name]/stats]
 
 	set stats {} ;# []array
 	foreach {k entry} $stats_raw {
@@ -438,13 +446,13 @@ oo::class create ::stackato::client {
     method app_instances {name} {
 	debug.client {}
 	my check_login_status
-	return [my json_get $stackato::const::APPS_PATH/[ncgi::encode $name]/instances]
+	return [my json_get $stackato::const::APPS_PATH/[http::mapReply $name]/instances]
     }
 
     method app_crashes {name} {
 	debug.client {}
 	my check_login_status
-	return [my json_get  $stackato::const::APPS_PATH/[ncgi::encode $name]/crashes]
+	return [my json_get  $stackato::const::APPS_PATH/[http::mapReply $name]/crashes]
     }
 
     # List the directory or download the actual file indicated by the
@@ -453,7 +461,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/instances/$instance/files/[ncgi::encode $path]"
+	set url "$stackato::const::APPS_PATH/[http::mapReply $name]/instances/$instance/files/[http::mapReply $path]"
 	set url [string map {// /} $url]
 	return [lindex [my http_get $url] 1]
     }
@@ -461,11 +469,11 @@ oo::class create ::stackato::client {
     method app_run {name cmd instance {timeout {}}} {
 	debug.client {}
 	my check_login_status
-	set cmd [ncgi::encode $cmd]
+	set cmd [http::mapReply $cmd]
 	if {$timeout ne {}} {
 	    append cmd ?timeout=$timeout
 	}
-	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/instances/$instance/run/$cmd"
+	set url "$stackato::const::APPS_PATH/[http::mapReply $name]/instances/$instance/run/$cmd"
 	return [lindex [my http_get $url] 1]
     }
 
@@ -476,7 +484,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
+	set url "$stackato::const::APPS_PATH/[http::mapReply $name]/stackato_drains"
 	set url [string map {// /} $url]
 	return [my json_get $url]
     }
@@ -485,7 +493,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains"
+	set url "$stackato::const::APPS_PATH/[http::mapReply $name]/stackato_drains"
 	set url [string map {// /} $url]
 
 	set manifest [jmap drain [dict create drain $drain uri $uri json $usejson]]
@@ -498,7 +506,7 @@ oo::class create ::stackato::client {
 	debug.client {}
 	my check_login_status
 
-	set url "$stackato::const::APPS_PATH/[ncgi::encode $name]/stackato_drains/[ncgi::encode $drain]"
+	set url "$stackato::const::APPS_PATH/[http::mapReply $name]/stackato_drains/[http::mapReply $drain]"
 	set url [string map {// /} $url]
 	my http_delete $url
 	return
@@ -564,7 +572,7 @@ oo::class create ::stackato::client {
 
 	if {$name ni $names} { my ServiceError $name }
 
-	my http_delete $stackato::const::SERVICES_PATH/[ncgi::encode $name]
+	my http_delete $stackato::const::SERVICES_PATH/[http::mapReply $name]
 	return
     }
 
@@ -578,7 +586,7 @@ oo::class create ::stackato::client {
 
 	if {$name ni $names} { my ServiceError $name }
 
-	return [my json_get $stackato::const::SERVICES_PATH/[ncgi::encode $name]]
+	return [my json_get $stackato::const::SERVICES_PATH/[http::mapReply $name]]
     }
 
     method bind_service {service appname} {
@@ -666,7 +674,7 @@ oo::class create ::stackato::client {
 	}
 
 	lassign [my http_post \
-		     $stackato::const::USERS_PATH/[ncgi::encode $user]/tokens \
+		     $stackato::const::USERS_PATH/[http::mapReply $user]/tokens \
 		     [jmap map dict $uinfo] \
 		     application/json] \
 	    code data _
@@ -708,11 +716,11 @@ oo::class create ::stackato::client {
     # sets the password for the current logged user
     method change_password {new_password old_password} {
 	my check_login_status
-	set user_info [my json_get $stackato::const::USERS_PATH/[ncgi::encode $myuser]]
+	set user_info [my json_get $stackato::const::USERS_PATH/[http::mapReply $myuser]]
 	if {$user_info ne {}} {
 	    dict set user_info password $new_password
 	    my http_put \
-		$stackato::const::USERS_PATH/[ncgi::encode $myuser] \
+		$stackato::const::USERS_PATH/[http::mapReply $myuser] \
 		[jmap user1 $user_info] \
 		application/json
 	}
@@ -722,7 +730,7 @@ oo::class create ::stackato::client {
     # gets all server side information about a specific user.
     method user_info {user} {
 	my check_login_status
-	return [my json_get $stackato::const::USERS_PATH/[ncgi::encode $user]]
+	return [my json_get $stackato::const::USERS_PATH/[http::mapReply $user]]
     }
 
     method get_ssh_key {} {
@@ -745,7 +753,7 @@ oo::class create ::stackato::client {
 
     method delete_group {groupname} {
 	my check_login_status
-	my http_delete $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]
+	my http_delete $stackato::const::GROUPS_PATH/[http::mapReply $groupname]
 	return
     }
 
@@ -757,7 +765,7 @@ oo::class create ::stackato::client {
     method group_add_user {groupname email} {
 	my check_login_status
 	my http_post \
-	    $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/users \
+	    $stackato::const::GROUPS_PATH/[http::mapReply $groupname]/users \
 	    [jmap map dict \
 		 [dict create email $email]] \
 	    application/json
@@ -767,24 +775,24 @@ oo::class create ::stackato::client {
     method group_remove_user {groupname email} {
 	my check_login_status
 	my http_delete \
-	    $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/users/[ncgi::encode $email]
+	    $stackato::const::GROUPS_PATH/[http::mapReply $groupname]/users/[http::mapReply $email]
 	return
     }
 
     method group_list_users {groupname} {
 	my check_login_status
-	return [my json_get $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/users]
+	return [my json_get $stackato::const::GROUPS_PATH/[http::mapReply $groupname]/users]
     }
 
     method group_limits_get {groupname} {
 	my check_login_status
-	return [my json_get $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/limits]
+	return [my json_get $stackato::const::GROUPS_PATH/[http::mapReply $groupname]/limits]
     }
 
     method group_limits_set {groupname limits} {
 	my check_login_status
 	my http_post \
-	    $stackato::const::GROUPS_PATH/[ncgi::encode $groupname]/limits \
+	    $stackato::const::GROUPS_PATH/[http::mapReply $groupname]/limits \
 	    [jmap limits $limits] \
 	    application/json
 	return
@@ -873,7 +881,7 @@ oo::class create ::stackato::client {
 
     method delete_user {user_email} {
 	my check_login_status
-	my http_delete $stackato::const::USERS_PATH/[ncgi::encode $user_email]
+	my http_delete $stackato::const::USERS_PATH/[http::mapReply $user_email]
 	return
     }
 
@@ -883,13 +891,16 @@ oo::class create ::stackato::client {
 
     # Checks that the target is valid
     # Tri-state return
-    # 0 - Invalid target
+    # 0 - Invalid target - *May* set imported 'emvar'.
     # 1 - Target ok, save
     # 2 - Target redirects to 'newtarget'.
 
-    method target_valid? {rvar} {
+    method target_valid? {rvar emvar} {
+	upvar 1 $emvar errmessage
 	try {
 	    set descr [my info 1]
+
+	    # These do not set emvar/errmessage
 	    if {$descr eq {}}             { return 0 }
 	    if {![my HAS $descr name]}    { return 0 }
 	    if {![my HAS $descr build]}   { return 0 }
@@ -905,6 +916,8 @@ oo::class create ::stackato::client {
 	    return 2
 
 	} on error {e o} {
+	    # Lower-level issue overrides emvar/errmessage
+	    set errmessage $e
 	    #puts TV|E|$e
 	    #puts TV|O|$o
 	    #puts TV/$::errorInfo
@@ -957,7 +970,7 @@ oo::class create ::stackato::client {
 		return {*}$o $e
 	    }
 	    return -code error -errorcode {STACKATO CLIENT BAD-RESPONSE} \
-		"Can't parse response into JSON [lindex $e 1]"
+		"Can't parse response into JSON: [lindex $e 1]"
 	}
 
 	lassign $result _ response headers
@@ -1178,6 +1191,7 @@ oo::class create ::stackato::client {
 		[my HAS $parsed description]} {
 		set map {{"} {'}} ;#"
 		set desc [string map $map [dict get $parsed description]]
+		append desc " ($status)"
 		set errcode [dict get $parsed code]
                 if {$errcode == 310} {
                     # staging error is common enough that the user

@@ -29,6 +29,9 @@ oo::class create ::stackato::v2::organization {
 	my Attribute quota_definition &quota_definition
 	my Attribute billing_enabled  boolean	  
 
+	# Stackato v3.2 attribute
+	my Attribute is_default       boolean
+
 	my Many	app_events
 	my Many spaces
 	my Many domains

@@ -75,13 +75,48 @@ proc ::stackato::validate::path::rwfile::complete {p x} {
 
 proc ::stackato::validate::path::rwfile::validate {p x} {
     debug.validate/path {}
-    if {
-	[file exists   $x] &&
-	[file isfile   $x] &&
-	[file readable $x] &&
-	[file writable $x]
-    } { return $x }
-    fail $p RWFILE "an existing read/writable file" $x
+    if {[Ok $x]} { return $x }
+    fail $p RWFILE "a read/writable file" $x
+}
+
+proc ::stackato::validate::path::rwfile::Ok {path} {
+    if {![file exists $path]} {
+	# The file is allowed to not exist if its directory exists
+	# and is writable. This can apply recursively up the chain
+	# of directories.
+	return [OkDir [file dirname $path]]
+    }
+    # The path exists, and must be a read/writable file.
+    if {![file isfile   $path]} {return 0}
+    if {![file writable $path]} {return 0}
+    if {![file readable $path]} {return 0}
+    return 1
+}
+
+proc ::stackato::validate::path::rwfile::OkDir {path} {
+    if {![file exists $path]} {
+	# The directory is allowed to not exist if its parent
+	# directory exists and is writable.
+	# Note: Prevent us from walking up the chain if the directory
+	# has no parent.
+	# Note 2: Switch to absolute notation if the path is the
+	# relative name of the CWD (i.e. ".").
+	if {$path eq "."} {
+	    set path [pwd]
+	}
+	set up [file dirname $path]
+	if {$up eq $path} {
+	    # Reached root (/, x:, x:/), found it missing, stop & fail.
+	    return 0
+	}
+	return [OkDir $up]
+    }
+    # Path exists, must be read/writable directory for
+    # sub-directory/file to be createable, and usable after.
+    if {![file isdirectory $path]} {return 0}
+    if {![file writable    $path]} {return 0}
+    if {![file readable    $path]} {return 0}
+    return 1
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -110,7 +145,7 @@ proc ::stackato::validate::path::rdir::validate {p x} {
 	[file isdirectory $x] &&
 	[file readable    $x]
     } { return $x }
-    fail $p RDIR "an existing readable file" $x
+    fail $p RDIR "an existing readable directory" $x
 }
 
 # # ## ### ##### ######## ############# #####################

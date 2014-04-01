@@ -53,9 +53,20 @@ proc ::stackato::validate::routename::validate {p x} {
 
     # Note: The route list is not cached. Multiple round trips are
     # made when validating multiple routes.
-    set matches [struct::list filter [v2 route list 1] [lambda {x o} {
+
+    # Note: x, the route, is the combination of host and domain.
+    # We are not accepting just a domain without host.
+
+    # Pre-filter the routes by host (target-side) ...
+    set host [lindex [split $x .] 0]
+    set matches [v2 route list-by-host $host 1 {include-relations domain}]
+
+    # ... then filter by full name (i.e. including domain),
+    # client-side.
+    set matches [struct::list filter $matches [lambda {x o} {
 	string equal $x	[$o name]
     } $x]]
+
     if {[llength $matches] == 1} {
 	debug.validate/routename {OK/canon = $x}
 	return [lindex $matches 0]

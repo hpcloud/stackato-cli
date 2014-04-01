@@ -787,14 +787,14 @@ oo::class create ::stackato::v2::client {
 	return $response
     }
 
-    method stackato-create-user {username email password admin} {
+    method stackato-create-user {username email given family password admin} {
 	debug.v2/client {}
 
 	set payload [dict create \
 			 email       $email \
 			 username    $username \
-			 family_name $username \
-			 given_name  $username \
+			 family_name $family \
+			 given_name  $given \
 			 password    $password \
 			 admin       $admin]
 	set payload [jmap map {dict {admin nbool}} $payload]
@@ -846,10 +846,14 @@ oo::class create ::stackato::v2::client {
 	return [my UAA DELETE /Users/$uuid {}]
     }
 
-    method uaa_list_users {} {
+    method uaa_list_users {args} {
 	debug.v2/client {}
 
+	set qspec $args
 	set query {}
+	if {[llength $qspec]} {
+	    set query ?[http::formatQuery {*}$qspec]
+	}
 	set result {}
 	set start 1
 
@@ -861,7 +865,9 @@ oo::class create ::stackato::v2::client {
 	    if {[llength $result] >= [dict get $data totalResults]} break
 
 	    incr start [dict get $data itemsPerPage]
-	    set query ?[http::formatQuery startIndex $start]
+
+	    dict set qspec startIndex $start
+	    set query ?[http::formatQuery {*}$qspec]
 	}
 
 	return $result
@@ -882,8 +888,8 @@ oo::class create ::stackato::v2::client {
 	    # scope not found.
 	    err "Scope \"$gname\" not found"
 	} elseif {[llength $response] > 1} {
-	    # scope found, but multiple definitions. ambigous.
-	    err "Scope \"$gname\" found, is ambigous"
+	    # scope found, but multiple definitions. ambiguous.
+	    err "Scope \"$gname\" found, is ambiguous"
 	} else {
 	    # return the scope information.
 	    debug.v2/client {== [lindex $response 0]}
@@ -943,18 +949,26 @@ oo::class create ::stackato::v2::client {
     ## Entity Listing support
     # # ## ### ##### ######## #############
 
-    # TODO: list resources of a specified type (pagination, search, ...).
-
-    method filtered-of {type key value {depth 0}} {
+    method filtered-of {type key value {depth 0} {config {}}} {
+	# Note: filtered-of is a canned form of list-of,
+	#       hiding the syntax of the query from users.
+	#
+	# Note: For filtering on relations of an entity this
+	#       runs through the get* (pseudo-)method of
+	#       attributes (= ANget*, see v2base.tcl), which
+	#       exposes the underlying syntax.
+	#
+	# WIBNI this could be consolidated into a nicer syntax not
+	# exposing anything regardless of full list of relationship
+	# list.
 	debug.v2/client {}
 
-	set url /v2/$type
-	append url ?q=${key}:${value}
+	dict set config q ${key}:${value}
 	if {$depth > 0} {
-	    append url &inline-relations-depth=$depth
+	    dict set config inline-relations-depth $depth
 	}
-
-	return [my list-by-url $url]
+	# list-of inlined
+	return [my list-by-url /v2/$type $config]
     }
 
     method list-of {type {config {}}} {
@@ -964,29 +978,29 @@ oo::class create ::stackato::v2::client {
 
     method list-by-url {url {config {}}} {
 	debug.v2/client {}
-
 	debug.v2/memory { LOAD-L $url}
 
 	set sep ?
 	set force 0
 
-	foreach {k v} $config {
-	    # Map client names to proper cgi parameters.
-	    switch -exact -- $k {
-		depth         {
-		    set k inline-relations-depth
-		    if {$v > 0} { set force 1 }
-		}
-		user-provided {
-		    set k return_user_provided_service_instances
-		}
-		default       {
-		    # No mapping
-		}
+	# Rewrite rules...
+	foreach {src dst} {
+	    depth         inline-relations-depth
+	    user-provided return_user_provided_service_instances
+	} {
+	    if {[dict exists $config $src]} {
+		dict set   config $dst [dict get $config $src]
+		dict unset config $src
 	    }
-	    # should encode v.
-	    append url $sep $k = $v
-	    set sep &
+	}
+
+	if {[dict exists $config inline-relations-depth] &&
+	    [dict get    $config inline-relations-depth]} {
+	    set force 1
+	}
+
+	if {[dict size $config]} {
+	    append url ?[http::formatQuery {*}$config]
 	}
 
 	set result {}
@@ -1148,8 +1162,7 @@ oo::class create ::stackato::v2::client {
     method logs-async-of {cmd url n} {
 	debug.v2/client {}
 	my http_get_async $cmd $url/stackato_logs?num=$n
-	# result = dict (id -> instance), where
-	# instance = dict (k -> v)
+	# result = handle identifying the async call
     }
 
     method logs_cancel {handle} {
@@ -1198,7 +1211,7 @@ oo::class create ::stackato::v2::client {
     method files {url path {instance 0}} {
 	debug.v2/client {}
 	try {
-	    lindex [my http_get $url/instances/$instance/files/[ncgi::encode $path]] 1
+	    lindex [my http_get $url/instances/$instance/files/[http::mapReply $path]] 1
 	} trap {REST REDIRECT} {e o} {
 	    set new [lindex $e 1]
 	    debug.v2/client {==> $new}
@@ -1224,7 +1237,7 @@ oo::class create ::stackato::v2::client {
 
     method drain-delete-of {url name} {
 	debug.v2/client {}
-	append url /stackato_drains/[ncgi::encode $name]
+	append url /stackato_drains/[http::mapReply $name]
 	return [my http_delete $url]
     }
 
@@ -1262,7 +1275,7 @@ oo::class create ::stackato::v2::client {
 	    set result [my http_get $url application/json]
 	} trap {REST REDIRECT} {e o} {
 	    return -code error -errorcode {STACKATO CLIENT BAD-RESPONSE} \
-		"Can't parse response into JSON [lindex $e 1]"
+		"Can't parse response into JSON: [lindex $e 1]"
 	}
 
 	lassign $result _ response headers
@@ -1564,9 +1577,10 @@ oo::class create ::stackato::v2::client {
 		[my HAS $parsed code] &&
 		[my HAS $parsed description]} {
 
-		set map [list "\"" {'}]
-		set desc [string map $map [dict get $parsed description]]
 		set errcode [dict get $parsed code]
+		set map     [list "\"" {'}]
+		set desc    [string map $map [dict get $parsed description]]
+		append desc " ($status)"
 
 		if {$errcode == 1001} {
 		    debug.v2/client {bad request}

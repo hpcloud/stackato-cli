@@ -21,13 +21,19 @@ namespace eval ::stackato::cmd {
     namespace ensemble create
 }
 namespace eval ::stackato::cmd::misc {
-    namespace export columns home revision version
+    namespace export columns home revision version chan-config
     namespace ensemble create
 
     namespace import ::stackato::mgr::self
 }
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::misc::chan-config {chan _config} {
+    array set config [fconfigure $chan]
+    parray config
+    return
+}
 
 proc ::stackato::cmd::misc::columns {config} {
     # (cmdr::)config ignored

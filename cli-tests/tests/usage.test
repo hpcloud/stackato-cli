@@ -29,7 +29,7 @@ test usage-1.1 {usage, login required} -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test usage-1.2 {usage, non-admin login is ok} -constraints cfv2uaa -setup {
+test usage-1.2 {usage, non-admin login is ok} -setup {
     stage-open
     go-admin
     go-non-admin

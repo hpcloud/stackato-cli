@@ -76,7 +76,7 @@ proc ::stackato::validate::appname::known {client x rv} {
 	debug.validate/appname {space: $thespace [$thespace full-name]}
 
 	# find app by name in current space.
-	set matches [$thespace @apps filter-by @name $x]
+	set matches [$thespace @apps get* [list q name:$x]]
 
 	debug.validate/appname {matches = ($matches)}
 
@@ -116,7 +116,12 @@ proc ::stackato::validate::appname::validate {p x} {
     if {[known $c $x intrep]} {
 	return $intrep
     }
-    expected $p APPNAME "application" $x " in space '[[cspace get] @name]'"
+
+    if {[$c isv2]} {
+	expected $p APPNAME "application" $x " in space '[[cspace get] @name]'"
+    } else {
+	expected $p APPNAME "application" $x
+    }
 }
 
 # # ## ### ##### ######## ############# #####################

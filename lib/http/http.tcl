@@ -96,6 +96,7 @@ namespace eval http {
 #
 proc http::Log      {args} {}
 proc http::LogToken {args} {}
+proc http::LogData  {args} {}
 
 proc http::Parray {a {pattern *}} {
     upvar 1 $a array
@@ -1161,12 +1162,14 @@ proc http::Event {sock token} {
 
 	    # We have to use binary translation to count bytes properly.
 	    fconfigure $sock -translation binary
-	    Log Config/4($sock)=[fconfigure $sock -translation]
+	    Log Config/4a($sock)=[fconfigure $sock -translation]
+	    Log Config/4b($sock)=[fconfigure $sock -encoding]
 
 	    if {
 		$state(-binary) || ![string match -nocase text* $state(type)]
 	    } then {
 		# Turn off conversions for non-text data
+		Log "Force binary due (-binary=$state(-binary) || !match text* $state(type))"
 		set state(binary) 1
 	    }
 	    if {
@@ -1244,6 +1247,8 @@ proc http::Event {sock token} {
     } else {
 	# Now reading body
 	Log reading/body
+	Log Config/9a($sock)=[fconfigure $sock -translation]
+	Log Config/9b($sock)=[fconfigure $sock -encoding]
 
 	if {[catch {
 	    if {[info exists state(-handler)]} {
@@ -1291,8 +1296,10 @@ proc http::Event {sock token} {
 		Log "read non-chunk $state(currentsize) of $state(totalsize)"
 		set block [read $sock $state(-blocksize)]
 		set n [string length $block]
+		Log "Got $n"
 		if {$n >= 0} {
 		    append state(body) $block
+		    LogData $block
 		}
 	    }
 	    if {[info exists state]} {
@@ -1304,7 +1311,7 @@ proc http::Event {sock token} {
 		    ($state(totalsize) > 0)
 		    && ($state(currentsize) >= $state(totalsize))
 		} then {
-		    Log "Got $state(currentsize) >= $state(totalsize)"
+		    Log "Received total $state(currentsize) >= $state(totalsize), done reading"
 		    Eof $token
 		}
 	    }

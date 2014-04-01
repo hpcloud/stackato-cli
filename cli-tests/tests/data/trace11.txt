@@ -1,0 +1,19 @@
+Request@ X00000001 ::oo::Obj* ::REST
+Request  X00000001 GET, application/json: https://api.stackato-nightly.activestate.com/info
+Request  X00000001 Header X-VCAP-Trace = (22)
+Request  X00000001 Time *
+Response X00000001 Time *: * milliseconds
+Response X00000001 Code:    HTTP/1.1 200 OK
+Response X00000001 Code':   200
+Response X00000001 Status:  ok
+Response X00000001 Error:   
+Response X00000001 Binary:  1
+Response X00000001 Headers: content-type           = (application/json;charset=utf-8)
+Response X00000001 Headers: x-vcap-request-id      = (*)
+Response X00000001 Headers: content-length         = (*)
+Response X00000001 Headers: x-content-type-options = (nosniff)
+Response X00000001 Headers: connection             = (close)
+Response X00000001 Headers: server                 = (*)
+Response X00000001 Headers: date                   = (**)
+Response X00000001 Body:    {*}
+Request@ X00000001 Done return

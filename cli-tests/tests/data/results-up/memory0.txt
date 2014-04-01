@@ -9,4 +9,4 @@
   Uploading (1K) ...  OK
 Push Status: OK
 Note that \[node-env\] was not automatically started because it was STOPPED before the update.
-You can start it manually using `stackato start node-env`
+You can start it manually using 'stackato start node-env'

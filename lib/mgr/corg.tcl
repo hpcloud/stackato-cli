@@ -49,7 +49,16 @@ debug prefix mgr/corg {[debug caller] | }
 ## API
 
 proc ::stackato::mgr::corg::setc {p obj} { set $obj }
-proc ::stackato::mgr::corg::getc {p}     { get      }
+proc ::stackato::mgr::corg::getc {p} {
+    # A v1 target cannot have orgs, and any information we may have in
+    # the cli state files for it is wrong. Ignore it, don't even
+    # try. And to be sure, squash any bad information.
+    if {[$p config has @client] && ![[$p config @client] isv2]} {
+	tadjunct remove [ctarget get] organization
+	return {}
+    }
+    get
+}
 
 proc ::stackato::mgr::corg::set {obj} {
     debug.mgr/corg {}

@@ -37,6 +37,13 @@ oo::class create ::REST {
 	# mymap     - mapping from request handle to token
 	# mycookie  - Visible request counter for the tracing.
 
+	method rebase {base} {
+		debug.rest {}
+		set mybase $base
+		my LogWADL $base
+		return
+	}
+
 	constructor {baseURL args} {
 		debug.rest {}
 		set mybase $baseURL
@@ -118,7 +125,7 @@ oo::class create ::REST {
 		set where $location
 		my LogWADL $where
 
-		set response [http::data  $tok]
+		set response [my Data     $tok]
 		set code     [http::ncode $tok]
 		set hdrs     [http::meta  $tok]
 
@@ -184,6 +191,7 @@ oo::class create ::REST {
 			set mymap($handle) $tok
 		} e o]} {
 			my Done $cookie return [list {*}$o $e]
+			set handle {}
 		}
 
 		debug.rest {==> $handle}
@@ -193,7 +201,7 @@ oo::class create ::REST {
 	method AsyncDone {handle method url max trials cmd cookie request tok} {
 		debug.rest {}
 		# Async request has completed.
-		my Set $tok x:rest:done  [clock clicks -milliseconds]
+		my StateSet $tok x:rest:done  [clock clicks -milliseconds]
 		::http::Log {REST DONE ok}
 
 		if {[http::status $tok] eq "reset"} {
@@ -408,12 +416,15 @@ oo::class create ::REST {
 
 			set tok [http::geturl $url {*}$request]
 
-			my Set $tok x:rest:start $reqstart
+			my StateSet $tok x:rest:start $reqstart
 
 			debug.rest {http::geturl ... $tok}
+			debug.rest {http::geturl ... binary=[my StateGet $tok binary]}
 
 		} e o]} {
 			::http::Log {REST DONE err}
+
+			debug.rest {get error = ($e)}
 
 			if {[string match *handshake* $e]} {
 				set host [join [lrange [split $url /] 0 2] /]
@@ -500,29 +511,8 @@ oo::class create ::REST {
 		upvar 1 handle handle tok tok cmd cmd
 
 		set code [http::ncode $tok]
-		set data [http::data  $tok]
 		set hdrs [http::meta  $tok]
-
-		debug.rest {binary = [my Get $tok binary]}
-
-		if {
-			![my Get $tok binary] &&
-			[dict exists $hdrs content-type] &&
-			[regexp -- {charset=(.*)$} [dict get $hdrs content-type] --> coding]
-		} {
-			switch -- $coding {
-				utf-8 {
-					debug.rest {Recode to $coding = [string length $data]}
-
-					set data [encoding convertfrom utf-8 $data]
-
-					debug.rest {Recoded as $coding = [string length $data]}
-				}
-				default {
-					my Raise $cookie "Unknown encoding $coding" REST ENCODING UNKNOWN $coding
-				}
-			}
-		}
+		set data [my Data $tok]
 
 		my Done $cookie return [list -code ok [list $code $data $hdrs]]
 		return
@@ -540,6 +530,47 @@ oo::class create ::REST {
 		return
 	}
 
+	method Data {tok} {
+		upvar 1 handle handle cmd cmd
+
+		set hdrs [http::meta  $tok]
+		set data [http::data  $tok]
+
+		debug.rest {binary       = [my StateGet $tok binary]}
+		debug.rest {content-type = [my StateGet $tok type]}
+		debug.rest {charset      = [my StateGet $tok charset]}
+
+		# ATTENTION. Responses of type "application/json" have to be
+		# recoded as per their charset. I.e. they are text data,
+		# despite the http package thinking them to be binary.
+		#
+		# NOTE: We do not use the "charset" element in the token as
+		# the charset to code into. The default this element may
+		# contain (== ::http::defaultCharset) is wrong. The a/j
+		# default is utf-8.
+		#
+		# Therefore to get this right we have to look for the charset
+		# in the "type" element by ourselves and use our own default
+		# if we did not find anything there.
+
+		if {[string match application/json* [my StateGet $tok type]]} {
+			# default charset for a/j is utf-8, or whatever is specified by the type.
+			if {![regexp -- {charset=(.*)$} [my StateGet $tok type] --> enc]} {
+				set enc utf-8
+			}
+
+			debug.rest {Recode  to HTTP $enc}
+			set enc [http::CharsetToEncoding $enc]
+			debug.rest {Recode  to Tcl  $enc : [string length $data]}
+
+			set data [encoding convertfrom $enc $data]
+			debug.rest {Recoded to Tcl  $enc : [string length $data]}
+		}
+
+		debug.rest {Return [string length $data]}
+		return $data
+	}
+
 	# ## #### ######## ################
 
 	method New {} {
@@ -550,13 +581,13 @@ oo::class create ::REST {
 		return X[format %08d [incr mycookie]]
 	}
 
-	method Set {tok var val} {
+	method StateSet {tok var val} {
 		upvar #0 $tok state
 		set state($var) $val
 		return
 	}
 
-	method Get {tok var} {
+	method StateGet {tok var} {
 		upvar #0 $tok state
 		return $state($var)
 	}
@@ -605,24 +636,28 @@ oo::class create ::REST {
 	}
 
 	method ShowResponse {tok cookie} {
+		# For use by 'my Raise' within 'my Data'.
+		upvar 1 handle handle cmd cmd
+
 		if {!$myoptions(-trace)} {
 			return $tok
 		}
 
 		set fd $myoptions(-trace-fd)
 
-		set start [my Get $tok x:rest:start]
-		set done  [my Get $tok x:rest:done]
+		set start [my StateGet $tok x:rest:start]
+		set done  [my StateGet $tok x:rest:done]
 
 		puts $fd "Response $cookie Time [clock format [clock seconds]]: [expr {$done - $start}] milliseconds"
 		puts $fd "Response $cookie Code:    [http::code   $tok]"
 		puts $fd "Response $cookie Code':   [http::ncode  $tok]"
 		puts $fd "Response $cookie Status:  [http::status $tok]"
 		puts $fd "Response $cookie Error:   [http::error  $tok]"
+		puts $fd "Response $cookie Binary:  [my StateGet $tok binary]"
 
 		my ShowDict $fd "Response $cookie Headers:" [http::meta $tok]
 
-		puts  $fd "Response $cookie Body:    [http::data   $tok]"
+		puts  $fd "Response $cookie Body:    [my Data $tok]"
 		flush $fd
 		return $tok
 	}

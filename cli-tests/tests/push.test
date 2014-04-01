@@ -28,8 +28,8 @@ test push-1.1.1 {push, empty application} -constraints cfv1 -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: The framework [standalone] needs a non-empty start command.
-Please add a "command" key to your stackato.yml}
+} -returnCodes error -result \
+    {Error: The framework [standalone] needs a non-empty start command. Please add a "command" key to your stackato.yml}
 
 test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
     stage-open
@@ -37,17 +37,19 @@ test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
 } -body {
     indir [appdir] { run push -n }
 } -cleanup {
+    # Failed to stage still means that the app was created.
+    catch { remove-test-app appdir }
     remove-appdir
     stage-close
 } -returnCodes error -result {Error: Application failed to stage}
 
 # # ## ### ##### ######## ############# #####################
 
-# todo: --no-create, --target, --token, --group, --tail
-# todo: --manifest, --path, --no-start, --instances
-# todo: --runtime, --url, --no-framework, --mem, -d
-# todo: --stackato-debug, --env, --copy-unsafe-links,
-# todo: --no-resources
+TODO push --no-create, --target, --token, --group, --tail
+TODO push --manifest, --path, --no-start, --instances
+TODO push --runtime, --url, --no-framework, --mem, -d
+TODO push --stackato-debug, --env, --copy-unsafe-links,
+TODO push --no-resources
 
 foreach {n cons excode label theapp} {
      0 {}   ok    plain                                 a.original.node-env
@@ -63,8 +65,8 @@ foreach {n cons excode label theapp} {
     10 {}   error {min server version check fail}       minserver-bad
     11 {}   ok    {min server version check ok}         minserver-ok
     12 {}   ok    {install required packages}           requirements
-    13 {}   ok    {install package already present}     requirements-already
-    14 knownBug   error {install unknown package}             requirements-bad
+    13 knownBug   ok    {install package already present}     requirements-already
+    14 {}   error {install unknown package}             requirements-bad
     15 {}   ok    {url mapping}                         urls
     23 {}   ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
     25 {}   ok    {host/domain urls}                    hostdomain
@@ -141,7 +143,8 @@ foreach {n excode label theapp} {
     } -returnCodes $excode -match glob -result $expected
 }
 
-# todo: examples of all possible manifest errors.
+TODO push - examples of all possible manifest errors.
+
 foreach {n label theapp expected} {
     0 {bad hook command syntax} hooks-syntax {Manifest validation error: Expected a yaml scalar for element of sequence key "hooks:pre-running", got a mapping}
 } {
@@ -175,9 +178,27 @@ test push-4.0-bug99298 "push, plain with --url mapping, bug 99298" -setup {
 			   node-env.@BASE@ e1.[thebase] \
 			   @BASE@          [thebase]]
 
-# todo services		+ services (Note: Delete services with app! -n --force)
-# todo ignores-empty		+ ignores (empty list, nothing ignored)
-# todo ignores-other		+ ignores (.git/, *LOG)
+test push-4.1-bug103446 "push, shared services between multiple apps, bug 103446" -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example shared-multi] {
+	run push -n --no-start
+    }
+} -cleanup {
+    catch { remove-test-app node-env   }
+    catch { remove-test-app node-env-2 }
+    run delete-service -n shared
+    stage-close
+} -match glob -result [map [result shared-multi] \
+			   @BASE@  [thebase] \
+			   @ORG@   [theorg] \
+			   @SPACE@ [thespace]]
+
+
+TODO push with - services + services (Note: Delete services with app! -n --force)
+TODO push with - ignores-empty + ignores (empty list, nothing ignored)
+TODO push with - ignores-other + ignores (.git/, *LOG)
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

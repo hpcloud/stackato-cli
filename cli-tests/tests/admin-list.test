@@ -27,8 +27,7 @@ test admin-list-1.1 {admin-list, login required} -setup {
     run admin list
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test admin-list-1.2.1 {admin list, admin login required} -constraints cfv1 -setup {
     stage-open

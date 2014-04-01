@@ -45,20 +45,10 @@ test app-1.2 {app, auto-select app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result {Using manifest file "stackato.yml"
-*node-env
-+--------------+-*-+
-| Key          | Value *|
-+--------------+-*-+
-| State        | STOPPED *|
-| Uris         | node-env.* |
-| Health       | STOPPED *|
-| Instances    | 1 *|
-| Memory       | 256.0M *|
-| Disk Quota   | 2.0G *|
-| Services     | * |
-| Environment: | * |
-+--------------+-*-+}
+} -match glob -result \
+    [per-api \
+	 [viewFile data/app12-cfv1.txt] \
+	 [viewFile data/app12-cfv2.txt]]
 
 test app-1.3 {app, explicit app} -setup {
     stage-open
@@ -72,19 +62,10 @@ test app-1.3 {app, explicit app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result {*node-env
-+--------------+-*-+
-| Key          | Value *|
-+--------------+-*-+
-| State        | STARTED *|
-| Uris         | node-env.* |
-| Health       | RUNNING *|
-| Instances    | 1 *|
-| Memory       | 256.0M*|
-| Disk Quota   | 2.0G *|
-| Services     | * |
-| Environment: | * |
-+--------------+-*-+}
+} -match glob -result \
+    [per-api \
+	 [viewFile data/app13-cfv1.txt] \
+	 [viewFile data/app13-cfv2.txt]]
 
 test app-1.4.1 {app, json} -constraints cfv1 -setup {
     stage-open
@@ -98,34 +79,9 @@ test app-1.4.1 {app, json} -constraints cfv1 -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result {{
-    "env"              : \[\],*
-    "instances"        : "1",
-    "meta"             : {
-        "console" : "null",
-        "created" : "*",
-        "debug"   : "null",
-        "version" : "*"
-    },
-    "name"             : "node-env",
-    "resources"        : {
-        "disk"   : "*",
-        "fds"    : "*",
-        "memory" : "*",
-        "sudo"   : "*"
-    },
-    "runningInstances" : "1",
-    "services"         : \[\],
-    "staging"          : {
-        "model" : "*",
-        "stack" : "*"
-    },
-    "state"            : "STARTED",
-    "uris"             : \["node-env.*"\],
-    "version"          : "*"
-}}
+} -match glob -result [viewFile data/app141.txt]
 
-test app-1.4.2 {app, json} -constraints cfv2 -setup {
+test app-1.4.2.0 {app, json} -constraints s30le -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -137,43 +93,21 @@ test app-1.4.2 {app, json} -constraints cfv2 -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result {{
-    "entity"   : {
-        "buildpack"            : null,
-        "command"              : "node app.js",
-        "console"              : *,
-        "debug"                : null,
-        "detected_buildpack"   : "Node.js",
-        "disk_quota"           : *,
-        "environment_json"     : {},
-        "events"               : \[\],
-        "events_url"           : "/v2/apps/*/events",
-        "guid"                 : "*",
-        "instances"            : 1,
-        "memory"               : *,
-        "name"                 : "node-env",
-        "production"           : *,
-        "routes"               : \[*\],
-        "routes_url"           : "/v2/apps/*/routes",
-        "service_bindings"     : \[\],
-        "service_bindings_url" : "/v2/apps/*/service_bindings",
-        "space"                : *,
-        "space_guid"           : "*",
-        "space_url"            : "/v2/spaces/*",
-        "stack"                : *,
-        "stack_guid"           : "*",
-        "stack_url"            : "/v2/stacks/*",
-        "staging_task_id"      : "*",
-        "state"                : "STARTED",
-        "version"              : "*"
-    },
-    "metadata" : {
-        "created_at" : "*",
-        "guid"       : "*",
-        "updated_at" : *,
-        "url"        : "/v2/apps/*"
-    }
-}}
+} -match glob -result [viewFile data/app1420.txt]
+
+test app-1.4.2.1 {app, json} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+    after 40000 ; # wait some for push to settle
+} -body {
+    indir $appdir { run app -n --json }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/app1421.txt]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -84,9 +84,9 @@ test alias-set-1.4 {alias mgr, make alias, persistence} -setup {
 | A     | B       |
 +-------+---------+}
 
-# todo: circular direct   A --> A
-# todo: circular indirect A --> B --> A
-# todo: overwrite existing command.
+TODO alias - circular direct   A --> A
+TODO alias - circular indirect A --> B --> A
+TODO alias - overwrite existing command.
 
 # # ## ### ##### ######## ############# #####################
 

@@ -1,0 +1,81 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## health
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test health-1.0 {health, undeployed application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example a.original.node-env] {
+	run health -n
+    }
+} -cleanup {
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application node-env] \
+	 [unexpected input application application node-env " in space '[thespace]'"]]
+
+test health-1.1 {health, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    run health -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result [no-application health]
+
+test health-1.2 {health, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run health }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result [no-application health]
+
+# # ## ### ##### ######## ############# #####################
+
+test health-1.3 {health, auto-select app} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+    after 40000 ; # wait some for push to settle
+} -body {
+    indir $appdir { run health }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/health.txt]
+
+test health-1.4 {health, explicit app} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+    after 40000 ; # wait some for push to settle
+} -body {
+    run health node-env
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/health.txt]
+
+TODO health --target, --group, multiple apps, --all
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

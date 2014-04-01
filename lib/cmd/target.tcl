@@ -100,13 +100,15 @@ proc ::stackato::cmd::target::list {config} {
 
 proc ::stackato::cmd::target::getorset {config} {
     # (cmdr::)config -- (--json), (--allow-http), (url)
-    debug.cmd/target {getorset}
+    debug.cmd/target {}
 
     if {[$config @url set?]} {
 	Set $config
     } else {
 	Show $config
     }
+
+    debug.cmd/target {/done}
     return
 }
 
@@ -127,7 +129,8 @@ proc ::stackato::cmd::target::Set {config} {
     # committed our argument to that yet.
 
     set client [client restlog [stackato::client new $target]]
-    set valid  [$client target_valid? newtarget]
+    set emessage "Host is not valid: '$target'"
+    set valid  [$client target_valid? newtarget emessage]
     # valid in
     # 0 - Invalid target
     # 1 - Target ok, save
@@ -136,7 +139,7 @@ proc ::stackato::cmd::target::Set {config} {
     switch -exact -- $valid {
 	0 {
 	    # Fail. Report.
-	    puts [color red "Host is not valid: '$target'"]
+	    puts [color red $emessage]
 
 	    if {![regexp {^https?://api\.} $target]} {
 		set guess [GuessUrl $target]
@@ -179,8 +182,18 @@ proc ::stackato::cmd::target::Show {config} {
 
     debug.cmd/target {target = $target}
 
-    if {[$config @json]} {
+    try {
+	set client [client plain]
+    } trap {STACKATO CLIENT BADTARGET} {e o} {
+	if {![$config @json]} {
+	    set e [string map [::list "'$target' " {}] $e]
+	    display "\n\[$target\] ([color red "Note: $e"])"
+	    return
+	}
+	set client {}
+    }
 
+    if {[$config @json]} {
 	dict set D target       $target
 	dict set D organization {}
 	dict set D space        {}
@@ -213,15 +226,12 @@ proc ::stackato::cmd::target::Show {config} {
 	    dict set D organization error {not defined}
 	}
 
-	puts [jmap target $D]
-	return
-    }
+	if {($client ne {}) && ![$client isv2]} {
+	    dict unset D space
+	    dict unset D organization
+	}
 
-    try {
-	set client [client plain]
-    } trap {STACKATO CLIENT BADTARGET} {e o} {
-	set e [string map [::list "'$target' " {}] $e]
-	display "\n\[$target\] ([color red "Note: $e"])"
+	puts [jmap target $D]
 	return
     }
 
@@ -281,25 +291,7 @@ proc ::stackato::cmd::target::Switch {config} {
 	    # Org defined, but no space. Auto-select space.
 	    set org [orgname validate [$config @organization self] [$config @organization]]
 
-	    display "Switching to organization [$org @name] ... " false
-	    corg set $org
-	    corg save
-	    display [color green OK]
-
-	    # Make the user choose a space if none is defined.
-	    # (or auto-choose if only one space possible).
-	    set thespace [cspace get-auto [$config @space self]]
-
-	    # The remembered space does not belong to the newly chosen
-	    # org. Make the user choose a new space (or auto-choose,
-	    # see above).
-	    if {![$thespace @organization == $org]} {
-		# Flush, fully (i.e. down to the persistent state).
-		cspace reset
-		cspace save
-		# ... and ask for new.
-		cspace get-auto [$config @space self]
-	    }
+	    context 2org $config $org
 	}
 	yes/yes - 1/1 {
 	    # Both defined. Set both, properly validated.

@@ -1,0 +1,43 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## user management - list users
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test help-1.0 {help, general categorized} -setup {
+    stage-open
+} -body {
+    run help --width 79
+} -cleanup {
+    stage-close
+} -result [viewFile data/h-categorized.txt]
+
+test help-1.1 {help, toplevel list} -setup {
+    stage-open
+} -body {
+    run help --width 79 --list
+    # Note: The 'run' command trims the output at the beginning,
+    # removing the indentation of the first line. The expected result
+    # is modified to match this.
+} -cleanup {
+    stage-close
+} -result [viewFile data/h-list.txt]
+
+test help-1.2 {help, toplevel list with descriptions} -setup {
+    stage-open
+} -body {
+    run help --width 79 --short
+} -cleanup {
+    stage-close
+} -result [viewFile data/h-short.txt]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

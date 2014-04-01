@@ -1,0 +1,89 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client version
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test delete-service-auth-token-1.0 {client delete-service-auth-token, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run delete-service-auth-token -n L X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test delete-service-auth-token-1.1 {client delete-service-auth-token, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-service-auth-token -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test delete-service-auth-token-1.2 {client delete-service-auth-token, CFv2 target required} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-service-auth-token -n L
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test delete-service-auth-token-1.3 {client delete-service-auth-token, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run delete-service-auth-token -n L
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test delete-service-auth-token-1.4 {client delete-service-auth-token, admin login required, not seeing tokens} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-service-auth-token -n L P --auth-token T
+    go-non-admin
+} -body {
+    run delete-service-auth-token -n L
+} -cleanup {
+    go-admin
+    run delete-service-auth-token -n L
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [unexpected input label {service auth token} L]
+
+test delete-service-auth-token-1.5 {client delete-service-auth-token} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-service-auth-token -n [theorg]-token P --auth-token T
+} -body {
+    run delete-service-auth-token -n [theorg]-token
+} -cleanup {
+    stage-close
+} -result "Deleting token \[[theorg]-token\] ... OK"
+
+test delete-service-auth-token-1.6 {client delete-service-auth-token, unknown label} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-service-auth-token -n [theorg]-token
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input label {service auth token} [theorg]-token]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

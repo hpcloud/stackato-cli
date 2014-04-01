@@ -37,6 +37,7 @@ cmdr/validate
 cmdr/validate/common
 config
 exec
+log
 mgr/alias
 mgr/app
 mgr/auth
@@ -122,6 +123,7 @@ validate/servicetype
 validate/spacename
 validate/spaceuuid
 validate/target
+validate/ulmode
 validate/username
 validate/vappname
 validate/zonename

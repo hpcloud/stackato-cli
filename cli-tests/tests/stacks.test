@@ -27,8 +27,7 @@ test stacks-1.1 {stacks, login required} -setup {
     run stacks
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test stacks-1.3.1 {stacks} -constraints cfv2 -setup {
     stage-open

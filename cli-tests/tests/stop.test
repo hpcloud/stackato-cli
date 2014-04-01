@@ -60,7 +60,7 @@ test stop-1.3 {stop, explicit app} -setup {
     stage-close
 } -match glob -result *
 
-# todo --target, --group, multiple dependent apps.
+TODO stop --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

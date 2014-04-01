@@ -227,7 +227,67 @@ proc ::stackato::mgr::manifest::zone= {name} {
     debug.mgr/manifest/core {}
     variable outmanifest
     InitializeOutManifest
-    yaml dict set outmanifest zone [Cscalar $name]
+    yaml dict set outmanifest placement-zone [Cscalar $name]
+    return
+}
+
+proc ::stackato::mgr::manifest::minInstances= {x} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest autoscale instances min [Cscalar $x]
+    return
+}
+
+proc ::stackato::mgr::manifest::maxInstances= {x} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest autoscale instances max [Cscalar $x]
+    return
+}
+
+proc ::stackato::mgr::manifest::minCpuThreshold= {x} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest autoscale cpu min [Cscalar $x]
+    return
+}
+
+proc ::stackato::mgr::manifest::maxCpuThreshold= {x} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest autoscale cpu max [Cscalar $x]
+    return
+}
+
+proc ::stackato::mgr::manifest::description= {text} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest description [Cscalar $text]
+    return
+}
+
+proc ::stackato::mgr::manifest::autoscaling= {enabled} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    # Note: Converting whatever Tcl representation is used to a proper yaml boolean.
+    set enabled [expr {$enabled ? "yes" : "no"}]
+    yaml dict set outmanifest autoscale enabled [Cscalar $enabled]
+    return
+}
+
+proc ::stackato::mgr::manifest::ssoenabled= {enabled} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    # Note: Converting whatever Tcl representation is used to a proper yaml boolean.
+    set enabled [expr {$enabled ? "yes" : "no"}]
+    yaml dict set outmanifest sso-enabled [Cscalar $enabled]
     return
 }
 
@@ -431,8 +491,8 @@ proc ::stackato::mgr::manifest::instances {} {
     InitCurrent
 
     variable currentappinfo
-    if {![info exists currentappinfo]} { return 1 }
-    return [yaml dict get' $currentappinfo instances 1]
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo instances {}]
 }
 
 proc ::stackato::mgr::manifest::zone {} {
@@ -441,7 +501,70 @@ proc ::stackato::mgr::manifest::zone {} {
 
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
-    return [yaml dict get' $currentappinfo zone {}]
+    return [yaml dict get' $currentappinfo stackato placement-zone {}]
+}
+
+proc ::stackato::mgr::manifest::minInstances {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato autoscale instances min {}]
+}
+
+proc ::stackato::mgr::manifest::maxInstances {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato autoscale instances max {}]
+}
+
+proc ::stackato::mgr::manifest::minCpuThreshold {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato autoscale cpu min {}]
+}
+
+proc ::stackato::mgr::manifest::maxCpuThreshold {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato autoscale cpu max {}]
+}
+
+proc ::stackato::mgr::manifest::description {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato description {}]
+}
+
+proc ::stackato::mgr::manifest::autoscaling {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato autoscale enabled {}]
+}
+
+proc ::stackato::mgr::manifest::ssoenabled {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato sso-enabled {}]
 }
 
 proc ::stackato::mgr::manifest::runtime {} {
@@ -471,7 +594,9 @@ proc ::stackato::mgr::manifest::buildpack {} {
 
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
-    return [yaml dict get' $currentappinfo buildpack {}]
+    set bp [yaml dict get' $currentappinfo buildpack {}]
+    if {$bp eq "null"} { set bp {} }
+    return $bp
 }
 
 proc ::stackato::mgr::manifest::stack {} {
@@ -481,9 +606,7 @@ proc ::stackato::mgr::manifest::stack {} {
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
     set stack [yaml dict get' $currentappinfo stack {}]
-    if {$stack ne {}} {
-	set stack [stackname validate $stack]
-    }
+    if {$stack eq "null"} { set stack {} }
     return $stack
 }
 
@@ -1846,7 +1969,17 @@ proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
     if {!$nd} {
 	Error "space-base requires a domain mapped into the current space, no such found"
     } elseif {$nd > 1} {
-	Error "space-base is ambigous, found multiple domains mapped into the space."
+	set msg "space-base is ambiguous, found multiple domains mapped into the space."
+	if {[cmdr interactive?]} {
+	    foreach d $thedomains {
+		dict set map [$d @name] $d
+	    }
+	    set symvalue [term ask/menu [color yellow $msg] \
+			      "Which domain do you wish to use? " \
+			      [dict keys $map]]
+	} else {
+	    Error $msg
+	}
     } else {
 	set symvalue [[lindex $thedomains 0] @name]
     }
@@ -2125,7 +2258,7 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 	name instances mem memory disk framework services processes
 	min_version env ignores hooks cron requirements drain subdomain
 	command app-dir url urls depends-on buildpack stack host domain
-	zone
+	placement-zone description autoscale sso-enabled
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2191,7 +2324,7 @@ proc ::stackato::mgr::manifest::TransformASStackato {yml} {
     set value [T_Urls $value]
 
     # move into stackato sub-map
-    # - requirements processes min_version env drain ignores hooks cron
+    # - requirements processes min_version env drain ignores hooks cron scaling
     set value [TS_Isolate $value]
 
     # Normalize old/new style of env'ironment data.
@@ -2350,7 +2483,8 @@ proc ::stackato::mgr::manifest::TS_Isolate {value} {
 
     foreach k {
 	processes min_version env ignores hooks cron
-	requirements drain
+	requirements drain placement-zone description
+	sso-enabled autoscale
     } {
 	if {![dict exists $value $k]} continue
 
@@ -2930,15 +3064,14 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 
     foreach {path appspec} $applications {
 	yaml validate-glob $appspec application -- akey avalue {
-	    name      -
-	    instances -
-	    memory    -
-	    disk      -
-	    runtime   -
-	    path      -
-	    buildpack -
-	    stack     -
-	    zone      -
+	    name        -
+	    instances   -
+	    memory      -
+	    disk        -
+	    runtime     -
+	    path        -
+	    buildpack   -
+	    stack       -
 	    command   {
 		yaml tag! scalar $avalue "key \"$akey\""
 	    }
@@ -2982,6 +3115,32 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 	    }
 	    stackato {
 		yaml validate-glob $avalue stackato -- skey svalue {
+		    description    -
+		    placement-zone {
+			yaml tag! scalar $svalue "key \"$skey\""
+		    }
+		    sso-enabled {
+			ValidateBoolean $svalue "key \"$skey\""
+		    }
+		    autoscale {
+			yaml validate-glob $svalue $skey -- askey asvalue {
+			    enabled {
+				ValidateBoolean $asvalue "key \"$askey\""
+			    }
+			    instances {
+				yaml validate-glob $asvalue $askey -- ikey ivalue {
+				    min -
+				    max { ValidateInt1 $ivalue "key \"${skey}:${askey}:$ikey\"" }
+				}
+			    }
+			    cpu {
+				yaml validate-glob $asvalue $askey -- ckey cvalue {
+				    min -
+				    max {  ValidatePercent $cvalue "key \"${skey}:${askey}:$ckey\"" }
+				}
+			    }
+			}
+		    }
 		    min_version {
 			yaml validate-glob $svalue min_version -- key value {
 			    server {
@@ -3169,6 +3328,25 @@ proc ::stackato::mgr::manifest::ValidateBoolean {value key} {
     set value [yaml tag! scalar $value $key]
     if {$value ni {y Y yes Yes YES n N no No NO true True TRUE false False FALSE on On ON off Off OFF}} {
 	Error "Expected boolean value for $key, got \"$value\"" TAG
+    }
+    return
+}
+
+proc ::stackato::mgr::manifest::ValidateInt1 {value key} {
+    set value [yaml tag! scalar $value $key]
+    if {![string is integer -strict $value] ||
+	($value < 1)} {
+	Error "Expected integer value >= 1 for $key, got \"$value\"" TAG
+    }
+    return
+}
+
+proc ::stackato::mgr::manifest::ValidatePercent {value key} {
+    set value [yaml tag! scalar $value $key]
+    if {![string is double -strict $value] ||
+	($value < 0) ||
+	($value > 100)} {
+	Error "Expected percentage for $key, got \"$value\"" TAG
     }
     return
 }

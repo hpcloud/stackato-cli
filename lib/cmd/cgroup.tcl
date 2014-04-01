@@ -77,7 +77,7 @@ proc ::stackato::cmd::cgroup::set-core {client name} {
     set groups [client the-users-groups $client]
 
     if {$name ni $groups} {
-	append msg  "You are not a member of group '$name'\n"
+	append msg  "You are not a member of group '$name'.\n"
 	append msg  "Groups available to you:\n\t[join $groups \n\t]"
 	err $msg
     }

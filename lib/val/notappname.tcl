@@ -76,11 +76,11 @@ proc ::stackato::validate::notappname::validate {p x} {
 	}
 
 	# find app by name in current space.
-	set matches [$thespace @apps filter-by @name $x]
+	set matches [$thespace @apps get* [list q name:$x]]
 	# NOTE: searchable-on in v2/space should help
 	# (in v2/org using it) to filter server side.
 
-	if {![llength $matches] == 1} {
+	if {![llength $matches]} {
 	    # Not found, good.
 	    if {![appname-lex ok $p $x]} {
 		debug.validate/notappname {FAIL}

@@ -43,8 +43,7 @@ test groups-add-user-1.3 {groups add-user, login required} -setup {
     run groups add-user test-group grouper@test
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test groups-add-user-1.4 {groups add-user, admin login required} -constraints cfv1 -setup {
     stage-open
@@ -107,6 +106,14 @@ test groups-add-user-1.8 {groups add-user, persistence} -constraints cfv1 -setup
     stage-close
 } -match glob -result "+-*-+\n| Member *|\n+-*-+\n| grouper@test *|\n+-*-+"
 
-## TODO: Proper error against CFV2 target.
+test groups-add-user-2.0 {groups add-user, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -25,7 +25,8 @@ namespace eval ::stackato::validate::http-operation {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail
+    #namespace import ::stackato::validate::common::expected
 
     variable legalvalues {get put post head}
 }
@@ -46,7 +47,7 @@ variable legalvalues
 	return [string toupper $x]
     }
     debug.validate/http-operation {FAIL}
-    expected $p HTTP-OPERATION "http operation" $x
+    fail $p HTTP-OPERATION "http operation" $x
 }
 
 # # ## ### ##### ######## ############# #####################

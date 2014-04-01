@@ -40,42 +40,45 @@ test update-1.1 {push as update, empty application} -setup {
 } -body {
     indir [appdir] { run push -n }
 } -cleanup {
+    # Failed to stage => still means that it was created. Not for CFv1
+    # tough, so catch delete issue for these targets.
+    catch { remove-test-app appdir }
     remove-appdir
     stage-close
 } -returnCodes error \
     -result [per-api \
-		 "Error: The framework \[standalone\] needs a non-empty start command.\nPlease add a \"command\" key to your stackato.yml" \
+		 "Error: The framework \[standalone\] needs a non-empty start command. Please add a \"command\" key to your stackato.yml" \
 		 {Error: Application failed to stage}]
 
 # # ## ### ##### ######## ############# #####################
 
-# todo: --no-create, --target, --token, --group, --tail
-# todo: --manifest, --path, --no-start, --instances
-# todo: --runtime, --url, --no-framework, --mem, -d
-# todo: --stackato-debug, --env, --copy-unsafe-links,
-# todo: --no-resources, --envmode
+TODO update --no-create, --target, --token, --group, --tail
+TODO update --manifest, --path, --no-start, --instances
+TODO update --runtime, --url, --no-framework, --mem, -d
+TODO update --stackato-debug, --env, --copy-unsafe-links,
+TODO update --no-resources, --envmode
 
-foreach {n excode label theapp} {
-     0 ok    plain                                 a.original.node-env
-     1 ok    {application in subdirectory}         appdir
-     2 ok    {env variables}                       env
-     3 ok    {env vars via manifest.yml}           env-manifest.yml
-     4 ok    {staging/run hooks}                   hooks
-     5 ok    {num instances -1}                    instances-1
-     6 ok    {num instances 0}                     instances0
-     7 ok    {num instances 2}                     instances2
-     9 ok    {min client version check ok}         minclient-ok
-    11 ok    {min server version check ok}         minserver-ok
-    12 ok    {install required packages}           requirements
-    13 ok    {install package already present}     requirements-already
-    15 ok    {url mapping}                         urls
-    23 ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
-    25 ok    {host/domain urls}                    hostdomain
+foreach {n cons excode label theapp} {
+     0 {} ok    plain                                 a.original.node-env
+     1 {} ok    {application in subdirectory}         appdir
+     2 {} ok    {env variables}                       env
+     3 {} ok    {env vars via manifest.yml}           env-manifest.yml
+     4 {} ok    {staging/run hooks}                   hooks
+     5 {} ok    {num instances -1}                    instances-1
+     6 {} ok    {num instances 0}                     instances0
+     7 {} ok    {num instances 2}                     instances2
+     9 {} ok    {min client version check ok}         minclient-ok
+    11 {} ok    {min server version check ok}         minserver-ok
+    12 {} ok    {install required packages}           requirements
+    13 knownBug ok    {install package already present}     requirements-already
+    15 {} ok    {url mapping}                         urls
+    23 {} ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
+    25 {} ok    {host/domain urls}                    hostdomain
 } {
     set appdir   [example  $theapp]
     set expected [string map [list @BASE@ [thebase]] [result $theapp -up]]
 
-    test update-2.$n "push as update, $label" -setup {
+    test update-2.$n "push as update, $label" -constraints $cons -setup {
 	stage-open
 	go-admin
 	indir $appdir { run push -n }
@@ -90,8 +93,11 @@ foreach {n excode label theapp} {
 test update-2.16 "push as update, memory -1" -setup {
     stage-open
     go-admin
-    indir [example memory-1] { catch { run push -n } }
-    # Note: Staging fails, app is not running. This affects
+    indir [example memory-1] {
+	catch { run push -n }
+	catch { run stop -n }
+    }
+    # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
     indir [example memory-1] { run push -n }
@@ -103,8 +109,11 @@ test update-2.16 "push as update, memory -1" -setup {
 test update-2.17 "push as update, memory 0" -setup {
     stage-open
     go-admin
-    indir [example memory0] { catch { run push -n } }
-    # Note: Staging fails, app is not running. This affects
+    indir [example memory0] {
+	catch { run push -n }
+	catch { run stop -n }
+    }
+    # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
     indir [example memory0] { run push -n }
@@ -137,9 +146,9 @@ foreach {n excode label theapp} {
     } -returnCodes $excode -match glob -result $expected
 }
 
-# todo services		+ services (Note: Delete services with app! -n --force)
-# todo ignores-empty		+ ignores (empty list, nothing ignored)
-# todo ignores-other		+ ignores (.git/, *LOG)
+TODO update with - services + services (Note: Delete services with app! -n --force)
+TODO update with - ignores-empty + ignores (empty list, nothing ignored)
+TODO update with - ignores-other + ignores (.git/, *LOG)
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

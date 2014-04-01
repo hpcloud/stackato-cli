@@ -35,8 +35,7 @@ test groups-delete-1.2 {groups delete, login required} -setup {
     run groups delete test-group
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test groups-delete-1.3 {groups delete, admin login required} -constraints cfv1 -setup {
     stage-open
@@ -80,11 +79,18 @@ test groups-delete-1.6 {groups delete, persistence} -constraints cfv1 -setup {
     stage-close
 } -result {No Groups}
 
-## TODO: Proper error against CFV2 target.
+test groups-delete-2.0 {groups delete, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups delete test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
 
-# todo: delete group which has users
-# todo: delete group which has services
-# todo: delete group which has applications
+TODO groups delete - Delete group which has users	   
+TODO groups delete - Delete group which has services	   
+TODO groups delete - Delete group which has applications
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -1,0 +1,6 @@
++----------+----------+----------+
+| Field    | Type     | Label    |
++----------+----------+----------+
+| password | password | Password |
+| username | text     | Username |
++----------+----------+----------+

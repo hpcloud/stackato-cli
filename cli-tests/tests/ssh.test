@@ -35,14 +35,6 @@ test ssh-1.1 {ssh, empty application} -setup {
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
 ## not contain everything needed to match because of that.
 
-set flist {total *
--* 1 stackato * app.js
-d* 2 stackato * bin
--* 1 stackato * manifest.yml
--* 1 stackato * package.json
--* 1 stackato * README.md
--* 1 stackato * stackato.yml}
-
 # # ## ### ##### ######## ############# #####################
 
 test ssh-1.2 {ssh, auto-select app} -setup {
@@ -56,22 +48,7 @@ test ssh-1.2 {ssh, auto-select app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result $flist
-
-# # ## ### ##### ######## ############# #####################
-
-test ssh-1.2 {ssh, auto-select app} -setup {
-    stage-open
-    go-admin
-    set appdir [example a.original.node-env]
-    indir $appdir { run push -n }
-} -body {
-    indir $appdir { run ssh ls -l }
-} -cleanup {
-    unset appdir
-    remove-test-app node-env
-    stage-close
-} -match glob -result $flist
+} -match glob -result [viewFile data/ls-l.txt]
 
 test ssh-1.3 {ssh, explicit app} -setup {
     stage-open
@@ -84,9 +61,9 @@ test ssh-1.3 {ssh, explicit app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result $flist
+} -match glob -result [viewFile data/ls-l.txt]
 
-# todo --target, --group, multiple dependent apps.
+TODO ssh --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 

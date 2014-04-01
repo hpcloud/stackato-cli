@@ -72,6 +72,8 @@ proc ::stackato::validate::servicetype::validate {p x} {
 	return $up
     }
 
+    # Filtering is client-side due to the various contraints beyond
+    # just the name.
     set matches [struct::list filter [get-candidates $p] [lambda {x s} {
 	string equal [$s @label] $x
     } $x]]
@@ -97,7 +99,7 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
     # TODO/FUTURE: See if we can consolidate and refactor here and
     # there.
 
-    # Get available services.
+    # Get available services, with associated plans.
     set services [v2 service list 1]
     debug.validate/servicetype {retrieved      = $services}
 

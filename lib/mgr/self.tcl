@@ -172,12 +172,17 @@ proc ::stackato::mgr::self::me {} {
 
 proc ::stackato::mgr::self::revision {} {
     debug.mgr/self {}
+
     set revfile [topdir]/revision.txt
+    debug.mgr/self {revfile = $revfile}
+
     if {![file exists $revfile]} {
+	debug.mgr/self {revfile does not exist, assume unwrapped and ask git}
 	cd::indir [topdir] {
 	    set rev "local: [exec git describe]"
 	}
     } else {
+	debug.mgr/self {revfile found, read and show contents}
 	set rev "wrapped: [fileutil::cat $revfile]"
     }
 
@@ -187,12 +192,17 @@ proc ::stackato::mgr::self::revision {} {
 
 proc ::stackato::mgr::self::plain-revision {} {
     debug.mgr/self {}
+
     set revfile [topdir]/revision.txt
+    debug.mgr/self {revfile = $revfile}
+
     if {![file exists $revfile]} {
+	debug.mgr/self {revfile does not exist, assume unwrapped and ask git}
 	cd::indir [topdir] {
 	    set rev [exec git describe]
 	}
     } else {
+	debug.mgr/self {revfile found, read and show contents}
 	set rev [fileutil::cat $revfile]
     }
 

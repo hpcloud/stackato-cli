@@ -66,8 +66,20 @@ proc ::stackato::validate::approute::validate {p x} {
 
     # Assert: Manifest processor is here already initialized.
     manifest user_1app_do theapp {
-	set matches [$theapp @routes filter-by name $x]
-	# Note: name, not @name. The 'name' contains the domain part as well.
+	set matches [$theapp @routes \
+			 get* {depth 1 include-relations domain} \
+			 filter-by name $x]
+	# Note: We are using 'name' here, not '@name'.
+	#       The 'name' pseudo-attribute contains the domain part
+	#       as well.
+	#
+	# Note 2: The list of routes is for the specific application,
+	# and expected to be small. This means that doing the search
+	# and filter here on the client-side is not expected to be a
+	# scaling problem.
+	#
+	# Note 3: However adding include-relations is possible and
+	# does helps with reducing the traffic.
     }
 
     if {[llength $matches] == 1} {

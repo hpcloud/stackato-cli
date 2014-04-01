@@ -36,7 +36,7 @@ test targets-1.2 {client targets, default, json} -setup {
     stage-close
 } -result {{}}
 
-# TODO: --token-file option
+TODO targets --token-file option
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

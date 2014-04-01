@@ -50,9 +50,7 @@ proc ::stackato::validate::servicebroker::validate {p x} {
 
     refresh-client $p
 
-    set matches [struct::list filter [v2 service_broker list] [lambda {x o} {
-	string equal $x	[$o @name]
-    } $x]]
+    set matches [v2 service_broker list 0 q name:$x]
 
     if {[llength $matches] == 1} {
 	debug.validate/servicebroker {OK/canon = $x}

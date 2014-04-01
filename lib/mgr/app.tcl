@@ -41,11 +41,11 @@ debug prefix mgr/app {[debug caller] | }
 # # ## ### ##### ######## ############# #####################
 ## API for the user visible commands.
 
-proc ::stackato::mgr::app::delete {client theapp force {rollback 0}} {
+proc ::stackato::mgr::app::delete {config client theapp force {rollback 0}} {
     debug.mgr/app {}
 
     if {[$client isv2]} {
-	DeleteV2 $client $theapp $force $rollback
+	DeleteV2 $config $client $theapp $force $rollback
     } else {
 	DeleteV1 $client $theapp $force $rollback
     }
@@ -53,35 +53,19 @@ proc ::stackato::mgr::app::delete {client theapp force {rollback 0}} {
     debug.mgr/app {/done}
 }
 
-proc ::stackato::mgr::app::DeleteV2 {client theapp force {rollback 0}} {
+proc ::stackato::mgr::app::DeleteV2 {config client theapp force {rollback 0}} {
     debug.mgr/app {}
     set appname [$theapp @name]
 
-    set bling $rollback ;# will be reset in the loop, diverging
     if {$rollback} {
 	display [color red "Rolling back application \[$appname\] ... "] false
     }
 
-    set bound [$theapp @service_bindings @service_instance]
-    set services_to_delete {}
-    set promptok           [cmdr interactive?]
-
-    foreach service $bound {
-	#checker -scope line exclude badOption
-	set multiuse [expr {[llength [$service @service_bindings]] > 1}]
-
-	set del_service [expr {!$multiuse && ( $force && !$promptok)}]
-	if                    {!$multiuse && (!$force &&  $promptok)} {
-	    if {$bling} {
-		display ""
-		set bling 0
-	    }
-	    set del_service \
-		[term ask/yn "Provisioned service \[[$service @name]\] detected. Would you like to delete it ?: " no]
-	}
-
-	if {!$del_service} continue
-	lappend services_to_delete $service
+    set services_to_delete [ServicesToDelete $theapp $force $rollback]
+    if {$rollback || ![$config has @routes] || [$config @routes]} {
+	set routes_to_delete [RoutesToDelete $theapp $rollback]
+    } else {
+	set routes_to_delete {}
     }
 
     if {!$rollback} {
@@ -95,6 +79,13 @@ proc ::stackato::mgr::app::DeleteV2 {client theapp force {rollback 0}} {
 	display "Deleting service \[[$s @name]\] ... " false
 	$s delete
 	$s commit
+	display [color green OK]
+    }
+
+    foreach r $routes_to_delete {
+	display "Deleting route \[[$r name]\] ... " false
+	$r delete
+	$r commit
 	display [color green OK]
     }
 
@@ -149,6 +140,58 @@ proc ::stackato::mgr::app::DeleteV1 {client appname force {rollback 0}} {
 
     debug.mgr/app {/done}
     return
+}
+
+proc ::stackato::mgr::app::RoutesToDelete {theapp bling} {
+    set bound     [$theapp @routes]
+    set to_delete {}
+    set promptok  [cmdr interactive?]
+
+    foreach route $bound {
+	#checker -scope line exclude badOption
+	set multiuse [expr {[llength [$route @apps]] > 1}]
+
+	set del_route [expr {!$multiuse && !$promptok}]
+	if                  {!$multiuse &&  $promptok} {
+	    if {$bling} {
+		display ""
+		set bling 0
+	    }
+	    set del_route \
+		[term ask/yn "Exclusive route \[[$route name]\] detected. Would you like to delete it ?: " no]
+	}
+
+	if {!$del_route} continue
+	lappend to_delete $route
+    }
+
+    return $to_delete
+}
+
+proc ::stackato::mgr::app::ServicesToDelete {theapp force bling} {
+    set bound [$theapp @service_bindings @service_instance]
+    set services_to_delete {}
+    set promptok           [cmdr interactive?]
+
+    foreach service $bound {
+	#checker -scope line exclude badOption
+	set multiuse [expr {[llength [$service @service_bindings]] > 1}]
+
+	set del_service [expr {!$multiuse && ( $force && !$promptok)}]
+	if                    {!$multiuse && (!$force &&  $promptok)} {
+	    if {$bling} {
+		display ""
+		set bling 0
+	    }
+	    set del_service \
+		[term ask/yn "Provisioned service \[[$service @name]\] detected. Would you like to delete it ?: " no]
+	}
+
+	if {!$del_service} continue
+	lappend services_to_delete $service
+    }
+
+    return $services_to_delete
 }
 
 proc ::stackato::mgr::app::base       {} { debug.mgr/app {} ; variable base   ; return $base    }

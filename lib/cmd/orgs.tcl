@@ -28,7 +28,7 @@ namespace eval ::stackato::cmd {
 namespace eval ::stackato::cmd::orgs {
     namespace export \
 	create delete rename list show switch \
-	set-quota
+	set-quota update
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -47,9 +47,56 @@ namespace eval ::stackato::cmd::orgs {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::orgs::update {config} {
+    debug.cmd/orgs {}
+    # @name, @quota, @newname, @default
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
+    set org [$config @name]
+    set changes 0
+
+    set oname [$org @name]
+
+    foreach {label cattr attr transform} {
+	quota   @quota   @quota_definition  {apply {{qd} { $qd @name }}}
+	name    @newname @name              {}
+	default @default @is_default        {}
+    } {
+	if {![$config $cattr set?]} continue
+
+	$org $attr set [set newvalue [$config $cattr]]
+	if {!$changes} {
+	    display "Changing '$oname' ..."
+	}
+
+	if {$transform ne {}} {
+	    set newvalue [{*}$transform $newvalue]
+	}
+
+	display "    Setting $label to \"$newvalue\" ... "
+	incr changes
+    }
+
+    if {$changes} {
+	display Committing... false
+	$org commit
+	display [color green OK]
+    } else {
+	display [color blue {No changes}]
+    }
+    return
+}
+
 proc ::stackato::cmd::orgs::set-quota {config} {
     debug.cmd/orgs {}
     # @name
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
 
     set org [$config @name]
     set qd  [$config @quota]
@@ -65,6 +112,10 @@ proc ::stackato::cmd::orgs::switch {config} {
     debug.cmd/orgs {}
     # @name
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     try {
 	set org [$config @name]
     } trap {CMDR VALIDATE ORGNAME} {e o} {
@@ -77,16 +128,7 @@ proc ::stackato::cmd::orgs::switch {config} {
 	return
     }
 
-    display "Switching to organization [$org @name] ... " false
-    corg set $org
-    corg save
-    display [color green OK]
-
-    # Invalidate current space
-    display "Unsetting current space ... " false
-    cspace reset
-    cspace save
-    display [color green OK]
+    context 2org $config $org
 
     display [context format-large]
     return
@@ -96,9 +138,16 @@ proc ::stackato::cmd::orgs::create {config} {
     debug.cmd/orgs {}
     # @name - String, validated to not exist
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     set name [$config @name]
+
     set org [v2 organization new]
-    $org @name set $name
+
+    $org @name       set $name
+    $org @is_default set [$config @default]
 
     if {[$config @add-self]} {
 	display "Adding you as developer ... " false
@@ -137,6 +186,10 @@ proc ::stackato::cmd::orgs::create {config} {
 proc ::stackato::cmd::orgs::delete {config} {
     debug.cmd/orgs {}
     # @name    - Organization's object.
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
 
     set org       [$config @name]
     set iscurrent [$org == [corg get]]
@@ -181,6 +234,13 @@ proc ::stackato::cmd::orgs::rename {config} {
     # @name    - Organization's object.
     # @newname - String, validated to not exist as org name.
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+    if {![$config @newname set?]} {
+	$config notEnough
+    }
+
     set org [$config @name]
     set new [$config @newname]
 
@@ -195,22 +255,26 @@ proc ::stackato::cmd::orgs::rename {config} {
 proc ::stackato::cmd::orgs::list {config} {
     debug.cmd/orgs {}
     # No arguments.
-    # TODO: Implement 'orgs --full'.
 
     if {![$config @json]} {
 	display "In [ctarget get]..."
     }
     set co [corg get]
 
-    set titles {{} Name Quota Spaces Domains}
+    set titles {{} Name Default Quota Spaces Domains}
     set full [$config @full]
     set depth 1
+    set ir quota_definition,spaces,domains
     if {$full} {
 	lappend titles Applications Services
-	set depth 2
+	set depth 3
+	append ir ,apps
+	# ,service_instances -- Don't include this.
+	# Doing so would preempt the 'user-provided=1' below,
+	# thus listing only managed services instead of all.
     }
 
-    set theorgs [v2 sort @name [v2 organization list $depth] -dict]
+    set theorgs [v2 sort @name [v2 organization list $depth include-relations $ir] -dict]
 
     if {[$config @json]} {
 	set tmp {}
@@ -223,8 +287,16 @@ proc ::stackato::cmd::orgs::list {config} {
 
     [table::do t $titles {
 	foreach org $theorgs {
+	    if {[$org @is_default defined?]} {
+		set isdef [expr { [$org @is_default] ? "x" : "" }]
+	    } else {
+		# attribute not supported by target.
+		set isdef "N/A"
+	    }
+
 	    lappend values [expr {($co ne {}) && [$co == $org] ? "x" : ""}]
 	    lappend values [$org @name]
+	    lappend values $isdef
 	    lappend values [$org @quota_definition @name]
 	    lappend values [join [lsort -dict [$org @spaces  @name]] \n]
 	    lappend values [join [lsort -dict [$org @domains @name]] \n]
@@ -258,6 +330,20 @@ proc ::stackato::cmd::orgs::show {config} {
 
     display [context format-org]
     [table::do t {Key Value} {
+
+	foreach {var attr} {
+	    isdef is_default
+	} {
+	    if {[$org @$attr defined?]} {
+		set $var [$org @$attr]
+	    } else {
+		# attribute not supported by target.
+		set $var "N/A (not supported by target)"
+	    }
+	}
+
+	$t add Default      $isdef
+
 	if {[$config @full]} {
 	    $t add Billed [$org @billing_enabled]
 

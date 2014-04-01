@@ -27,10 +27,9 @@ test quotas-1.1 {quotas, login required} -setup {
     run quotas
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
-test quotas-1.2 {quotas, non-admin login ok} -constraints cfv2uaa -setup {
+test quotas-1.2 {quotas, non-admin login ok} -constraints cfv2 -setup {
     stage-open
     ref-target
     go-admin

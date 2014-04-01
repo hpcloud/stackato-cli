@@ -1,0 +1,11 @@
+@target@ - testquota
++-*-+-*-+
+| Key                         | Value *|
++-*-+-*-+
+| Paid Services Allowed       | 0 *|
+| Max Number Of Services      | 0 *|
+| Memory Limit                | 0B *|
+| Trial Database Allowed      | 0 *|
+| Allow use of 'sudo' by Apps | 0 *|
+| Max Number of Routes        | * |
++-*-+-*-+

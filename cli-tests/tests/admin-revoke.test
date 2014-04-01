@@ -35,8 +35,7 @@ test admin-revoke-1.2 {admin-revoke, login required} -setup {
     run admin revoke E
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test admin-revoke-1.3 {admin revoke, admin login required} -setup {
     stage-open
@@ -51,7 +50,7 @@ test admin-revoke-1.3 {admin revoke, admin login required} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error 200: Operation not permitted} \
-	 {Expected a user name for input "email", got "E"}]
+	 [unexpected input email {A user} E]]
 
 test admin-revoke-1.4 {admin revoke, bogus user} -setup {
     stage-open
@@ -60,7 +59,7 @@ test admin-revoke-1.4 {admin revoke, bogus user} -setup {
     run admin revoke bogus@test
 } -cleanup {
     stage-close
-} -returnCodes error -result {Expected a user name for input "email", got "bogus@test"}
+} -returnCodes error -result [unexpected input email {A user} bogus@test]
 
 test admin-revoke-1.5 {admin revoke} -setup {
     stage-open

@@ -72,7 +72,10 @@ proc ::stackato::validate::serviceinstance::validate {p x} {
 	nospace $p SERVICEINSTANCE "service instance name" $x
     }
 
-    set matches [$thespace @service_instances get* {user-provided true} filter-by @name $x]
+    dict set sc user-provided true
+    dict set sc q              name:$x
+
+    set matches [$thespace @service_instances get* $sc]
     debug.validate/serviceinstance {matches = ($matches)}
 
     if {[llength $matches] == 1} {

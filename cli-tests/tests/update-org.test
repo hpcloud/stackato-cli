@@ -1,0 +1,118 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## update-org
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test update-org-1.0 {update-org, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-org -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test update-org-1.1 {update-org, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-org -n OLD X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test update-org-1.2 {update-org, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-org -n [theorg]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test update-org-1.3 {update-org, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run update-org -n [theorg]-2 --newname [theorg]-3
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test update-org-1.4 {update-org, non-admin login is not ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2 --no-activate
+    go-non-admin
+} -body {
+    run update-org [theorg]-2 --newname [theorg]-3
+    # Note: theorg-2 is not visible to the non-admin user.
+} -cleanup {
+    be-admin
+    run delete-org -n [theorg]-2
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [unexpected input name organization [theorg]-2]
+
+test update-org-1.5 {update-org} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2
+} -body {
+    run update-org [theorg]-2 --newname [theorg]-3
+} -cleanup {
+    run delete-org -n [theorg]-3
+    stage-close
+} -result "Changing 'cli-test-org-2' ...\n    Setting name to \"cli-test-org-3\" ... \nCommitting...OK"
+
+test update-org-1.6 {update-org, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2
+} -body {
+    run update-org [theorg]-2 --newname [theorg]-3
+    run orgs
+} -cleanup {
+    run delete-org -n [theorg]-3
+    stage-close
+} -match glob -result "*| x | [theorg]-3 *|*"
+
+test update-org-1.7 {update-org, duplicate destination} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2
+    run create-org [theorg]-3
+} -body {
+    run update-org [theorg]-2 --newname [theorg]-3
+} -cleanup {
+    run delete-org -n [theorg]-2
+    run delete-org -n [theorg]-3
+    stage-close
+} -returnCodes error -result [already option --newname organization [theorg]-3]
+
+test update-org-1.8 {update-org, missing source} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run update-org bogus --newname bogus-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input name organization bogus]
+
+TODO update-org --(no-)default, --quota (see set-quota as well)
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

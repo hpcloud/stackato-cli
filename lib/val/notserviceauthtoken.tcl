@@ -44,9 +44,8 @@ proc ::stackato::validate::notserviceauthtoken::validate {p x} {
 
     refresh-client $p
 
-    set matches [struct::list filter [v2 service_auth_token list] [lambda {x o} {
-	string equal $x	[$o @label]
-    } $x]]
+    # See also query.tcl, map-named-entity.
+    set matches [v2 service_auth_token list 0 q label:$x]
 
     if {![llength $matches]} {
 	debug.validate/notserviceauthtoken {OK/canon = $x}

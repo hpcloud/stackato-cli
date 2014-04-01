@@ -52,7 +52,7 @@ proc ::stackato::cmd::zones::Set {config theapp} {
     ::set z [[$config @zone] @name]
     # get entity name, for - app zone attribute :: string (not entity ref!)
 
-    display "Setting distribution zone of \"[$theapp @name]\" to \"$z\" ... " false
+    display "Setting placement zone of \"[$theapp @name]\" to \"$z\" ... " false
 
     SetCore $config $theapp $z
     return
@@ -66,7 +66,7 @@ proc ::stackato::cmd::zones::unset {config} {
 
 proc ::stackato::cmd::zones::Unset {config theapp} {
     debug.cmd/zones {}
-    display "Drop distribution zone from \"[$theapp @name]\" ... " false
+    display "Drop placement zone from \"[$theapp @name]\" ... " false
 
     SetCore $config $theapp default
     return
@@ -102,7 +102,7 @@ proc ::stackato::cmd::zones::list {config} {
     try {
 	::set thezones [v2 sort @name [v2 zone list] -dict]
     } trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} {
-	err "Distribution zones not supported by target"
+	err "Placement zones not supported by target"
     }
 
     if {[$config @json]} {
@@ -160,7 +160,7 @@ proc ::stackato::cmd::zones::select-for {what p {mode noauto}} {
     try {
 	::set choices [v2 zone list]
     } trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} {
-	err "Distribution zones not supported by target"
+	err "Placement zones not supported by target"
     }
 
     debug.cmd/zones {ZONE [join $choices "\nZONE "]}

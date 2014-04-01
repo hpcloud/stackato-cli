@@ -1,0 +1,125 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## zone management - set zone of app
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+## Not suitable for CFv1, or S3.0-
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-set-1.0 {set-placement-zone, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run set-placement-zone
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong\#args, not enough*"
+
+test zone-set-1.1 {set-placement-zone, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run set-placement-zone A Z X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong\#args, too many*"
+
+test zone-set-1.2 {set-placement-zone, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run set-placement-zone Z
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test zone-set-1.3.1 {set-placement-zone, invalid target} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app appdir
+} -body {
+    indir [appdir] {
+	run set-placement-zone default
+    }
+} -cleanup {
+    remove-test-app appdir
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-set-1.3.2 {set-placement-zone, invalid target} -constraints s30le -setup {
+    stage-open
+    go-admin
+    make-test-app appdir
+} -body {
+    indir [appdir] {
+	run set-placement-zone default
+    }
+} -cleanup {
+    remove-test-app appdir
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-set-1.4 {set-placement-zone, no application} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] {
+	run set-placement-zone -n default
+    }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to set-placement-zone.}
+
+test zone-set-1.5 {set-placement-zone, bogus zone} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run set-placement-zone -n __bogus__
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input zone zone __bogus__]
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-set-2.0 {set-placement-zone, implicit app, set without actual change} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    make-test-app appdir
+} -body {
+    indir [appdir] {
+	run set-placement-zone -n default
+    }
+} -cleanup {
+    remove-test-app appdir
+    remove-appdir
+    stage-close
+} -result "No manifest\nSetting placement zone of \"appdir\" to \"default\" ... Unchanged"
+
+test zone-set-2.1 {set-placement-zone, explicit app, set without actual change} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run set-placement-zone TEST default
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result "Setting placement zone of \"TEST\" to \"default\" ... Unchanged"
+
+# # ## ### ##### ######## ############# #####################
+
+TODO set-placement-zone doing an actual change, requires a target with more zones than just default
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

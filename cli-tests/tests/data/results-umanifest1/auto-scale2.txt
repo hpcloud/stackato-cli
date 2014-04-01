@@ -1,0 +1,11 @@
+Using manifest file "@YML@"
+applications:
+  .:
+    command: node app.js
+    framework:
+      name: node
+    memory: 256M
+    name: node-env
+    stackato:
+      autoscale:
+        enabled: yes

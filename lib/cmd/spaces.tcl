@@ -28,7 +28,8 @@ namespace eval ::stackato::cmd {
 }
 namespace eval ::stackato::cmd::spaces {
     namespace export \
-	create delete rename list show switch
+	create delete rename list show switch \
+	update
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -46,10 +47,56 @@ namespace eval ::stackato::cmd::spaces {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::spaces::update {config} {
+    debug.cmd/spaces {}
+    # @name, @newname, @default
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
+    set space [$config @name]
+    set changes 0
+
+    set sname [$space @name]
+
+    foreach {label cattr attr transform} {
+	name    @newname @name              {}
+	default @default @is_default        {}
+    } {
+	if {![$config $cattr set?]} continue
+
+	$space $attr set [set newvalue [$config $cattr]]
+	if {!$changes} {
+	    display "Changing '$sname' ..."
+	}
+
+	if {$transform ne {}} {
+	    set newvalue [{*}$transform $newvalue]
+	}
+
+	display "    Setting $label to \"$newvalue\" ... "
+	incr changes
+    }
+
+    if {$changes} {
+	display Committing... false
+	$space commit
+	display [color green OK]
+    } else {
+	display [color blue {No changes}]
+    }
+    return
+}
+
 proc ::stackato::cmd::spaces::switch {config} {
     debug.cmd/spaces {}
     # @name
     # @organization
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
 
     set org [$config @organization]
 
@@ -88,7 +135,11 @@ proc ::stackato::cmd::spaces::create {config} {
     # @name
     # @organization
 
-    set name  [$config @name]
+    set name [$config @name]
+    if {$name eq {}} {
+	$config notEnough
+    }
+
     set space [v2 space new]
 
     display [context format-org]
@@ -97,6 +148,7 @@ proc ::stackato::cmd::spaces::create {config} {
 
     $space @name         set $name
     $space @organization set [corg get]
+    $space @is_default   set [$config @default]
 
     if {[$config @developer] ||
 	[$config @manager]   ||
@@ -139,6 +191,10 @@ proc ::stackato::cmd::spaces::delete {config} {
     debug.cmd/spaces {}
     # @name - Space object
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     set space     [$config @name]
     set iscurrent [$space == [cspace get]]
     set recursive [$config @recursive]
@@ -180,6 +236,13 @@ proc ::stackato::cmd::spaces::rename {config} {
     # @name
     # @newname
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+    if {![$config @newname set?]} {
+	$config notEnough
+    }
+
     set space [$config @name]
     set new   [$config @newname]
 
@@ -207,19 +270,34 @@ proc ::stackato::cmd::spaces::list {config} {
     display "In [[corg get] @name]..."
     set cs [cspace get]
 
-    set titles {{} Name Apps Services}
+    set titles {{} Name Default Apps Services}
     set full [$config @full]
-    set depth 1
+
+    dict set sc depth 1
+    dict set sc include-relations apps
+    # ,service_instances -- Don't include this.
+    # Doing so would preempt the 'user-provided=1' below,
+    # thus listing only managed services instead of all.
     if {$full} {
 	lappend titles Developers Managers Auditors
-	set depth 2
+	dict set    sc depth 2
+	dict append sc include-relations ,developers,managers,auditors
     }
 
     [table::do t $titles {
-	# TODO: spaces list - Depth 1/2 - How to specify ?
-	foreach space [v2 sort @name [[corg get] @spaces get 2] -dict] {
+	set spaces [[corg get] @spaces get* $sc]
+
+	foreach space [v2 sort @name $spaces -dict] {
+	    if {[$space @is_default defined?]} {
+		set isdef [expr { [$space @is_default] ? "x" : "" }]
+	    } else {
+		# attribute not supported by target.
+		set isdef "N/A"
+	    }
+
 	    lappend values [expr {($cs ne {}) && [$cs == $space] ? "x" : ""}]
 	    lappend values [$space @name]
+	    lappend values $isdef
 	    lappend values [join [lsort -dict [$space @apps @name]] \n]
 	    lappend values [join [lsort -dict [$space @service_instances get* {user-provided true} @name]] \n]
 
@@ -250,6 +328,18 @@ proc ::stackato::cmd::spaces::show {config} {
 
     display [context format-short]
     [table::do t {Key Value} {
+	foreach {var attr} {
+	    isdef is_default
+	} {
+	    if {[$space @$attr defined?]} {
+		set $var [$space @$attr]
+	    } else {
+		# attribute not supported by target.
+		set $var "N/A (not supported by target)"
+	    }
+	}
+
+	$t add Default      $isdef
 	$t add Organization [$space @organization @name]
 	$t add Apps         [join [lsort -dict [$space @apps @name]] \n]
 	$t add Services     [join [lsort -dict [$space @service_instances get* {user-provided true} @name]] \n]

@@ -55,7 +55,7 @@ proc ::stackato::validate::spacename::validate {p x} {
 
     # find space by name in current organization
     set theorg [corg get]
-    set matches [$theorg @spaces filter-by @name $x]
+    set matches [$theorg @spaces get* [list q name:$x]]
     # NOTE: searchable-on in v2/space should help
     # (in v2/org using it) to filter server side.
 

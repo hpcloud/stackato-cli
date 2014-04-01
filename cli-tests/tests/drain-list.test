@@ -31,7 +31,7 @@ test drain-list-1.1 {drain list, no application} -setup {
     stage-close
 } -returnCodes error -match glob -result [no-application {drain list}]
 
-test drain-list-1.2 {drain list, non-admin login is ok} -constraints cfv2uaa -setup {
+test drain-list-1.2 {drain list, non-admin login is ok} -setup {
     stage-open
     go-admin
     go-non-admin

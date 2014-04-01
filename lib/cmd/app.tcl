@@ -61,7 +61,7 @@ namespace eval ::stackato::cmd::app {
 	securesh dbshell open_browser env_list env_add env_delete \
 	drain_add drain_delete drain_list rename map-urls \
 	check-app-for-restart upload-files the-upload-manifest \
-	list-events
+	list-events start-single
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -230,7 +230,23 @@ proc ::stackato::cmd::app::Rename {config theapp} {
 
 proc ::stackato::cmd::app::start {config} {
     debug.cmd/app {}
-    manifest user_all each $config ::stackato::cmd::app::start1
+
+    # Higher user_all errors which leave the manifest mgr reset are
+    # reported here, leaving the logstream inactive. Without this the
+    # start1 sequence below may do that, breaking the logstream
+    # stop. This way a 'no application' error bails us out in a way
+    # which prevent the superfluous attempt at stopping without having
+    # to figure out if a thrown error requires stopping or not.
+
+    manifest user_all each $config {::stackato::mgr logstream start}
+
+    try {
+	# Reaching this the stream is active and requires stopping in
+	# case of trouble.
+	manifest user_all each $config ::stackato::cmd::app::start1
+    } finally {
+	manifest user_all each $config {::stackato::mgr logstream stop-m}
+    }
     return
 }
 
@@ -251,6 +267,14 @@ proc ::stackato::cmd::app::start1 {config theapp {push false}} {
 	debug.cmd/app {/v1: '$theapp'}
 	# CFv1 API...
 	StartV1 $config $theapp $push
+    }
+}
+
+proc ::stackato::cmd::app::start-single {config theapp {push false}} {
+    try {
+	start1 $config $theapp $push
+    } finally {
+	logstream stop $config
     }
 }
 
@@ -361,7 +385,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 			if {[logstream active]} {
 			    logstream stop $config
 			}
-			app delete $client $theapp false
+			app delete $config $client $theapp false
 		    }
 		}
 		err "Application failed to start"
@@ -597,7 +621,7 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 		    display ""
 		    if {[cmdr interactive?]} {
 			if {[term ask/yn {Should I delete the application ? }]} {
-			    app delete $client $appname false
+			    app delete $config $client $appname false
 			}
 		    }
 		}
@@ -1206,12 +1230,12 @@ proc ::stackato::cmd::app::delete {config} {
 	    if {[$client isv2]} {
 		set apps [[cspace get] @apps]
 		foreach app $apps {
-		    app delete $client $app $force
+		    app delete $config $client $app $force
 		}
 	    } else {
 		set apps [$client apps]
 		foreach app $apps {
-		    app delete $client [dict getit $app name] $force
+		    app delete $config $client [dict getit $app name] $force
 		}
 	    }
 	}
@@ -1236,7 +1260,7 @@ proc ::stackato::cmd::app::delete1 {config theapp} {
 proc ::stackato::cmd::app::Delete {force rollback config theapp} {
     debug.cmd/app {}
     set client [$config @client]
-    app delete $client $theapp $force $rollback
+    app delete $config $client $theapp $force $rollback
     return
 }
 
@@ -1383,12 +1407,14 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
 
 	set thedomain [GetDomain $domain]
 	if {$thedomain eq {}} {
+	    set space [[cspace get] @name]
+
 	    if {[llength [v2 domain list-by-name $domain]]} {
 		# domain exists, not mapped into the space.
-		set msg "Not mapped into the space. [self please map-domain] to add the domain to the space."
+		set msg "Not mapped into the space '$space'. [self please map-domain] to add the domain to the space."
 	    } else {
 		# domains does not exist at all.
-		set msg "Does not exist. [self please map-domain] to create the domain and add it to the space."
+		set msg "Does not exist. [self please map-domain] to create the domain and add it to the space '$space'."
 	    }
 	    display "" ; # Force new line.
 
@@ -1404,8 +1430,8 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
     debug.cmd/app {host    = $host}
     debug.cmd/app {domain  = $domain}
 
-    # 2. Find route by host(-name), in all routes, then
-    #    filter by domain, locally.
+    # 2. Find route by host(-name), in all routes (server-side),
+    #    then filter by domain, locally.
 
     set routes [v2 route list-by-host $host 1]
 
@@ -1431,6 +1457,9 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
 
 proc ::stackato::cmd::app::GetDomain {domain} {
     set matches [[cspace get] @domains filter-by @name $domain]
+    # The list of domains mapped into a space should be small. The
+    # fact that we are doing a client-side search/filter here should
+    # therefore not be a scaling problem.
     if {[llength $matches] != 1} {
 	return {}
     } else {
@@ -1749,9 +1778,10 @@ proc ::stackato::cmd::app::Scale {config theapp} {
     set changes     0
     set needrestart 0
 
-    ChangeInstances $config $client $theapp appinfo changes
-    ChangeMem       $config $client $theapp appinfo needrestart
-    ChangeDisk      $config $client $theapp appinfo needrestart
+    ChangeInstances    $config $client $theapp appinfo changes
+    ChangeMem          $config $client $theapp appinfo needrestart
+    ChangeDisk         $config $client $theapp appinfo needrestart
+    ChangeAutoScale    $config $client $theapp appinfo changes
 
     if {$changes || $needrestart} {
 	display "Committing changes ... " \
@@ -1781,6 +1811,224 @@ proc ::stackato::cmd::app::Scale {config theapp} {
     return
 }
 
+proc ::stackato::cmd::app::ChangeAutoScale {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    ChangeMinInstances $config $client $theapp app changes
+    ChangeMaxInstances $config $client $theapp app changes
+    ChangeMinThreshold $config $client $theapp app changes
+    ChangeMaxThreshold $config $client $theapp app changes
+    ChangeAutoEnabled  $config $client $theapp app changes
+
+    debug.cmd/app {/done}
+    return
+}
+
+# TODO: See if we can generalize the internals of these commands.
+proc ::stackato::cmd::app::ChangeMinInstances {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    if {![$config @min-instances set?]} {
+	debug.cmd/app {not set}
+	return
+    }
+    if {![$client isv2]} {
+	err "Client internal error. Should not be able to change this for an S2 target"
+    }
+
+    if {![$theapp @min_instances defined?]} {
+	display "  Changing Application Min Instances not supported by target ..."
+	return
+    }
+
+    # client v2 : theapp ==> instance (object)
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set current [$theapp @min_instances]
+    set new     [$config @min-instances]
+
+    debug.cmd/app { current (app) = $current }
+    debug.cmd/app { new     (cfg) = $new }
+
+    if {$current == $new} {
+	debug.cmd/app {/done /no-change}
+	return
+    }
+
+    display "  Changing Application Min Instances to $new ..."
+
+    $theapp @min_instances set $new
+    incr changes
+
+    debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::ChangeMaxInstances {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    if {![$config @max-instances set?]} {
+	debug.cmd/app {not set}
+	return
+    }
+    if {![$client isv2]} {
+	err "Client internal error. Should not be able to change this for an S2 target"
+    }
+
+    if {![$theapp @min_instances defined?]} {
+	display "  Changing Application Max Instances not supported by target ..."
+	return
+    }
+
+    # client v2 : theapp ==> instance (object)
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set current [$theapp @max_instances]
+    set new     [$config @max-instances]
+
+    debug.cmd/app { current (app) = $current }
+    debug.cmd/app { new     (cfg) = $new }
+
+    if {$current == $new} {
+	debug.cmd/app {/done /no-change}
+	return
+    }
+
+    display "  Changing Application Max Instances to $new ..."
+
+    $theapp @max_instances set $new
+    incr changes
+
+    debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::ChangeMinThreshold {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    if {![$config @min-cpu set?]} {
+	debug.cmd/app {not set}
+	return
+    }
+    if {![$client isv2]} {
+	err "Client internal error. Should not be able to change this for an S2 target"
+    }
+
+    if {![$theapp @min_instances defined?]} {
+	display "  Changing Application Min CPU Threshold not supported by target ..."
+	return
+    }
+
+    # client v2 : theapp ==> instance (object)
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set current [$theapp @min_cpu_threshold]
+    set new     [$config @min-cpu]
+
+    debug.cmd/app { current (app) = $current }
+    debug.cmd/app { new     (cfg) = $new }
+
+    if {$current == $new} {
+	debug.cmd/app {/done /no-change}
+	return
+    }
+
+    display "  Changing Application Min CPU Threshold to $new ..."
+
+    $theapp @min_cpu_threshold set $new
+    incr changes
+
+    debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::ChangeMaxThreshold {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    if {![$config @max-cpu set?]} {
+	debug.cmd/app {not set}
+	return
+    }
+    if {![$client isv2]} {
+	err "Client internal error. Should not be able to change this for an S2 target"
+    }
+
+    if {![$theapp @min_instances defined?]} {
+	display "  Changing Application Max CPU Threshold not supported by target ..."
+	return
+    }
+
+    # client v2 : theapp ==> instance (object)
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set current [$theapp @max_cpu_threshold]
+    set new     [$config @max-cpu]
+
+    debug.cmd/app { current (app) = $current }
+    debug.cmd/app { new     (cfg) = $new }
+
+    if {$current == $new} {
+	debug.cmd/app {/done /no-change}
+	return
+    }
+
+    display "  Changing Application Max CPU Threshold to $new ..."
+
+    $theapp @max_cpu_threshold set $new
+    incr changes
+
+    debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::ChangeAutoEnabled {config client theapp av cv} {
+    debug.cmd/app {}
+    upvar 1 $av app $cv changes
+
+    if {![$config @autoscale set?]} {
+	debug.cmd/app {not set}
+	return
+    }
+
+    if {![$client isv2]} {
+	err "Client internal error. Should not be able to change this for an S2 target"
+    }
+
+    if {![$theapp @autoscale_enabled defined?]} {
+	display "  Changing Application Autoscale not supported by target ..."
+	return
+    }
+
+    # client v2 : theapp ==> instance (object)
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set current [$theapp @autoscale_enabled]
+    set new     [$config @autoscale]
+
+    debug.cmd/app { current (app) = $current }
+    debug.cmd/app { new     (cfg) = $new }
+
+    # boolean, explicit xor to account for different string reps.
+    if {( $current && $new) ||
+	(!$current && !$new)} {
+	debug.cmd/app {/done /no-change}
+	return
+    }
+
+    display "  Changing Application Autoscale to $new ..."
+
+    $theapp @autoscale_enabled set $new
+    incr changes
+
+    debug.cmd/app {/done}
+    return
+}
+
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::app::instances {config} {
@@ -1805,7 +2053,10 @@ proc ::stackato::cmd::app::ChangeInstances {config client theapp av cv} {
     upvar 1 $av app $cv changes
     debug.cmd/app {}
 
-    if {![$config @instances set?]} return
+    if {![$config @instances set?]} {
+	debug.cmd/app {not set}
+	return
+    }
 
     # client v1 : theapp ==> name     (string)
     # client v2 : theapp ==> instance (object)
@@ -1826,7 +2077,7 @@ proc ::stackato::cmd::app::ChangeInstances {config client theapp av cv} {
     set instances [$config @instances]
 
     # Number with sign is relative scaling.
-    set relative [string match {[-+]*} $instances]
+    set relative [string match {[-+]*} [$config @instances string]]
 
     debug.cmd/app {relative=$relative}
 
@@ -1839,6 +2090,9 @@ proc ::stackato::cmd::app::ChangeInstances {config client theapp av cv} {
     if {$new_instances < 1} {
 	err "There must be at least 1 instance."
     }
+
+    debug.cmd/app { current = $current_instances }
+    debug.cmd/app { new     = $new_instances }
 
     if {$current_instances == $new_instances} {
 	return
@@ -1857,6 +2111,7 @@ proc ::stackato::cmd::app::ChangeInstances {config client theapp av cv} {
     }
 
     incr changes
+    debug.cmd/app {/done}
     return
 }
 
@@ -1937,7 +2192,7 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
     }
 
     if {![llength $instances]} {
-	display [color yellow "No running instances for \[$theapp\]"]
+	display [color yellow "No running instances for \[[$theapp @name]\]"]
 	return
     }
 
@@ -2484,14 +2739,12 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	err "Unable to $action application \"$appname\". No space available to attach it to."
     }
 
-    # framework, runtime - bogus for v2 - TODO fix, replace with actual thing ...
-
-    set instances [AppInstances $config]
-    debug.cmd/app {instances     = $instances}
-
     # Framework/Runtime - Not applicable in V2
     # Detection (which buildpack) is now done serverside.
     # (Buildpack mechanism, asking all known BPs)
+
+    # See also GetManifestV2 for push-as-update.
+    # Extensions here must be added there also.
 
     set buildpack [AppBuildpack $config]
     debug.cmd/app {buildpack     = $buildpack}
@@ -2499,8 +2752,34 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set stack [AppStack $config]
     debug.cmd/app {stack         = $stack}
 
+    # Placement Zone
     set zone [AppZone $config]
     debug.cmd/app {zone          = $zone}
+
+    # Auto-Scaling Configuration, and related
+    set mini [AppMinInstances $config]
+    debug.cmd/app {min instances = $mini}
+    set maxi [AppMaxInstances $config]
+    debug.cmd/app {max instances = $maxi}
+    set mint [AppMinThreshold $config]
+    debug.cmd/app {min threshold = $mint}
+    set maxt [AppMaxThreshold $config]
+    debug.cmd/app {max threshold = $maxt}
+
+    set instances [AppInstances $config]
+    debug.cmd/app {instances     = $instances}
+
+    set autoscale [AppAutoscaling $config]
+    debug.cmd/app {autoscale     = $autoscale}
+
+    # Validate unified auto-scaling configuration, i.e. --instances,
+    # --autoscaling, --(min|max)-*.
+
+    set description [AppDescription $config]
+    debug.cmd/app {description   = $description}
+
+    set ssoe [AppSSOE $config]
+    debug.cmd/app {sso-enabled   = $ssoe}
 
     set command   [AppStartCommand $config {}]
     debug.cmd/app {command      = $command}
@@ -2511,7 +2790,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set mem_quota [AppMem $config $starting {} $instances {}] ; # No framework, nor runtime
     debug.cmd/app {mem_quota    = $mem_quota}
 
-    set disk_quota [AppDisk $config $instances $path]
+    set disk_quota [AppDisk $config $path]
     debug.cmd/app {disk_quota    = $disk_quota}
 
     # # ## ### ##### ######## ############# #####################
@@ -2526,7 +2805,11 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     $theapp @memory          set $mem_quota
     $theapp @name            set $appname
     $theapp @space           set $thespace
-    $theapp @total_instances set $instances
+
+    if {$instances ne {}} {
+	debug.cmd/app {apply instances ($instances)}
+	$theapp @total_instances set $instances
+    }
 
     if {$command ne {}} {
 	debug.cmd/app {apply command ($command)}
@@ -2542,6 +2825,38 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	# => convert
 	debug.cmd/app {apply zone $zone}
 	$theapp @distribution_zone set [$zone @name]
+    }
+
+    # Configure auto scaling
+    if {$mini ne {}} {
+	debug.cmd/app {apply min instances $mini}
+	$theapp @min_instances set $mini
+    }
+    if {$maxi ne {}} {
+	debug.cmd/app {apply mmax instances $maxi}
+	$theapp @max_instances set $maxi
+    }
+    if {$mint ne {}} {
+	debug.cmd/app {apply min threshold $mint}
+	$theapp @min_cpu_threshold set $mint
+    }
+    if {$maxt ne {}} {
+	debug.cmd/app {apply max threshold $maxt}
+	$theapp @max_cpu_threshold set $maxt
+    }
+    if {$autoscale ne {}} {
+	debug.cmd/app {apply autoscale $autoscale}
+	$theapp @autoscale_enabled set $autoscale
+    }
+
+    # Configure other
+    if {$description ne {}} {
+	debug.cmd/app {apply description "$description"}
+	$theapp @description set $description
+    }
+    if {$ssoe ne {}} {
+	debug.cmd/app {apply sso-enabled "$ssoe"}
+	$theapp @sso_enabled set $ssoe
     }
     if {$buildpack ne {}} {
 	debug.cmd/app {apply buildpack $buildpack}
@@ -2723,7 +3038,7 @@ proc ::stackato::cmd::app::ManifestOfAppV1 {starting config appname path} {
     set mem_quota [AppMem $config $starting $frameobj $instances $runtime]
     debug.cmd/app {mem_quota    = $mem_quota}
 
-    set disk_quota [AppDisk $config $instances $path]
+    set disk_quota [AppDisk $config $path]
     debug.cmd/app {disk_quota    = $disk_quota}
 
     # Standards: nodejs/node -- Ho to get ?
@@ -2967,7 +3282,7 @@ proc ::stackato::cmd::app::Push {config appname {interact 0}} {
 
     # Start application after staging, if not suppressed.
     if {$starting} {
-	start1 $config $theapp true
+	start-single $config $theapp true
     }
 
     debug.cmd/app {/done}
@@ -3018,7 +3333,7 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 
     switch -exact -- $action {
 	start {
-	    start1 $config $theapp
+	    start-single $config $theapp
 	}
 	restart {
 	    Restart1 $config $theapp
@@ -3294,7 +3609,6 @@ proc ::stackato::cmd::app::GetManifestV2 {client theapp __} {
     #manifest framework= N/A
     #manifest path=
     #manifest runtime=   N/A
-    manifest command=   [$theapp @command]
     manifest disk=      [$theapp @disk_quota]
     manifest env=       [$theapp @environment_json]
     manifest instances= [$theapp @total_instances]
@@ -3303,9 +3617,39 @@ proc ::stackato::cmd::app::GetManifestV2 {client theapp __} {
     manifest url=       [$theapp uris]
     manifest drains=    $drains
 
-    manifest buildpack= [$theapp @buildpack]
+    foreach {attr method} {
+	@distribution_zone  zone=
+	@description        description=
+	@sso_enabled        ssoenabled=
+	@max_instances      maxInstances=
+	@min_instances      minInstances=
+	@max_cpu_threshold  maxCpuThreshold=
+	@min_cpu_threshold  minCpuThreshold=
+	@autoscale_enabled  autoscaling=
+    } {
+	catch {
+	    set v [$theapp $attr]
+	    if {$v ne {}} {
+		manifest $method $v
+	    }
+	}
+    }
+
+    set bp [$theapp @buildpack]
+    if {($bp ne {}) && ($bp ne "null")} {
+	manifest buildpack= $bp
+    }
+
+    set cmd [$theapp @command]
+    if {($cmd ne {}) && ($cmd ne "null")} {
+	manifest command= $cmd
+    }
+
     catch {
-	manifest stack= [$theapp @stack @name]
+	set stack [$theapp @stack @name]
+	if {$stack ne {}} {
+	    manifest stack= $stack
+	}
     }
 
     debug.cmd/app {/done}
@@ -3537,11 +3881,18 @@ proc ::stackato::cmd::app::AppInstances {config} {
 	debug.cmd/app {manifest = $instances}
     }
 
-    if {$instances < 1} {
+    if {($instances eq {}) && [[$config @client] is-stackato]} {
+	# Nothing specified, target will use a default.
+	# In case of a CF target we skip this and force (see below).
+	return $instances
+    }
+
+    if {($instances eq {}) || ($instances < 1)} {
 	display "Forcing use of minimum instances requirement: 1"
 	set instances 1
     }
 
+    display "Instances:         $instances"
     manifest instances= $instances
     return $instances
 }
@@ -3586,7 +3937,7 @@ proc ::stackato::cmd::app::AppBuildpack {config} {
     }
 
     if {$buildpack ne {}} {
-	display "BuildPack:       $buildpack"
+	display "BuildPack:         $buildpack"
     }
 
     manifest buildpack= $buildpack
@@ -3598,8 +3949,8 @@ proc ::stackato::cmd::app::AppZone {config} {
 
     # Note: Can pull manifest data only here.
     # During cmdr processing current app is not known.
-    if {[$config @distribution-zone set?]} {
-	set zone [$config @distribution-zone]
+    if {[$config @placement-zone set?]} {
+	set zone [$config @placement-zone]
 	# zone = entity instance
 	debug.cmd/app {option   = [$zone @name]}
     } else {
@@ -3608,16 +3959,163 @@ proc ::stackato::cmd::app::AppZone {config} {
 	debug.cmd/app {manifest = $zone}
 	# Convert name into object, if possible
 	if {$zone ne {}} {
-	    set zone [zonename validate [$config @distribution-zone self] $zone]
+	    set zone [zonename validate [$config @placement-zone self] $zone]
 	}
     }
     # zone = entity instance
 
     if {$zone ne {}} {
-	display "Zone:            [$zone @name]"
+	display "Zone:              [$zone @name]"
 	manifest zone= [$zone @name]
     }
     return $zone
+}
+
+proc ::stackato::cmd::app::AppAutoscaling {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @autoscale set?]} {
+	set autoscaling [$config @autoscale]
+	debug.cmd/app {option   = $autoscaling}
+    } else {
+	set autoscaling [manifest autoscaling]
+	debug.cmd/app {manifest = $autoscaling}
+    }
+
+    if {$autoscaling ne {}} {
+	display "Autoscaling:       $autoscaling"
+	manifest autoscaling= $autoscaling
+    }
+
+    return $autoscaling
+}
+
+proc ::stackato::cmd::app::AppMinInstances {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @min-instances set?]} {
+	set min_instances [$config @min-instances]
+	debug.cmd/app {option   = $min_instances}
+    } else {
+	set min_instances [manifest minInstances]
+	debug.cmd/app {manifest = $min_instances}
+    }
+
+    if {$min_instances ne {}} {
+	display "Min Instances:     $min_instances"
+	manifest minInstances= $min_instances
+    }
+
+    return $min_instances
+}
+
+proc ::stackato::cmd::app::AppMaxInstances {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @max-instances set?]} {
+	set max_instances [$config @max-instances]
+	debug.cmd/app {option   = $max_instances}
+    } else {
+	set max_instances [manifest maxInstances]
+	debug.cmd/app {manifest = $max_instances}
+    }
+
+    if {$max_instances ne {}} {
+	display "Max Instances:     $max_instances"
+	manifest maxInstances= $max_instances
+    }
+
+    return $max_instances
+}
+
+proc ::stackato::cmd::app::AppMinThreshold {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @min-cpu set?]} {
+	set min_threshold [$config @min-cpu]
+	debug.cmd/app {option   = $min_threshold}
+    } else {
+	set min_threshold [manifest minCpuThreshold]
+	debug.cmd/app {manifest = $min_threshold}
+    }
+
+    if {$min_threshold ne {}} {
+	display "Min CPU Threshold: $min_threshold"
+	manifest minCpuThreshold= $min_threshold
+    }
+
+    return $min_threshold
+}
+
+proc ::stackato::cmd::app::AppMaxThreshold {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @max-cpu set?]} {
+	set max_threshold [$config @max-cpu]
+	debug.cmd/app {option   = $max_threshold}
+    } else {
+	set max_threshold [manifest maxCpuThreshold]
+	debug.cmd/app {manifest = $max_threshold}
+    }
+
+    if {$max_threshold ne {}} {
+	display "Max CPU Threshold: $max_threshold"
+	manifest maxCpuThreshold= $max_threshold
+    }
+
+    return $max_threshold
+}
+
+proc ::stackato::cmd::app::AppDescription {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @description set?]} {
+	set description [$config @description]
+	debug.cmd/app {option   = $description}
+    } else {
+	set description [manifest description]
+	debug.cmd/app {manifest = $description}
+    }
+
+    if {$description ne {}} {
+	display "Description:       $description"
+	manifest description= $description
+    }
+
+    return $description
+}
+
+proc ::stackato::cmd::app::AppSSOE {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @sso-enabled set?]} {
+	set ssoe [$config @sso-enabled]
+	debug.cmd/app {option   = $ssoe}
+    } else {
+	set ssoe [manifest ssoenabled]
+	debug.cmd/app {manifest = $ssoe}
+    }
+
+    if {$ssoe ne {}} {
+	display "SSO Enabled:       $ssoe"
+	manifest ssoenabled= $ssoe
+    }
+
+    return $ssoe
 }
 
 proc ::stackato::cmd::app::AppRuntime {config frameobj} {
@@ -3752,7 +4250,7 @@ proc ::stackato::cmd::app::AppStartCommand {config frameobj} {
     }
 
     manifest command= $command
-    display "Command:         $command"
+    display "Command:           $command"
 
     debug.cmd/app {==> ($command)}
     return $command
@@ -3816,7 +4314,7 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     foreach u $urls {
 	set u [string tolower $u]
 	lappend tmp $u
-	display "Application Url: $u"
+	display "Application Url:   $u"
     }
     set urls $tmp
 
@@ -4029,6 +4527,10 @@ proc ::stackato::cmd::app::AppMem {config starting frameobj instances runtime} {
     # Check capacity now, if the app will be started as part of the
     # push.
     if {!$starting} {
+	# Calculate required capacity based on defaults, if needed.
+	if {($instances eq {}) || ($instances < 1)} {
+	    set instances 1
+	}
 	set dtotal [expr {$mem * $instances}]
 	client check-capacity $client $dtotal push
     }
@@ -4037,7 +4539,7 @@ proc ::stackato::cmd::app::AppMem {config starting frameobj instances runtime} {
     return $mem
 }
 
-proc ::stackato::cmd::app::AppDisk {config instances path} {
+proc ::stackato::cmd::app::AppDisk {config path} {
     debug.cmd/app {}
 
     set client [$config @client]
@@ -4330,16 +4832,16 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
     # TODO/FUTURE: See if we can consolidate and refactor here and
     # there.
 
-    # All service types.
+    # All service types, plus associated plans.
     set services [v2 service list 1]
 
-    debug.cmd/app {services/all = ($services)}
+    debug.cmd/app {services/all      = <[llength $services]>=($services)}
 
     # Drop inactive service types
     set services [struct::list filter $services [lambda {s} {
 	$s @active
     }]]
-    debug.cmd/app {services/act = ($services)}
+    debug.cmd/app {services/active   = <[llength $services]>=($services)}
 
     # Restrict by label.
     if {[llength $services]} {
@@ -4348,11 +4850,13 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
 	debug.cmd/app {select label = ($label)}
 
 	set services [struct::list filter $services [lambda {p s} {
+	    debug.cmd/app {    Match $p == ($s [$s @label]) --> [string equal $p [$s @label]]}
+
 	    string equal $p [$s @label]
 	} $label]]
     }
 
-    debug.cmd/app {services/lbl = ($services)}
+    debug.cmd/app {services/*label   = <[llength $services]>=($services)}
 
     # Restrict by version, if specified
     if {[llength $services] && [dict exists $spec version]} {
@@ -4360,11 +4864,12 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
 	debug.cmd/app {select version = ($version)}
 
 	set services [struct::list filter $services [lambda {p s} {
+	    debug.cmd/app {    Match $p ($s [$s @version]) --> [string equal $p [$s @version]]}
 	    string equal $p [$s @version]
-	} $label]]
+	} $version]]
     }
 
-    debug.cmd/app {services/ver = ($services)}
+    debug.cmd/app {services/version  = <[llength $services]>=($services)}
 
     # Restrict by provider, default to 'core'.
     if {[llength $services]} {
@@ -4374,11 +4879,12 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
 	debug.cmd/app {select provider = ($provider)}
 
 	set services [struct::list filter $services [lambda {p s} {
+	    debug.cmd/app {    Match $p ($s [$s @provider]) --> [string equal $p [$s @provider]]}
 	    string equal $p [$s @provider]
 	} $provider]]
     }
 
-    debug.cmd/app {services/prv = ($services)}
+    debug.cmd/app {services/provider = <[llength $services]>=($services)}
 
     # Find plans, default to 'free'. (cf difference, cf uses D100).
     set plans {}
@@ -4480,7 +4986,14 @@ proc ::stackato::cmd::app::ListKnown2 {} {
     # - service-bindings and applications, and
     # - plans and services.
     set res {}
-    foreach service [[cspace get] @service_instances get* {
+    set thespace [cspace get]
+
+    # Bug 103446: Clear the cache to pick up any services created by a
+    # preceding application in the same push command
+    # (multi-application push).
+    $thespace @service_instances decache
+
+    foreach service [$thespace @service_instances get* {
 	depth         3
 	user-provided true
     }] {
@@ -4875,7 +5388,7 @@ proc ::stackato::cmd::app::RuntimeMap {runtimes} {
     set map  {}
     set full {}
 
-    # Remember the target names, to keep them unambigous.
+    # Remember the target names, to keep them unambiguous.
     foreach {name info} $runtimes {
 	dict set full $name .
 	dict lappend map $name                  $name
@@ -5103,8 +5616,9 @@ proc ::stackato::cmd::app::ListPlans1 {client} {
 
 proc ::stackato::cmd::app::ListPlans2 {} {
     set res {}
-    # chosen depth delivers plans and referenced services.
-    foreach plan [v2 service_plan list 1] {
+    # chosen depth delivers plans, their services, and instances.
+    # restrict relations to ignore the last.
+    foreach plan [v2 service_plan list 1 include-relations service] {
 	set     details {}
 	lappend details $plan
 	lappend details [$plan manifest-info]
@@ -5124,13 +5638,13 @@ proc ::stackato::cmd::app::ChooseExistingServices {client theapp user_services} 
 
     #set vmap [VendorMap $client $user_services]
     #set cmap [Choices   $client $user_services]
-    set choices [lsort -dict [dict keys $user_services]]
-
     #set none "<None of the above>"
     #lappend choices $none
 
     set bound {}
     while {1} {
+	set choices [lsort -dict [dict keys $user_services]]
+
 	set name [term ask/menu \
 		      "Which one ?" "Choose: " \
 		      $choices]
@@ -5144,6 +5658,10 @@ proc ::stackato::cmd::app::ChooseExistingServices {client theapp user_services} 
 	lappend bound $name $mdetails
 
 	if {![term ask/yn "Bind another ? " no]} break
+
+	# Remove the chosen service from the possible selections.
+	# Binding twice is nonsensical.
+	dict unset user_services $name
     }
 
     return $bound
@@ -5329,7 +5847,7 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 	if {![llength $services]} {
 	    err "Service \[$servicename\] is not known."
 	} elseif {[llength $services] > 1} {
-	    err "More than one service found; the name ambigous."
+	    err "More than one service found; the name ambiguous."
 	}
     } else {
 	# No service specified, auto-select it.
@@ -5342,6 +5860,7 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 	# Extract the name->vendor map
 
 	set supported {}
+	set snames    {}
 	foreach service $services {
 	    if {[catch {
 		set p [$service @service_plan]
@@ -5350,12 +5869,13 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 	    # (x$x)
 	    if {![AcceptDbshell $vendor]} continue
 	    lappend supported $service
+	    lappend snames    [$service @name]
 	}
 	set services $supported
 	# end XXX
 
 	if {[llength $services] > 1} {
-	    err "More than one service found; you must specify the service name.\nWe have: [join $services {, }]"
+	    err "More than one service found; you must specify the service name.\nWe have: [join [lsort -dict $snames] {, }]"
 	} elseif {![llength $services]} {
 	    err "No services supporting dbshell found."
 	}
@@ -5859,9 +6379,19 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	debug.cmd/app {**************************************************************}
 	display "Uploading Application \[$appname\] ... "
 
+	# Truncate the appname as used in file paths to a sensible
+	# length to avoid OS path length restrictions when the user
+	# uses a very long application name.
+
+	if {[string length $appname] > 30} {
+	    set pappname [string range $appname 0 29]
+	} else {
+	    set pappname $appname
+	}
+
 	set tmpdir      [fileutil::tempdir]
-	set upload_file [file normalize "$tmpdir/$appname.zip"]
-	set explode_dir [file normalize "$tmpdir/.stackato_${appname}_files"]
+	set upload_file [file normalize "$tmpdir/$pappname.zip"]
+	set explode_dir [file normalize "$tmpdir/.stackato_${pappname}_files"]
 	set file {}
 
 	file delete -force $upload_file
@@ -5978,6 +6508,14 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	    set upload_size [expr {round($upload_size/(1024*1024.))}]M
 	} elseif {$upload_size >= 512} {
 	    set upload_size [expr {round($upload_size/1024.)}]K
+	}
+
+	if {[$config @keep-zip set?]} {
+	    set keep [$config @keep-zip]
+	    display "  Saving zip for inspection, at $keep ... "
+
+	    file mkdir [file dirname $keep]
+	    file copy $upload_file $keep
 	}
 
 	set upload_str "  Uploading ($upload_size) ... "

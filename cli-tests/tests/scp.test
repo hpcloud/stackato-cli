@@ -73,19 +73,9 @@ test scp-1.4 {scp, retrieve file} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result {# Node.js ENV 
+} -match glob -result [viewFile data/scp14.txt]
 
-A simple demo that prints the server's environment variables.
-
-## Local development
-
-    node app.js
-
-## Deploying to Stackato
-
-    stackato push -n}
-
-# todo --target, --group, multiple dependent apps.
+TODO scp --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 ## Test all possible combinations of single/multiple

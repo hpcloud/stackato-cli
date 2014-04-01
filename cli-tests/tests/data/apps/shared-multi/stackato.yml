@@ -1,0 +1,14 @@
+command: node app.js
+name: node-env
+mem: 256M
+services:
+  shared:
+    type: mysql
+
+applications:
+- command: node app.js
+  name: node-env-2
+  mem: 256M
+  services:
+    shared:
+      type: mysql

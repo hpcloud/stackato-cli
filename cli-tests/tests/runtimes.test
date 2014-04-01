@@ -27,8 +27,7 @@ test runtimes-1.1 {runtimes, login required} -setup {
     run runtimes
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test runtimes-1.3.1 {runtimes} -constraints cfv1 -setup {
     stage-open
@@ -37,23 +36,17 @@ test runtimes-1.3.1 {runtimes} -constraints cfv1 -setup {
     run runtimes
 } -cleanup {
     stage-close
-} -match glob -result {+--------------+------------------+---------+
-| Name         | Description      | Version |
-+--------------+------------------+---------+
-| erlangR14B02 | Erlang R14B02    | * |
-| java         | Java (default)   | * |
-| java6        | Java 6           | * |
-| java7        | Java 7           | * |
-| node         | Node.js          | * |
-| node010      | Node.js          | * |
-| node08       | Node.js          | * |
-| perl516      | ActivePerl 5.16  | * |
-| php          | PHP 5            | * |
-| python27     | ActivePython 2.7 | * |
-| python32     | ActivePython 3.2 | * |
-| ruby19       | Ruby 1.9.3       | * |
-| ruby20       | Ruby 2.0.0       | * |
-+--------------+------------------+---------+}
+} -match glob -result {+*-+-*-+-*-+
+| Name *| Description *| Version *|
++*-+-*-+-*-+
+| erlang* | Erlang * | * |*
+| java* | Java * | * |*
+| node* | Node.js * | * |*
+| perl* | ActivePerl * | * |*
+| php* | PHP * | * |
+| python* | ActivePython * | * |*
+| ruby* | Ruby * | * |*
++*-+-*-+-*-+}
 
 test runtimes-1.3.2 {runtimes, not allowed for CFv2} -constraints cfv2 -setup {
     stage-open

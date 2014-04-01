@@ -28,17 +28,10 @@ test target-1.1 {client target, default} -setup {
     stage-close
 } -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
 
-test target-1.2.1 {client target, default, json} -constraints cfv1 -setup {
-    stage-open
-} -body {
-    run target -n --json
-} -cleanup {
-    stage-close
-} -result {{
-    "target" : "https://api.stackato.local"
-}}
-
-test target-1.2.2 {client target, default, json} -constraints cfv2 -setup {
+# We get the same output regardless of CFv1 vs CFv2, because the
+# client is unable to determine the API of the target, the default
+# target is invalid. So it goes for maximum output.
+test target-1.2 {client target, default, json} -setup {
     stage-open
 } -body {
     run target -n --json
@@ -111,7 +104,7 @@ test target-1.8 {client target, bogus target} -setup {
     run target -n bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result {Host is not valid: 'https://bogus'
+} -returnCodes error -result {Cannot access target 'https://bogus' (couldn't open socket: host is unreachable (Name or service not known))
 Maybe try to target [https://api.bogus] instead.}
 
 test target-1.9 {client target, bogus target, verbose response} -setup {
@@ -120,7 +113,7 @@ test target-1.9 {client target, bogus target, verbose response} -setup {
     run target -n --verbose bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result {Host is not valid: 'https://bogus'
+} -returnCodes error -result {Cannot access target 'https://bogus' (couldn't open socket: host is unreachable (Name or service not known))
 Maybe try to target [https://api.bogus] instead.
 
 <<<
@@ -133,7 +126,7 @@ test target-1.10 {client target, bogus target, api prefix} -setup {
     run target -n api.bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result {Host is not valid: 'https://api.bogus'}
+} -returnCodes error -result {Cannot access target 'https://api.bogus' (couldn't open socket: host is unreachable (Name or service not known))}
 
 test target-1.11 {client target, bogus target, api prefix, verbose response} -setup {
     stage-open
@@ -141,7 +134,7 @@ test target-1.11 {client target, bogus target, api prefix, verbose response} -se
     run target -n --verbose api.bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result {Host is not valid: 'https://api.bogus'
+} -returnCodes error -result {Cannot access target 'https://api.bogus' (couldn't open socket: host is unreachable (Name or service not known))
 
 <<<
 Cannot access target 'https://api.bogus' (couldn't open socket: host is unreachable (Name or service not known))

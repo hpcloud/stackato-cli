@@ -41,7 +41,7 @@ namespace eval ::stackato::cmd::serviceauth {
 proc ::stackato::cmd::serviceauth::list {config} {
     debug.cmd/serviceauth {}
 
-    set thetokens [v2 service_auth_token list 1]
+    set thetokens [v2 service_auth_token list]
 
     if {[$config @json]} {
 	set tmp {}
@@ -88,6 +88,13 @@ proc ::stackato::cmd::serviceauth::update {config} {
     # V2 only.
     # client v2 = @label is entity instance
 
+    if {![$config @label set?]} {
+	$config notEnough
+    }
+    if {![$config @auth-token set?]} {
+	$config notEnough
+    }
+
     set atoken [$config @label]
     set value  [$config @auth-token]
 
@@ -106,6 +113,13 @@ proc ::stackato::cmd::serviceauth::update {config} {
 
 proc ::stackato::cmd::serviceauth::create {config} {
     debug.cmd/serviceauth {}
+
+    if {![$config @label set?]} {
+	$config notEnough
+    }
+    if {![$config @auth-token set?]} {
+	$config notEnough
+    }
 
     # @label      string
     # @provider   string
@@ -133,6 +147,10 @@ proc ::stackato::cmd::serviceauth::delete {config} {
 
     # V2 only.
     # client v2 = @label is entity instance
+
+    if {![$config @label set?]} {
+	$config notEnough
+    }
 
     set atoken [$config @label]
 

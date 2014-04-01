@@ -10,38 +10,6 @@ kt check tcltest 2
 
 kt source support/common.tcl
 
-set logtext1 {*T* stackato.stager: Staging application ?node-env?
-*T* staging: 
-*T* staging: -----> npm config set registry http://registry.npmjs.org*
-*T* staging: end of staging
-*T* stackato.stager: Completed staging application ?node-env?
-*T* stackato.dea.0: Starting application ?node-env? on DEA *
-*T* app.0: Server running at *}
-
-set logtext2 {*T* stackato?cloud_controller_ng?: Created app 'node-env'
-*T* stackato?cloud_controller_ng?: Queued deployment of app 'node-env'
-*T* stackato?dea_ng?: Staging application
-*T* stackato?cloud_controller_ng?: Updated app 'node-env' -- {"console"=>true, "state"=>"STARTED"}
-*T* staging: -----> Downloaded app package (*)
-*T* staging: -----> Resolving engine versions
-*T* staging: 
-*T* staging:        WARNING: No version of Node.js specified in package.json, see:
-*T* staging:        https://devcenter.heroku.com/articles/nodejs-versions
-*T* staging: 
-*T* staging:        Using Node.js version: 0.10.21
-*T* staging:        Using npm version: 1.2.30
-*T* staging: -----> Fetching Node.js binaries
-*T* staging: -----> Vendoring node into slug
-*T* staging: -----> Installing dependencies with npm
-*T* staging:        npm WARN package.json node-env@0.0.1 No repository field.
-*T* staging:        npm WARN package.json node-env@0.0.1 No repository field.
-*T* staging:        Dependencies installed
-*T* staging: -----> Building runtime environment
-*T* staging: -----> Uploading droplet (*)
-*T* stackato?dea_ng?: Completed staging application
-*T* stackato?dea_ng.0?: Spawning app web process: node app.js
-*T* app?stdout.0?: Server running at *}
-
 # # ## ### ##### ######## ############# #####################
 
 test logs-1.0 {logs, wrong args, too many} -setup {
@@ -79,7 +47,10 @@ test logs-1.2 {logs, auto-select app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result [per-api $logtext1 $logtext2]
+} -match glob -result \
+    [per-api \
+	 [viewFile data/logs1.txt] \
+	 [viewFile data/logs2.txt]]
 
 test logs-1.3 {logs, explicit app} -setup {
     stage-open
@@ -93,9 +64,12 @@ test logs-1.3 {logs, explicit app} -setup {
     unset appdir
     remove-test-app node-env
     stage-close
-} -match glob -result [per-api $logtext1 $logtext2]
+} -match glob -result \
+    [per-api \
+	 [viewFile data/logs1.txt] \
+	 [viewFile data/logs2.txt]]
 
-# todo --target, --group, multiple dependent apps.
+TODO logs --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

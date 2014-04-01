@@ -1,2 +1,2 @@
 *
-http://node-env.@BASE@/ deployed
+http://node-env.@BASE@/ deployed*

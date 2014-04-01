@@ -147,9 +147,9 @@ proc ::stackato::mgr::logstream::stop {config {mode any}} {
 	#  or | handle of the timer delaying the next log request.
 	# Either must be canceled
 	if {[string match after* $pid]} {
-	    after cancel $pid
+	    catch { after cancel $pid }
 	} else {
-	    $client logs_cancel $pid
+	    catch { $client logs_cancel $pid }
 	}
     }
 
@@ -316,7 +316,7 @@ proc ::stackato::mgr::logstream::Tail {config} {
 }
 
 proc ::stackato::mgr::logstream::TailRun {config} {
-    variable pid
+    variable pid {}
 
     debug.mgr/logstream {}
     dict with config {}
@@ -335,7 +335,7 @@ proc ::stackato::mgr::logstream::TailRun {config} {
 }
 
 proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
-    variable pid
+    variable pid {}
     debug.mgr/logstream/data {TailNext ($config) ($cmd)}
 
     dict with config {}
@@ -351,7 +351,6 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
     # Return - Print log entries and restart.
 
     if {$cmd eq "reset"} {
-	set pid {}
 	return
     }
 
@@ -360,7 +359,6 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
 
     if {[dict get $o -code] in {error 1}} {
 	display [color red $r]
-	set pid {}
 	return
     }
 
@@ -371,7 +369,6 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
 	ShowLines $config [split [string trimright $data \n] \n]
     } e]} {
 	display [color red $::errorInfo]
-	set pid {}
 	return
     }
 

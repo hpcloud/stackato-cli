@@ -176,12 +176,16 @@ proc ::stackato::cmd::query::list-packages {config} {
 proc ::stackato::cmd::query::named-entities {config} {
     debug.cmd/query {}
 
+    set types [v2 types]
+    struct::list delete types managed_service_instance
+    struct::list delete types user_provided_service_instance
+
     if {[$config @json]} {
-	display [jmap map array [v2 types]]
+	display [jmap map array $types]
 	return
     }
 
-    display [lsort -dict [v2 types]]
+    display [lsort -dict $types]
     return
 }
 
@@ -195,9 +199,20 @@ proc ::stackato::cmd::query::map-named-entity {config} {
     regsub {s$} $type {} type
 
     # Note: How to handle entities without @name ?
-    set matches [v2 sort id [struct::list filter [v2 $type list] [lambda {pattern o} {
-	string equal $pattern [$o @name]
-    } $name]] -dict]
+    if {$type ni {user service_plan}} {
+	switch -exact -- $type {
+	    route { set k host }
+	    service_auth_token -
+	    service { set k label }
+	    default { set k name }
+	}
+	set matches [v2 sort id [v2 $type list 0 q $k:$name] -dict]
+    } else {
+	# Pull list of all entities and filter locally.
+	set matches [v2 sort id [struct::list filter [v2 $type list] [lambda {pattern o} {
+	    string equal $pattern [$o @name]
+	} $name]] -dict]
+    }
 
     if {[$config @json]} {
 	set ids [struct::list map $matches [lambda o {
@@ -223,7 +238,17 @@ proc ::stackato::cmd::query::map-named-entity {config} {
 
 proc ::stackato::cmd::query::trace {config} {
     debug.cmd/query {}
+
+    if {![file exists [cfile get rest]]} {
+	err "No trace available"
+    }
+    if {![file readable [cfile get rest]]} {
+	err "Not permitted to read the trace"
+    }
+
     set in [open [cfile get rest] r]
+    fconfigure $in    -translation binary
+    fconfigure stdout -translation binary
     fcopy $in stdout
     close $in
     return
@@ -259,8 +284,8 @@ proc ::stackato::cmd::query::AppinfoV1 {config client} {
 
     display [$config @application]
     [table::do t {Key Value} {
-	$t add State        [dict get $app state]
 	$t add Uris         [join [lsort -dict [dict get $app uris]] \n]
+	$t add State        [dict get $app state]
 	$t add Health       [misc health $app]
 	$t add Instances    [dict get $app instances]
 	$t add Memory       [psz [MB [dict get $app resources memory]]]
@@ -304,29 +329,58 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 
     display [ctx format-short " -> [$theapp @name]"]
     [table::do t {Key Value} {
-	$t add State        [$theapp @state]
-	$t add Uris         [join [lsort -dict [$theapp uris]] \n]
-	$t add $htitle      $health
-	$t add Instances    [$theapp @total_instances]
-
 	if {[$theapp @distribution_zone defined?]} {
 	    set z [$theapp @distribution_zone]
 	    # z :: name <=> guid. NOT entity.
 	} else {
-	    # no zone supported by target.
+	    # placement zone not supported by target.
 	    set z "N/A (not supported by target)"
 	}
 
-	$t add Zone         $z
-	$t add Memory       [psz [MB [$theapp @memory]]]
-	$t add {Disk Quota} [psz [MB [$theapp @disk_quota]]]
-	$t add Services     [join [lsort -dict [$theapp services]] \n]
-	$t add Environment:
+	foreach {var attr} {
+	    ssoe sso_enabled
+	    desc description
+	    mini min_instances
+	    maxi max_instances
+	    mint min_cpu_threshold
+	    maxt max_cpu_threshold
+	    auts autoscale_enabled
+	    rere restart_required
+	} {
+	    if {[$theapp @$attr defined?]} {
+		set $var [$theapp @$attr]
+	    } else {
+		# attribute not supported by target.
+		set $var "N/A (not supported by target)"
+	    }
+	}
+
+	$t add Description      $desc
+	$t add Routes           [join [lsort -dict [$theapp uris]] \n]
+	$t add {Placement Zone} $z
+	$t add {SSO Enabled}    $ssoe
+
+	$t add State              [$theapp @state]
+	$t add {Restart required} $rere
+	$t add $htitle            $health
+	$t add Instances          [$theapp @total_instances]
+	$t add Memory             [psz [MB [$theapp @memory]]]
+	$t add {Disk Quota}       [psz [MB [$theapp @disk_quota]]]
+
+	$t add Services         [join [lsort -dict [$theapp services]] \n]
+	$t add Environment
 	dict for {k v} [dict sort [$theapp @environment_json]] {
 	    $t add "- $k" $v
 	}
 
 	$t add Drains [join [lsort -dict [DrainListV2 $theapp]] \n]
+
+	$t add {Auto Scaling}
+	$t add {- Enabled}       $auts
+	$t add {- Min Instances} $mini
+	$t add {- Max Instances} $maxi
+	$t add {- Min CPU}       $mint
+	$t add {- Max CPU}       $maxt
     }] show display
     return
 }
@@ -393,7 +447,7 @@ proc ::stackato::cmd::query::stacks {config} {
     # through when-complete and force.
 
     set client [$config @client]
-    set stacks [v2 sort @name [v2 stack list 1] -dict]
+    set stacks [v2 sort @name [v2 stack list] -dict]
 
     if {[$config @json]} {
 	display [jmap v2-stacks [struct::list map $stacks [lambda s {
@@ -655,10 +709,10 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	    $cs summarize
 	    set applications [$cs @apps]
 	} trap {STACKATO CLIENT V2 AUTHERROR} {e o} {
-	    set applications [v2 app list 2]
+	    set applications [v2 app list 2 include-relations routes,domain,service_bindings,service_instance]
 	}
     } else {
-	set applications [v2 app list 2]
+	set applications [v2 app list 2 include-relations routes,domain,service_bindings,service_instance]
     }
 
     # TODO: query/apps - Filter by name/url
@@ -688,6 +742,16 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	      trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 		debug.cmd/query {not staged}
 		set health 0%
+	    }
+
+	    if {[$app @restart_required defined?]} {
+		append health [expr { [$app @restart_required]
+				      ? " (R)"
+				      : " (-)" }]
+	    } else {
+		# Do not confuse user of non-stackto target.
+		# Good for testing though.
+		#append health " (?)"
 	    }
 
 	    set name         [$app @name]

@@ -12,7 +12,8 @@ kt source support/common.tcl
 
 # # ## ### ##### ######## ############# #####################
 
-# todo complexities: -n, --force interaction for apps with services.
+TODO app delete complexities: -n, --force interaction for apps with services.
+TODO app delete complexities: -n interaction for apps with routes.
 
 test delete-app-1.0 {delete-app, login required} -setup {
     stage-open
@@ -26,21 +27,35 @@ test delete-app-1.0 {delete-app, login required} -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test delete-app-1.1 {delete-app, non-admin login is ok} -constraints cfv2uaa -setup {
+test delete-app-1.1.1 {delete-app, non-admin login is ok} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
     make-test-app
 } -body {
-    indir [appdir] {
-	remove-test-app
-    }
+    indir [appdir] { run delete -n TEST }
 } -cleanup {
     remove-appdir
     be-admin
     remove-non-admin
     stage-close
-} -result {Deleting application \[TEST\] ... OK}
+} -result {Deleting application [TEST] ... OK}
+
+test delete-app-1.1.2 {delete-app, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    indir [appdir] { run delete -n TEST }
+} -cleanup {
+    catch { run delete-route -n test.[targetdomain] }
+    remove-appdir
+    be-admin
+    remove-non-admin
+    stage-close
+} -result {Deleting application [TEST] ... OK
+Deleting route [test.stackato-nightly.activestate.com] ... OK}
 
 test delete-app-1.2 {delete-app, persists} -setup {
     stage-open
@@ -64,7 +79,42 @@ test delete-app-1.3 {delete-app, unknown app} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an application name for input "application", got "bogus"}
+} -returnCodes error -result \
+    [unexpected input application application bogus \
+	 [per-api {} " in space '[thespace]'"]]
+
+test delete-app-1.4.1 {delete-app, all apps} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app TEST1
+    make-test-app TEST2
+    make-test-app TEST3
+    remove-appdir
+} -body {
+    run delete -n --all
+} -cleanup {
+    stage-close
+} -result {Deleting application [TEST1] ... OK
+Deleting application [TEST2] ... OK
+Deleting application [TEST3] ... OK}
+
+test delete-app-1.4.2 {delete-app, all apps} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app TEST1
+    make-test-app TEST2
+    make-test-app TEST3
+    remove-appdir
+} -body {
+    run delete -n --all
+} -cleanup {
+    stage-close
+} -result {Deleting application [TEST1] ... OK
+Deleting route [test1.stackato-nightly.activestate.com] ... OK
+Deleting application [TEST2] ... OK
+Deleting route [test2.stackato-nightly.activestate.com] ... OK
+Deleting application [TEST3] ... OK
+Deleting route [test3.stackato-nightly.activestate.com] ... OK}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

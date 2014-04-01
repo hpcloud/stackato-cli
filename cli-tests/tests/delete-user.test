@@ -63,7 +63,7 @@ test delete-user-1.3.2 {delete-user, requires admin login} -constraints cfv2 -se
     run delete-user ex@as
     remove-non-admin
     stage-close
-} -returnCodes error -result {Expected a user name for input "email", got "ex@as"}
+} -returnCodes error -result [unexpected input email {A user} ex@as]
 
 test delete-user-1.4.1 {delete-user} -constraints cfv1 -setup {
     stage-open
@@ -92,7 +92,22 @@ test delete-user-1.5 {delete-user, unknown user} -setup {
     run delete-user unknown[pid]@as
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result {Expected a user name for input "email", got "unknown*@as"}
+} -returnCodes error -match glob -result [unexpected input email {A user} unknown*@as]
+
+test delete-user-1.6 {delete-user, with associated application} -constraints {knownBug cfv2} -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --password P --email ex@as --admin
+    run login       e@as --password P
+    make-test-app
+    remove-appdir
+    go-admin
+} -body {
+    run delete-user -n e@as
+    # does not seem to remove the app
+} -cleanup {
+    stage-close
+} -result {Deleting User ... OK}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

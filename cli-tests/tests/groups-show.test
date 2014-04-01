@@ -27,10 +27,9 @@ test groups-show-1.1 {groups show, login required} -setup {
     run groups show
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
-test groups-show-1.2 {groups show, non-admin login ok} -constraints cfv2uaa -setup {
+test groups-show-1.2 {groups show, non-admin login ok} -constraints cfv1 -setup {
     stage-open
     go-admin
     go-non-admin
@@ -69,7 +68,7 @@ test groups-show-1.5 {groups show, with groups} -constraints cfv1 -setup {
 } -cleanup {
     run groups delete test-group
     stage-close
-} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n| test-group *|*|\n+-*-+-*-+"
+} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n*| test-group *|*|\n*+-*-+-*-+"
 
 test groups-show-1.6 {groups show, with groups, json} -constraints cfv1 -setup {
     stage-open
@@ -97,7 +96,7 @@ test groups-show-1.7 {groups show, with groups and members} -constraints cfv1 -s
     run groups delete      test-group
     run delete-user        grouper@test
     stage-close
-} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n| test-group *| grouper@test *|\n+-*-+-*-+"
+} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n*| test-group *| grouper@test *|\n*+-*-+-*-+"
 
 test groups-show-1.8 {groups show, with groups and members, json} -constraints cfv1 -setup {
     stage-open
@@ -127,8 +126,7 @@ test groups-show-2.1 {groups show is default, login required} -setup {
     run groups
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test groups-show-2.2 {groups show is default, nothing} -constraints cfv1 -setup {
     stage-open
@@ -157,7 +155,7 @@ test groups-show-2.4 {groups show is default, with groups} -constraints cfv1 -se
 } -cleanup {
     run groups delete test-group
     stage-close
-} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n| test-group *|*|\n+-*-+-*-+"
+} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n*| test-group *|*|\n*+-*-+-*-+"
 
 test groups-show-2.5 {groups show is default, with groups, json} -constraints cfv1 -setup {
     stage-open
@@ -185,7 +183,7 @@ test groups-show-2.6 {groups show is default, with groups and members} -constrai
     run groups delete      test-group
     run delete-user        grouper@test
     stage-close
-} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n| test-group *| grouper@test *|\n+-*-+-*-+"
+} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n*| test-group *| grouper@test *|\n*+-*-+-*-+"
 
 test groups-show-2.7 {groups show is default, with groups and members, json} -constraints cfv1 -setup {
     stage-open
@@ -204,6 +202,14 @@ test groups-show-2.7 {groups show is default, with groups and members, json} -co
     "test-group" : ["grouper@test"]
 }}
 
-## TODO: Proper error against CFV2 target.
+test groups-show-2.0 {groups show, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -44,24 +44,39 @@ oo::class create ::stackato::v2::app {
 	# here). When changing attribute names make sure to not
 	# collide with these.
 
-	my Attribute name             string
-	my Attribute space            &space
-	my Attribute environment_json dict    label {Environment} default {}
-	my Attribute memory           integer label {Memory     } default 256            ;# integer0 is better
-	my Attribute total_instances  integer label {Instances  } default 1 as instances ;# integer0 actually.
-	my Attribute disk_quota       integer label {Disk       } default 256            ;# integer0 is better
-	my Attribute state            string  label {State      } default STOPPED        ;# state enum might help
-	my Attribute command          string  label {Command    } default {}
-	my Attribute console          boolean label {Console    } default off
-	my Attribute buildpack        string  label {Buildpack  } default {}
-	my Attribute stack            &stack  label {Stack      } default {}
-	my Attribute debug            string  label {Debug      } default {}
-	my Attribute production       boolean label {Production } default off
+	my Attribute name              string
+	my Attribute space             &space
+	my Attribute environment_json  dict    label {Environment} default {}
+	my Attribute memory            integer label {Memory       } default 256            ;# integer0 is better
+	my Attribute total_instances   integer label {Instances    } default 1 as instances ;# integer0 actually.
+	my Attribute disk_quota        integer label {Disk         } default 256            ;# integer0 is better
+	my Attribute state             string  label {State        } default STOPPED        ;# state enum might help
+	my Attribute command           string  label {Command      } default {}
+	my Attribute console           boolean label {Console      } default off
+	my Attribute buildpack         string  label {Buildpack    } default {}
+	my Attribute stack             &stack  label {Stack        } default {}
+	my Attribute debug             string  label {Debug        } default {}
+	my Attribute production        boolean label {Production   } default off
 
+	# -- Stackato 3.2 ---
 	# NOTE! While the attribute is the guid (<==> name) of the
 	# application's zone this is not a standard 1-relation,
 	# i.e. not a &zone. All dereferencing must be done manually.
 	my Attribute distribution_zone string  label {DEA Zone   } default {}
+
+	# -- Stackato 3.2 ---
+	my Attribute description string        label {Description  } default {}
+	my Attribute sso_enabled boolean       label {SSO Enabled  } default {}
+
+	# -- Stackato 3.2 --- auto scaling support
+	my Attribute max_instances       null|integer label {Max Instances} default 1
+	my Attribute min_instances       integer      label {Min Instances} default {}
+	my Attribute max_cpu_threshold   integer      label {Max Threshold} default 0
+	my Attribute min_cpu_threshold   integer      label {Min Threshold} default 0
+	my Attribute autoscale_enabled   boolean      label {Autoscaling  }
+
+	# Read-only attribute.
+	my Attribute restart_required    boolean      label {Restart required}
 
 	my Many service_bindings
 	my Many	routes

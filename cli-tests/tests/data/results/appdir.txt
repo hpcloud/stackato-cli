@@ -1,4 +1,4 @@
-*Application Url: node-env.@BASE@
+*Application Url:   node-env.@BASE@
 *Creating Application * ... OK
 *Uploading Application * ... 
   Checking for bad links ...  OK

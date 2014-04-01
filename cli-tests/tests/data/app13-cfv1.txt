@@ -1,0 +1,14 @@
+*node-env
++--------------+-*-+
+| Key          | Value *|
++--------------+-*-+
+| Uris         | node-env.* |
+| State        | STARTED *|
+| Health       | RUNNING *|
+| Instances    | 1 *|
+| Memory       | 256.0M *|
+| Disk Quota   | 2.0G *|
+| Services     | * |
+| Environment: | * |
+| Drains       | * |
++--------------+-*-+

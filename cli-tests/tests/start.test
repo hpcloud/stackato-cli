@@ -60,7 +60,7 @@ test start-1.3 {start, explicit app} -setup {
     stage-close
 } -match glob -result "*http://node-env.[thebase]/ deployed"
 
-# todo --target, --group, multiple dependent apps.
+TODO start --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -1,0 +1,8 @@
++-*-+-*-+
+| Key    | Value *|
++-*-+-*-+
+| Email  | @usr@ *|
+| Admin  | true *|
+| Groups | * |
+| Apps   | * |
++-*-+-*-+

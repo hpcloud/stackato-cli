@@ -27,8 +27,7 @@ namespace eval ::stackato::validate {
 }
 
 namespace eval ::stackato::validate::serviceplan {
-    namespace export default validate complete release \
-	get-candidates
+    namespace export default validate complete release
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
@@ -53,8 +52,15 @@ proc ::stackato::validate::serviceplan::validate {p x} {
 
     refresh-client $p
 
+    # NOTE: service-plans are not searchable server-side by name.
+    # Search must be done client-side. Should not be a big issue
+    # as we are already restricted to the plans of the vendor,
+    # which should be small.
+
     set vendor  [$p config @vendor]
-    set matches [$vendor @service_plans get* {depth 2} filter-by @name $x]
+    set matches [$vendor @service_plans get* {
+	depth 1 include-relations service
+    } filter-by @name $x]
 
     # Drop plans based on inactive service types.
     set matches [struct::list filter $matches [lambda {s} {

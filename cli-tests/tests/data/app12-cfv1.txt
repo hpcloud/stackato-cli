@@ -1,0 +1,15 @@
+Using manifest file "stackato.yml"
+*node-env
++--------------+-*-+
+| Key          | Value *|
++--------------+-*-+
+| Uris         | node-env.* |
+| State        | STOPPED *|
+| Health       | STOPPED *|
+| Instances    | 1 *|
+| Memory       | 256.0M *|
+| Disk Quota   | 2.0G *|
+| Services     | * |
+| Environment: | * |
+| Drains       | * |
++--------------+-*-+

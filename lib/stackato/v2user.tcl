@@ -32,18 +32,20 @@ oo::class create ::stackato::v2::user {
 	my Attribute default_space &space
 
 	my Many spaces
+	my Many managed_spaces                space
+	my Many audited_spaces                space
+
 	my Many organizations
 	my Many managed_organizations         organization
 	my Many billing_managed_organizations organization
 	my Many audited_organizations         organization
-	my Many managed_spaces                space
-	my Many audited_spaces                space
 
-	my SearchableOn space
 	my SearchableOn organization
 	my SearchableOn managed_organization
 	my SearchableOn billing_managed_organization
 	my SearchableOn audited_organization
+
+	my SearchableOn space
 	my SearchableOn managed_space
 	my SearchableOn audited_space
 
@@ -184,7 +186,7 @@ oo::class create ::stackato::v2::user {
     ## tries the regular CFv2 song-and-dance talking to both CC and
     ## UAA.
 
-    method create! {username email password admin} {
+    method create! {username email given family password admin} {
 	debug.v2/user {}
 
 	# Assume a stackato CC with extended functionality under
@@ -192,7 +194,8 @@ oo::class create ::stackato::v2::user {
 
 	display {Commit ... } false
 	try {
-	    my = [[authenticated] stackato-create-user $username $email $password $admin]
+	    my = [[authenticated] stackato-create-user $username $email \
+		      $given $family $password $admin]
 	    set callerdoesadmin 0
 
 	    if {$admin} {
@@ -310,7 +313,8 @@ oo::class create ::stackato::v2::user {
 	set client [stackato::mgr client authenticated]
 
 	set result {}
-	foreach item [$client uaa_list_users] {
+	foreach item [$client uaa_list_users \
+			  filter "userName eq \"$name\""] {
 	    set guid [dict get $item id]
 	    set uname [dict get $item userName]
 	    if {$uname ne $name} continue

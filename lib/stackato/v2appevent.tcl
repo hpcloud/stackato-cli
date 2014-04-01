@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::app_event {
     constructor {{url {}}} {
 	my Attribute app              &app
 	my Attribute timestamp        string
-	my Attribute instance_guid    integer
+	my Attribute instance_guid    string
 	my Attribute instance_index   integer
 	my Attribute exit_status      integer
 	my Attribute exit_description string default {}

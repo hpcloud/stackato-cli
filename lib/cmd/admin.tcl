@@ -276,7 +276,7 @@ proc ::stackato::cmd::admin::ListV1 {config client} {
 proc ::stackato::cmd::admin::ListV2 {config} {
     debug.cmd/admin {}
     set admins {}
-    foreach theuser [v2 user list 2] {
+    foreach theuser [v2 user list] {
 	if {![$theuser @admin]} continue
 	lappend admins [$theuser email]
     }

@@ -1,0 +1,16 @@
+============== System Services ==============
+
++------------+---------+------------------------------------------+
+| Service    | Version | Description                              |
++------------+---------+------------------------------------------+
+| filesystem | * | Persistent filesystem service            |
+| harbor     | * | External port mapping service            |
+| memcached  | * | Memcached in-memory object cache service |
+| mongodb    | * | MongoDB NoSQL store                      |
+| mysql      | * | MySQL database service                   |
+| postgresql | * | PostgreSQL database service              |
+| rabbitmq   | * | RabbitMQ message queue                   |
+| redis      | * | Redis key-value store service            |
++------------+---------+------------------------------------------+
+
+=========== Provisioned Services ============*

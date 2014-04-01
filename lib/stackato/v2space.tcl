@@ -28,6 +28,9 @@ oo::class create ::stackato::v2::space {
 	my Attribute name         string		 
 	my Attribute organization &organization
 
+	# Stackato v3.2 attribute
+	my Attribute is_default       boolean
+
 	my Many developers user
 	my Many managers   user
 	my Many auditors   user

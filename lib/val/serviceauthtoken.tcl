@@ -51,9 +51,10 @@ proc ::stackato::validate::serviceauthtoken::validate {p x} {
 
     # Note: The auth token list is not cached. Multiple round trips
     # are made when validating multiple tokens.
-    set matches [struct::list filter [v2 service_auth_token list] [lambda {x o} {
-	string equal $x	[$o @label]
-    } $x]]
+    # See also query.tcl, map-named-entity.
+
+    set matches [v2 service_auth_token list 0 q label:$x]
+
     if {[llength $matches] == 1} {
 	debug.validate/serviceauthtoken {OK/canon = $x}
 	return [lindex $matches 0]

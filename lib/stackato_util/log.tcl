@@ -10,6 +10,10 @@ package require Tcl 8.5
 package require textutil::adjust
 package require linenoise
 package require tty
+package require debug
+
+debug level  log
+debug prefix log {[debug caller] | }
 
 namespace eval ::stackato::log {
     namespace export log
@@ -61,6 +65,7 @@ proc ::stackato::log::wrapl {text {down 0}} {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::log::to {chan} {
+    debug.log {}
     variable log $chan
     if {($chan ne "stdout") || ![tty stdout]} {
 	# No feedback when not logging to stdout,
@@ -71,18 +76,21 @@ proc ::stackato::log::to {chan} {
 }
 
 proc ::stackato::log::defined {} {
+    debug.log {}
     variable log
     return [expr {$log ne {}}]
 }
 
 proc ::stackato::log::feedback {} {
     variable feedback
+    debug.log {==> $feedback}
     return $feedback
 }
 
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::log::say! {text} {
+    debug.log {log=stderr t=[fconfigure stderr -translation] e=[fconfigure stderr -encoding]}
     puts stderr $text
     return
 }
@@ -90,6 +98,7 @@ proc ::stackato::log::say! {text} {
 proc ::stackato::log::say {text} {
     variable log
     if {$log eq {}} return
+    debug.log {log=$log t=[fconfigure $log -translation] e=[fconfigure $log -encoding]}
     puts $log $text
     return
 }
@@ -97,6 +106,7 @@ proc ::stackato::log::say {text} {
 proc ::stackato::log::say* {text} {
     variable log
     if {$log eq {}} return
+    debug.log {log=$log t=[fconfigure $log -translation] e=[fconfigure $log -encoding]}
     variable last $text
     puts -nonewline $log $text
     flush $log

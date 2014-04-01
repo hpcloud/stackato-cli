@@ -1,0 +1,8 @@
+*T* stackato.stager: Staging application 'node-env'
+*T* staging: 
+*T* staging: -----> npm config set registry http://registry.npmjs.org*
+*T* staging: -----> npm install
+*T* staging: end of staging
+*T* stackato.stager: Completed staging application 'node-env'
+*T* stackato.dea: Starting application 'node-env' on DEA *
+*T* stackato.dea: Application 'node-env' is now running on DEA *

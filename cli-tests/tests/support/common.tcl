@@ -31,6 +31,18 @@ apply {{} {
 }}
 
 # # ## ### ##### ######## ############# #####################
+
+proc NOTE {args} {
+    #puts "@=NOTE: $args"
+    return
+}
+
+proc TODO {args} {
+    #puts "@=TODO: $args"
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
 ## Values derived from configuration
 
 proc thetarget {} {
@@ -59,9 +71,17 @@ proc example {x} {
 }
 
 proc result {x {suffix {}}} {
-    set path [file join [tmp] data results$suffix ${x}.txt]
-    if {![file exists $path]} { return {} }
-    string trim [fileutil::cat $path]
+    global isv1 isv2
+    if {$isv1} { lappend files ${x}-cfv1.txt }
+    if {$isv2} { lappend files ${x}-cfv2.txt }
+    lappend files ${x}.txt
+    foreach f $files {
+	set path [file join [tmp] data results$suffix $f]
+	if {![file exists $path]} continue
+	return [string trim [fileutil::cat $path]]
+    }
+    # Failed all, default contents, of nothing
+    return {}
 }
 
 proc map {x args} {
@@ -188,6 +208,14 @@ proc Capture {out err fail} {
     set status $fail
     set stdout [string trim [fileutil::cat $out]]
     set stderr [string trim [fileutil::cat $err]]
+
+    # Trim devbuild warning from output.
+    set stdout [split $stdout \n]
+    if {[string match *DEV* [lindex $stdout 0]]} {
+	set stdout [lrange $stdout 1 end]
+    }
+    set stdout [string trim [join $stdout \n]]
+
     set all [list $status $stdout $stderr]
 
     if {$keep} {
@@ -222,20 +250,45 @@ proc login-required {} {
 }
 
 proc not-authorized {} {
-    return "Not Authorized\nYou are using an expired or deleted login\nPlease use 'stackato login'"
+    return "Not Authorized\nYou are not authorized to perform the requested action (403)\nPlease use 'stackato login'"
 }
 
 proc no-application {cmd} {
-    return "No manifest\nNo application specified, and no manifest found.\n$cmd *"
+    return "No manifest\nNo application specified, and no manifest found.\nstackato $cmd *"
 }
 
 proc no-application-q {cmd} {
-    return "No application specified, and no manifest found.\n$cmd *"
+    return "No application specified, and no manifest found.\nstackato $cmd *"
 }
 
 proc expected-app {x cmd} {
     return "Error: The application \[$x\] is not deployed. Please deploy it, or choose a different application to $cmd."
 }
+
+proc already {ptype pname type name {context {}}} {
+    if {[string match {A *} $type] ||
+	[string match {An *} $type]} {
+	set lead {}
+    } elseif {[string match {[aeiouAEIOU]*} $type]} {
+	set lead {An }
+    } else {
+	set lead {A }
+    }
+    return "Found a problem with $ptype \"$pname\": $lead$type named \"$name\" already exists$context. Please use a different name."
+}
+
+proc unexpected {ptype pname type name {context {}}} {
+    if {[string match {A *} $type] ||
+	[string match {An *} $type]} {
+	set lead {}
+    } elseif {[string match {[aeiouAEIOU]*} $type]} {
+	set lead {An }
+    } else {
+	set lead {A }
+    }
+    return "Found a problem with $ptype \"$pname\": $lead$type \"$name\" does not exist$context. Please use a different value."
+}
+
 
 proc ssh-cmd {app dry} {
     return "/*/ssh -i */key_* -o IdentitiesOnly=yes -t -o \"PasswordAuthentication no\" -o \"ChallengeResponseAuthentication no\" -o \"PreferredAuthentications publickey\" -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@[theplaintarget] stackato-ssh * $app 0 $dry"
@@ -251,7 +304,7 @@ proc be-admin {} {
     if {$isv1} {
 	run login -n [adminuser] --password [adminpass]
     } else {
-	run login -n [adminuser] --password [adminpass] --organization [theorg]
+	run login -n [adminuser] --password [adminpass] --organization [theorg] --space [thespace]
     }
 }
 
@@ -290,18 +343,20 @@ proc go-non-admin {} {
     be-non-admin
 }
 
-proc make-test-app {{name TEST} {appdir {}}} {
+proc de-route {name} {
     global isv2
-    if {$isv2} {
-	catch {
-	    run delete-route -n [string tolower $name].[targetdomain]
-	}
+    if {!$isv2} return
+    catch {
+	run delete-route -n [string tolower $name].[targetdomain]
     }
+}
+
+proc make-test-app {{name TEST} {appdir {}}} {
+    de-route $name
     if {$appdir eq {}} {
 	set appdir [appdir]
     }
     indir $appdir { run create-app -n $name }
-    return
 }
 
 proc remove-test-app {{name TEST}} {
@@ -358,12 +413,29 @@ nokeep
 # # ## ### ##### ######## ############# #####################
 ## Standard constraints. Predicated on the target API version.
 
-set isv1 [expr {[dict get [run debug-target --target [thetarget]] API] <  2}]
-set isv2 [expr {[dict get [run debug-target --target [thetarget]] API] >= 2}]
+apply {{spec} {
+    # The variables are used in other parts of common code.
+    global isv1 isv2 post30 pre32
 
-tcltest::testConstraint cfv1    $isv1 ;# target is v1
-tcltest::testConstraint cfv2    $isv2 ;# target is v2
-tcltest::testConstraint cfv2uaa $isv1 ;# target does not have cc/uaa split issues (== is v1)
+    set isv1   [expr {[dict get $spec API] <  2}]
+    set isv2   [expr {[dict get $spec API] >= 2}]
+    set post30 [expr {[package vcompare [dict get $spec Version] 3.1] >= 0}]
+    set pre32  [expr {[package vcompare [dict get $spec Version] 3.1] < 0}]
+
+    tcltest::testConstraint cfv1    $isv1 ;# target is v1
+    tcltest::testConstraint cfv2    $isv2 ;# target is v2
+    tcltest::testConstraint s32ge   [expr {$isv2 && $post30}]
+    tcltest::testConstraint s30le   [expr {$isv2 && $pre32}]
+
+}} [run debug-target --target [thetarget]]
+
+# # ## ### ##### ######## ############# #####################
+## Activate when debugging issues with constraints.
+NOTE
+NOTE "cfv1  = [tcltest::testConstraint cfv1]"
+NOTE "cfv2  = [tcltest::testConstraint cfv2]"
+NOTE "s30le = [tcltest::testConstraint s30le]"
+NOTE "s32ge = [tcltest::testConstraint s32ge]"
 
 # # ## ### ##### ######## ############# #####################
 return

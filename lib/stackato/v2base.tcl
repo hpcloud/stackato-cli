@@ -269,7 +269,12 @@ oo::class create ::stackato::v2::base {
     ## For use by subsequent derived classes. Possible bug in the
     ## setup of class methods.
 
+    # Dependencies
+    # find-by --> list-filter --> C/filtered-of <canned list-of>
+    # list    --> C/list-of
+
     classmethod list {{depth 0} args} {
+	# args = config
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
 	set client [stackato::mgr client authenticated]
@@ -279,16 +284,16 @@ oo::class create ::stackato::v2::base {
 	stackato::v2 deref* [$client list-of $type $args]
     }
 
-    classmethod list-filter {key value {depth 0}} {
+    classmethod list-filter {key value {depth 0} {config {}}} {
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
 	set client [stackato::mgr client authenticated]
-	stackato::v2 deref* [$client filtered-of $type $key $value $depth]
+	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
     }
 
-    classmethod find-by {key value {depth 0}} {
+    classmethod find-by {key value {depth 0} {config {}}} {
 	debug.v2/base {}
-	set matches [my list-filter $key $value $depth]
+	set matches [my list-filter $key $value $depth $config]
 	switch -exact -- [llength $matches] {
 	    0       { my NotFound  $key $value }
 	    1       { return [lindex $matches 0] }
@@ -736,7 +741,7 @@ oo::class create ::stackato::v2::base {
     # # ## ### ##### ######## #############
     ## Attribute access
 
-    method Access {name jname type args} {
+    method Access {name jname type nullable args} {
 	debug.v2/base {}
 
 	# - Get      : |args|=0
@@ -749,11 +754,11 @@ oo::class create ::stackato::v2::base {
 	# compatible.
 
 	if {![llength $args]} {
-	    return [my Aget $name $jname $type]
+	    return [my Aget $name $jname $type $nullable]
 	}
 
 	set args [lassign $args method]
-	return [my A$method $name $jname $type {*}$args]
+	return [my A$method $name $jname $type $nullable {*}$args]
     }
 
     method Access1 {name jname type args} {
@@ -804,7 +809,7 @@ oo::class create ::stackato::v2::base {
 	}
 
 	set args [lassign $args method]
-	if {$method in {set get get* unset defined? inlined?}} {
+	if {$method in {decache set get get* unset defined? inlined?}} {
 	    return [my AN$method $name $jname $type {*}$args]
 	}
 
@@ -832,12 +837,12 @@ oo::class create ::stackato::v2::base {
     ## Attribute access, internals - Regular
     ## Aget, Aset, Aunset
 
-    method Alabel {name jname type} {
+    method Alabel {name jname type nullable} {
 	debug.v2/base {}
 	return [dict get $mylabel $name]
     }
 
-    method Adefined? {name jname type} {
+    method Adefined? {name jname type nullable} {
 	# Cached, yes.
 	if {[dict exists $mydata $name]} { return 1 }
 
@@ -853,7 +858,7 @@ oo::class create ::stackato::v2::base {
 	return 0
     }
 
-    method Aget {name jname type} {
+    method Aget {name jname type nullable} {
 	debug.v2/base {}
 
 	# Take from cache.
@@ -882,28 +887,36 @@ oo::class create ::stackato::v2::base {
 	    my Undefined "attribute $name" ATTRIBUTE $name
 	}
 
-	# Reverse validation of the data coming from the server.
-	# Also normalization.
-	$mypp name= $name
-	set value [{*}$type validate $mypp $value]
+	if {!$nullable || ($value ne "null")} {
+	    # Reverse validation of the data coming from the server.
+	    # Also normalization.
+	    $mypp name= $name
+	    set value [{*}$type validate $mypp $value]
+	} else {
+	    # Translate json null into Tcl empty string.
+	    set value {}
+	}
 
 	dict set mydata $name $value
 	return $value
     }
 
-    method Aset {name jname type newvalue} {
+    method Aset {name jname type nullable newvalue} {
 	debug.v2/base {}
 
 	# Validate and canonicalize before even trying to record the
 	# proposed change. Use the pseudo-parameter to supply the
-	# attribute name in case of validation failure.
-	$mypp name= $name
-	set newvalue [{*}$type validate $mypp $newvalue]
+	# attribute name in case of validation failure. Skip this if
+	# the attribute is nullable and set to null.
+	if {!$nullable || ($newvalue ne "null")} {
+	    $mypp name= $name
+	    set newvalue [{*}$type validate $mypp $newvalue]
+	}
 
 	# Get current value.
 	try {
 	    set olddefined 1
-	    set oldvalue   [my Aget $name $jname $type]
+	    set oldvalue   [my Aget $name $jname $type $nullable]
 	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
 	    set olddefined 0
 	    set oldvalue   {}
@@ -937,13 +950,13 @@ oo::class create ::stackato::v2::base {
 	return
     }
 
-    method Aunset {name jname type} {
+    method Aunset {name jname type nullable} {
 	debug.v2/base {}
 
 	# Get current value for saving to log.
 	try {
 	    set olddefined 1
-	    set oldvalue   [my Aget $name $jname $type]
+	    set oldvalue   [my Aget $name $jname $type $nullable]
 	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
 	    set olddefined 0
 	    set oldvalue   {}
@@ -1272,12 +1285,25 @@ oo::class create ::stackato::v2::base {
 	return $objlist
     }
 
+    method ANdecache {name jname type} {
+	debug.v2/base {}
+	set cachekey ${name}|*
+	foreach k [dict keys $mydata $cachekey] {
+	    dict unset mydata $k
+	}
+	return
+    }
+
     method ANget* {name jname type config args} {
 	debug.v2/base {}
 
+	set cachekey ${name}|[dict sort $config]
+	debug.v2/base {cached? ($cachekey)}
+
 	# Take from cache.
-	if {[dict exists $mydata $name]} {
-	    set urllist [dict get $mydata $name]
+	if {[dict exists $mydata $cachekey]} {
+
+	    set urllist [dict get $mydata $cachekey]
 	    debug.v2/base {cached  ==> $urllist}
 	    set objlist [deref* $urllist]
 	    #return [deref* $urllist]
@@ -1290,9 +1316,16 @@ oo::class create ::stackato::v2::base {
 
 	    my ResolvePhantom ^^$name
 
-	    if {[dict exists $myjson entity $jname]} {
+	    # Note: With a custom search configuration the information
+	    # cannot be cached in the json, we have to retrieve it
+	    # always from the target. The first clause below ensures
+	    # that the json cache is skipped.
+
+	    if {![dict size $config] && [dict exists $myjson entity $jname]} {
 		# Inlined array of related entities found. Create the
 		# objects and save their urls for access.
+
+		debug.v2/base {inlined}
 
 		set urllist {}
 		set objlist {}
@@ -1305,7 +1338,7 @@ oo::class create ::stackato::v2::base {
 		    lappend objlist $obj
 		    lappend urllist $url
 		}
-	    }  elseif {[dict exists $myjson entity ${jname}_url]} {
+	    } elseif {[dict exists $myjson entity ${jname}_url]} {
 		# Implied list of entity references, as single
 		# url returning paginated array of the resources.
 
@@ -1320,7 +1353,7 @@ oo::class create ::stackato::v2::base {
 	    }
 
 	    # Remember for future access.
-	    dict set mydata $name $urllist
+	    dict set mydata $cachekey $urllist
 	}
 
 	# Return as is without a processing command.
@@ -1656,7 +1689,7 @@ oo::class create ::stackato::v2::base {
 	dict set mylabel $name $name
 	if {[dict exists $args label]} {
 	    dict set mylabel $name [dict get $args label]
-	    debug.v2/base {label    = ([dict get mylabel $name])}
+	    debug.v2/base {label    = ([dict get $mylabel $name])}
 	}
 
 	if {[string match &* $type]} {
@@ -1691,15 +1724,23 @@ oo::class create ::stackato::v2::base {
 	    # @x unset      : unset attribute
 	    # @x label      : get human readable name
 
+	    set nullable 0
+	    if {[string match null|* $type]} {
+		set type [string range $type 5 end]
+		set nullable 1
+	    }
+
 	    # types = dict integer url string boolean
 	    switch -exact -- $type {
 		boolean     { set hint nbool   }
+		double      { set hint nnumber }
 		integer     { set hint nnumber }
 		dict        { set hint dict    }
 		list-string { set hint {array string} }
 		default     { set hint nstring }
 	    }
 
+	    debug.v2/base {nullable  = ($nullable)}
 	    debug.v2/base {json hint = ($hint)}
 	    dict set mymap $jsonname $hint
 
@@ -1709,7 +1750,7 @@ oo::class create ::stackato::v2::base {
 	    set type [my ValidatorOf $type]
 
 	    debug.v2/base {validate = ($type)}
-	    oo::objdefine [self] forward @$name my Access $name $jsonname $type
+	    oo::objdefine [self] forward @$name my Access $name $jsonname $type $nullable
 	    oo::objdefine [self] export  @$name
 	}
 	return
@@ -1804,19 +1845,19 @@ oo::class create ::stackato::v2::base {
     method ValidatorOf {type} {
 	debug.v2/base {}
 	# Special mappings.
-	if {$type eq "string"} {
-	    debug.v2/base { string special /rewrite}
-	    return ::cmdr::validate::identity
-	}
-	if {$type eq "dict"} {
-	    # TODO: Proper type for dict attr in the future
-	    debug.v2/base { dict special /rewrite}
-	    return ::cmdr::validate::identity
-	}
-	if {$type eq "list-string"} {
-	    # TODO: Proper type for list-of-string attr in the future
-	    debug.v2/base { list-string special /rewrite}
-	    return ::cmdr::validate::identity
+
+	switch -exact -- $type {
+	    string -
+	    dict   -
+	    list-string {
+		debug.v2/base { special: $type /rewrite}
+		# TODO: Proper type for dict attr in the future
+		# TODO: Proper type for list-of-string attr in the future
+		return ::cmdr::validate::identity
+	    }
+	    double {
+		return ::cmdr::validate::double
+	    }
 	}
 
 	# Type is validation command as is. No change.

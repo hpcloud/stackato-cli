@@ -1,0 +1,111 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## link-user-space <user> [org]
+## --auditor --billing --manager
+## developer implied, always
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test link-user-space-1.0 {link-user-space, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run link-user-space -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test link-user-space-1.1 {link-user-space, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run link-user-space U O X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test link-user-space-1.2 {link-user-space, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run link-user-space [thespace]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test link-user-space-1.3 {link-user-space, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run link-user-space [theuser] [thespace]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test link-user-space-1.4 {link-user-space, non-admin login is not ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run link-user-space [theuser] [thespace]-2
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [unexpected input user {A user} [theuser]]
+
+test link-user-space-1.5 {link-user-space, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space -n [thespace]-2 --no-activate
+    go-non-admin
+    be-admin
+} -body {
+    run link-user-space [theuser] [thespace]-2
+    run users --mode related
+} -cleanup {
+    run unlink-user-space [theuser] [thespace]-2
+    run delete-space   -n [thespace]-2
+    remove-non-admin
+    stage-close
+} -match glob -result "* [theuser] *| --D [theorg]::[thespace]-2 *|*"
+
+foreach {n bits options} {
+    0 -M- --manager
+    1 -MD {--manager --developer}
+    2 A-- --auditor
+    3 A-D {--auditor --developer}
+    4 AM- {--manager --auditor}
+    5 AMD {--manager --auditor --developer}
+} {
+    test link-user-space-1.6.$n "link-user-space $options " -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	run create-space -n [thespace]-2 --no-activate
+	go-non-admin
+	be-admin
+    } -body {
+	run link-user-space [theuser] [thespace]-2 {*}$options
+	run users --mode related
+    } -cleanup {
+	run unlink-user-space [theuser] [thespace]-2 {*}$options
+	run delete-space   -n [thespace]-2
+	remove-non-admin
+	stage-close
+    } -match glob -result "* [theuser] *| $bits [theorg]::[thespace]-2 *|*"
+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

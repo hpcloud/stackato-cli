@@ -1,0 +1,132 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## spaces, listing
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test spaces-1.0 {spaces, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run spaces X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test spaces-1.1 {spaces, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run spaces
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test spaces-1.2 {spaces, non-admin login ok} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    go-non-admin
+} -body {
+    run spaces
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test spaces-1.3 {spaces} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run spaces
+} -cleanup {
+    stage-close
+} -match glob -result "In [theorg]...
++-*-+-*-+-*-+-*-+-*-+
+|   | Name *| Default *| Apps *| Services *|
++-*-+-*-+-*-+-*-+-*-+
+| x | [thespace] *| * | * | * |
++-*-+-*-+-*-+-*-+-*-+"
+
+test spaces-1.4.0 {spaces, --json} -constraints s30le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run spaces --json
+} -cleanup {
+    stage-close
+} -match glob -result [string map [list @@@@ [thespace]] {\[*{
+    "entity"   : {
+        "app_events_url"        : "/v2/spaces/*/app_events",
+        "apps_url"              : "/v2/spaces/*/apps",
+        "auditors_url"          : "/v2/spaces/*/auditors",
+        "developers_url"        : "/v2/spaces/*/developers",
+        "domains_url"           : "/v2/spaces/*/domains",
+        "events_url"            : "/v2/spaces/*/events",
+        "managers_url"          : "/v2/spaces/*/managers",
+        "name"                  : "@@@@",
+        "organization_guid"     : "*",
+        "organization_url"      : "/v2/organizations/*",
+        "service_instances_url" : "/v2/spaces/*/service_instances"
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/spaces/*"
+    }
+}*\]}]
+
+test spaces-1.4.1 {spaces, --json} -constraints s32ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run spaces --json
+} -cleanup {
+    stage-close
+} -match glob -result [string map [list @@@@ [thespace]] {\[*{
+    "entity"   : {
+        "app_events_url"        : "/v2/spaces/*/app_events",
+        "apps_url"              : "/v2/spaces/*/apps",
+        "auditors_url"          : "/v2/spaces/*/auditors",
+        "developers_url"        : "/v2/spaces/*/developers",
+        "domains_url"           : "/v2/spaces/*/domains",
+        "events_url"            : "/v2/spaces/*/events",
+        "is_default"            : *,
+        "managers_url"          : "/v2/spaces/*/managers",
+        "name"                  : "@@@@",
+        "organization_guid"     : "*",
+        "organization_url"      : "/v2/organizations/*",
+        "service_instances_url" : "/v2/spaces/*/service_instances"
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/spaces/*"
+    }
+}*\]}]
+
+test spaces-1.5 {spaces, not allowed for CFv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run spaces
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

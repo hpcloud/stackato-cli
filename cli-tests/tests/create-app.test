@@ -46,7 +46,8 @@ test create-app-1.2 {create-app, login required} -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test create-app-1.3 {create-app, non-admin login is ok} -constraints cfv2uaa -setup {
+# cfv1 ok
+test create-app-1.3 {create-app, non-admin login is ok} -setup {
     stage-open
     go-admin
     go-non-admin
@@ -58,10 +59,17 @@ test create-app-1.3 {create-app, non-admin login is ok} -constraints cfv2uaa -se
     be-admin
     remove-non-admin
     stage-close
-} -match glob -result {Framework:       node
+} -match glob -result [per-api {*Framework:       node
 Runtime:         Node.js
 Application Url: test.*
-Creating Application ?TEST? in * ... OK}
+Creating Application ?TEST? in * ... OK} [map {No manifest
+Application Url:   test.@base@
+Creating Application \[TEST\] as \[@target@ -> @org@ -> @space@ -> TEST\] ... OK
+  Map test.@base@ ... OK} \
+    @org@    [theorg] \
+    @space@  [thespace] \
+    @base@   [thebase] \
+    @target@ [thetarget]]]
 
 test create-app-1.4 {create-app, persists} -setup {
     stage-open
@@ -86,7 +94,31 @@ test create-app-1.5 {create-app, duplicate app} -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -returnCodes error -result {Expected an unused application name for input "application", got "TEST"}
+} -returnCodes error -result [already input application application TEST]
+
+test create-app-1.6.1 {create-app, with description, invalid target} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    de-route TEST
+} -body {
+    indir [appdir] { run create-app -n TEST --description DESC }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: This option requires a target exporting the CF v2 API}
+
+test create-app-1.6.2 {create-app, with description} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    de-route TEST
+} -body {
+    indir [appdir] { run create-app -n TEST --description DESC }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {*Description: *DESC*}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

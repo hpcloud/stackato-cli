@@ -42,6 +42,7 @@ namespace eval ::stackato::cmd::quotas {
 	memory_limit               {MEM mem}
 	trial_db_allowed           {ID trial-db-allowed}
 	allow_sudo                 {ID allow-sudo}
+	total_routes               {ID routes}
     }
 }
 
@@ -52,8 +53,12 @@ proc ::stackato::cmd::quotas::create {config} {
     debug.cmd/quotas {}
     # @name - String, validated to not exist
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     set name [$config @name]
-    set qd [v2 quota_definition new]
+    set qd   [v2 quota_definition new]
 
     display "Creating new quota definition $name ... "
     $qd @name set $name
@@ -75,6 +80,10 @@ proc ::stackato::cmd::quotas::configure {config} {
     variable map
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
 
     set qd [$config @name]
 
@@ -117,6 +126,10 @@ proc ::stackato::cmd::quotas::delete {config} {
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     set qd [$config @name]
 
     if {[cmdr interactive?] &&
@@ -137,6 +150,10 @@ proc ::stackato::cmd::quotas::rename {config} {
     # @name    - quota_definition's object.
     # @newname - String, validated to not exist as quota name.
 
+    if {![$config @name set?]} {
+	$config notEnough
+    }
+
     set qd  [$config @name]
     set new [$config @newname]
 
@@ -156,7 +173,7 @@ proc ::stackato::cmd::quotas::list {config} {
 	display "In [ctarget get]..."
     }
 
-    set thequotas [v2 sort @name [v2 quota_definition list 1] -dict]
+    set thequotas [v2 sort @name [v2 quota_definition list] -dict]
 
     if {[$config @json]} {
 	set tmp {}
@@ -185,6 +202,7 @@ proc ::stackato::cmd::quotas::list {config} {
 
 proc ::stackato::cmd::quotas::show {config} {
     debug.cmd/quotas {}
+    variable map
     # @name - quota_definition's object.
 
     set qd [$config @name]
@@ -196,12 +214,16 @@ proc ::stackato::cmd::quotas::show {config} {
 
     display "[ctarget get] - [$qd @name]"
     [table::do t {Key Value} {
-	# TODO: make generic using attr listing + labeling.
-	$t add {Memory Limit}    [psz [MB [$qd @memory_limit]]]
-	$t add {Paid Services}   [$qd @non_basic_services_allowed]
-	$t add {Total Services}  [$qd @total_services]
-	$t add {Trial Databases} [$qd @trial_db_allowed]
-	$t add {Allow sudo}      [$qd @allow_sudo]
+	foreach {a def} $map {
+	    set label [string trim [$qd @$a label]]
+	    if {[$qd @$a defined?]} {
+		lassign $def convert k
+		set value [$convert [$qd @$a]]
+	    } else {
+		set value {(Not supported by target)}
+	    }
+	    $t add $label $value
+	}
     }] show display
     return
 }

@@ -1,5 +1,5 @@
 # -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
-## (c) 2013 Andreas Kupries
+## (c) 2013-2014 Andreas Kupries
 # # ## ### ##### ######## ############# #####################
 ## user management - list users
 
@@ -27,8 +27,7 @@ test users-1.1 {users, requires login} -setup {
     run users
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test users-1.2 {users, requires admin login} -setup {
     stage-open
@@ -41,10 +40,10 @@ test users-1.2 {users, requires admin login} -setup {
     remove-non-admin
 } -returnCodes error -result \
     [per-api \
-	 {Error 200: Operation not permitted} \
+	 {Error 200: Operation not permitted (403)} \
 	 [not-authorized]]
 
-test users-1.3 {users} -setup {
+test users-1.3 {users, default view} -setup {
     stage-open
     go-admin
 } -body {
@@ -54,9 +53,9 @@ test users-1.3 {users} -setup {
 } -match glob -result \
     [per-api \
 	 "*Email*Admin*Applications*[adminuser]*" \
-	 "*Email*Admin*Spaces*Applications*[adminuser]*"]
+	 "*Name*Given*Family*Email*[adminuser]*"]
 
-test users-1.4 {users, json} -setup {
+test users-1.4.1 {users, json} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -64,11 +63,45 @@ test users-1.4 {users, json} -setup {
 } -cleanup {
     stage-close
 } -match glob -result \
-    [per-api \
-	 "*\{\n    \"admin\"  : \"true\",\n    \"apps\"   : *,\n    \"email\"  : \"[adminuser]\",\n    \"groups\" : \"\"\n\}*" \
-	 "*\{\n    \"entity\"   : \{\n        \"active\"                            : true,\n        \"admin\"                             : true,\n        \"audited_organizations\"             : *,\n        \"audited_organizations_url\"         : \"/v2/users/*/audited_organizations\",\n        \"audited_spaces\"                    : *,\n        \"audited_spaces_url\"                : \"/v2/users/*/audited_spaces\",\n        \"billing_managed_organizations\"     : *,\n        \"billing_managed_organizations_url\" : \"/v2/users/*/billing_managed_organizations\",\n        \"default_space_guid\"                : null,\n        \"guid\"                              : \"*\",\n        \"managed_organizations\"             : *,\n        \"managed_organizations_url\"         : \"/v2/users/*/managed_organizations\",\n        \"managed_spaces\"                    : *,\n        \"managed_spaces_url\"                : \"/v2/users/*/managed_spaces\",\n        \"organizations\"                     : *,\n        \"organizations_url\"                 : \"/v2/users/*/organizations\",\n        \"spaces\"                            : *,\n        \"spaces_url\"                        : \"/v2/users/*/spaces\"\n    \},\n    \"metadata\" : \{\n        \"created_at\" : \"*\",\n        \"guid\"       : \"*\",\n        \"updated_at\" : \"*\",\n        \"url\"        : \"/v2/users/*\"\n    \}\n\}*"]
+    "*\{\n    \"admin\"  : \"true\",\n    \"apps\"   : *,\n    \"email\"  : \"[adminuser]\",\n    \"groups\" : \"\"\n\}*"
 
-# TODO: --target --token-file --token
+test users-1.4.2.0 {users, json} -constraints s30le -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --json
+} -cleanup {
+    stage-close
+} -match glob -result [viewFile data/usr1420.txt]
+
+test users-1.4.2.1 {users, json} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --json
+} -cleanup {
+    stage-close
+} -match glob -result [viewFile data/usr1421.txt]
+
+test users-1.5 {users, related view, S3 only} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --mode related
+} -cleanup {
+    stage-close
+} -match glob -result "*Name*Email*Organizations*Spaces*Applications*[adminuser]*"
+
+test users-1.6 {users, full view, S3 only} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --mode all
+} -cleanup {
+    stage-close
+} -match glob -result "*Name*Given*Family*Email*Organizations*Spaces*Applications*[adminuser]*"
+
+TODO users --target --token-file --token
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -30,6 +30,9 @@ oo::class create ::stackato::v2::quota_definition {
 	my Attribute trial_db_allowed           boolean label {Trial Database Allowed     }
 	my Attribute allow_sudo                 boolean label {Allow use of 'sudo' by Apps}
 
+	# v3.2+
+	my Attribute total_routes               integer label {Max Number of Routes       }
+
 	#my SearchableOn name
 
 	next $url

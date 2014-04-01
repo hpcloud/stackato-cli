@@ -53,7 +53,9 @@ proc ::stackato::validate::notspacename::validate {p x} {
     refresh-client $p
 
     # find space by name in current organization
-    set matches [[corg get] @spaces filter-by @name $x]
+    set theorg [corg get]
+    set matches [$theorg @spaces get* [list q name:$x]]
+
     if {![llength $matches]} {
 	# Not found, good.
 	debug.validate/notspacename {OK/canon = $x}
@@ -61,7 +63,7 @@ proc ::stackato::validate::notspacename::validate {p x} {
     }
 
     debug.validate/notspacename {FAIL}
-    not $p NOTSPACENAME "space" $x
+    not $p NOTSPACENAME "space" $x " in organization '[$theorg @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -35,8 +35,7 @@ test admin-grant-1.2 {admin-grant, login required} -setup {
     run admin grant E
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
 test admin-grant-1.3 {admin grant, admin login required} -setup {
     stage-open
@@ -51,7 +50,7 @@ test admin-grant-1.3 {admin grant, admin login required} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error 200: Operation not permitted} \
-	 {Expected a user name for input "email", got "E"}]
+	 [unexpected input email {A user} E]]
 
 test admin-grant-1.4 {admin grant, bogus user} -setup {
     stage-open
@@ -60,7 +59,7 @@ test admin-grant-1.4 {admin grant, bogus user} -setup {
     run admin grant bogus@test
 } -cleanup {
     stage-close
-} -returnCodes error -result {Expected a user name for input "email", got "bogus@test"}
+} -returnCodes error -result [unexpected input email {A user} bogus@test]
 
 test admin-grant-1.5 {admin grant} -setup {
     stage-open

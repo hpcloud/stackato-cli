@@ -198,11 +198,22 @@ proc ::stackato::cmd::domains::list {config} {
     # @all, @space
     # No arguments.
 
+    if {[$config @json]} {
+	set tmp {}
+	foreach r [v2 domain list] {
+	    lappend tmp [$r as-json]
+	}
+	display [json::write array {*}$tmp]
+	return
+    }
+
     [table::do t {Name Owner Shared} {
 	if {[$config @all]} {
-	    set domains [v2 domain list 1]
+	    set domains [v2 domain list 1 \
+			    include-relations owning_organization]
 	} else {
-	    set domains [[cspace get] @domains get 1]
+	    set domains [[cspace get] @domains get* \
+			     {depth 1 include-relations owning_organization}]
 	    display [[cspace get] @name]...
 	}
 	foreach domain [v2 sort @name $domains -dict] {

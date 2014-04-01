@@ -27,10 +27,9 @@ test orgs-1.1 {orgs, login required} -setup {
     run orgs
 } -cleanup {
     stage-close
-} -returnCodes error -result {Login Required
-Please use 'stackato login'}
+} -returnCodes error -result [login-required]
 
-test orgs-1.2 {orgs, non-admin login ok} -constraints cfv2uaa -setup {
+test orgs-1.2 {orgs, non-admin login ok} -constraints cfv2 -setup {
     stage-open
     ref-target
     go-admin
@@ -51,9 +50,9 @@ test orgs-1.3 {orgs} -constraints cfv2 -setup {
     run orgs
 } -cleanup {
     stage-close
-} -match glob -result "In [thetarget]...*|   | Name *| Spaces *| Domains *|*| x | [theorg] *| [thespace] *|*| [targetdomain] *|*+"
+} -match glob -result "In [thetarget]...\n*|   | Name *| Default *| Quota *| Spaces *| Domains *|\n*| x | [theorg] *| * | * | [thespace] *| [targetdomain] *|*+"
 
-test orgs-1.4 {orgs, --json} -constraints cfv2 -setup {
+test orgs-1.4.0 {orgs, --json} -constraints s30le -setup {
     stage-open
     ref-target
     go-admin
@@ -61,36 +60,17 @@ test orgs-1.4 {orgs, --json} -constraints cfv2 -setup {
     run orgs --json
 } -cleanup {
     stage-close
-} -match glob -result [string map [list @@@@ [theorg]] {\[*{
-    "entity"   : {
-        "app_events"            : \[\],
-        "app_events_url"        : "/v2/organizations/*/app_events",
-        "auditors"              : \[*\],
-        "auditors_url"          : "/v2/organizations/*/auditors",
-        "billing_enabled"       : false,
-        "billing_managers"      : \[\],
-        "billing_managers_url"  : "/v2/organizations/*/billing_managers",
-        "domains"               : \[*\],
-        "domains_url"           : "/v2/organizations/*/domains",
-        "managers"              : \[*\],
-        "managers_url"          : "/v2/organizations/*/managers",
-        "name"                  : "@@@@",
-        "quota_definition"      : *,
-        "quota_definition_guid" : "*",
-        "quota_definition_url"  : "/v2/quota_definitions/*",
-        "spaces"                : \[*\],
-        "spaces_url"            : "/v2/organizations/*/spaces",
-        "status"                : "active",
-        "users"                 : \[*\],
-        "users_url"             : "/v2/organizations/*/users"
-    },
-    "metadata" : {
-        "created_at" : "*",
-        "guid"       : "*",
-        "updated_at" : *,
-        "url"        : "/v2/organizations/*"
-    }
-}*\]}]
+} -match glob -result [map [viewFile data/org140.txt] @@@@ [theorg]]
+
+test orgs-1.4.1 {orgs, --json} -constraints s32ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --json
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/org141.txt] @@@@ [theorg]]
 
 test orgs-1.5 {orgs, --full} -constraints cfv2 -setup {
     stage-open
@@ -100,7 +80,7 @@ test orgs-1.5 {orgs, --full} -constraints cfv2 -setup {
     run orgs --full
 } -cleanup {
     stage-close
-} -match glob -result "In [thetarget]...*|   | Name *| Spaces *| Domains *| Applications *| Services *|*| x | [theorg] *| [thespace] *|*| [targetdomain] *|*+"
+} -match glob -result "In [thetarget]...\n*|   | Name *| Default *| Quota *| Spaces *| Domains *| Applications *| Services *|\n*| x | [theorg] *| * | * | [thespace] *| [targetdomain] *|*+"
 
 test orgs-1.6 {orgs, not allowed for CFv1} -constraints cfv1 -setup {
     stage-open

@@ -23,11 +23,17 @@ oo::class create ::stackato::v2::service_instance {
     ## Life cycle
 
     ## Replicate the v2::base class methods, apparently they are not
-    ## inherited by sub classes of this class, i.e. over to steps in
-    ## the chain. Need to be in the immediate superclass to be
-    ## visible. This is very likely a bug in the definition of class
-    ## method.
+    ## inherited by sub-classes of this class, i.e. over two steps in
+    ## the chain. Apparently have to be in the immediate superclass to
+    ## be visible. This is very likely a bug in the definition of class
+    ## methods.
+
+    # Dependencies
+    # find-by --> list-filter --> C/filtered-of <canned list-of>
+    # list    --> C/list-of
+
     classmethod list {{depth 0} args} {
+	# args = config
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
 	set client [stackato::mgr client authenticated]
@@ -37,16 +43,16 @@ oo::class create ::stackato::v2::service_instance {
 	stackato::v2 deref* [$client list-of $type $args]
     }
 
-    classmethod list-filter {key value {depth 0}} {
+    classmethod list-filter {key value {depth 0} {config {}}} {
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
 	set client [stackato::mgr client authenticated]
-	stackato::v2 deref* [$client filtered-of $type $key $value $depth]
+	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
     }
 
-    classmethod find-by {key value {depth 0}} {
+    classmethod find-by {key value {depth 0} {config {}}} {
 	debug.v2/base {}
-	set matches [my list-filter $key $value $depth]
+	set matches [my list-filter $key $value $depth $config]
 	switch -exact -- [llength $matches] {
 	    0       { my NotFound  $key $value }
 	    1       { return [lindex $matches 0] }

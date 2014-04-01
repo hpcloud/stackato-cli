@@ -343,6 +343,29 @@ proc ::stackato::jmap::usageinfo {ui} {
     map {dict {
 	allocated dict
 	usage     dict
+	availability_zones {array {dict {
+	    dea_ids {array string}
+	    total_allocated number
+	    total_available number
+	    total_used      number
+	}}}
+	cluster {dict {
+	    total_allocated number
+	    total_assigned  number
+	    total_available number
+	    total_used      number
+	}}
+	deas {array {dict {
+	    total_allocated number
+	    total_available number
+	    total_used      number
+	}}}
+	placement_zones {array {dict {
+	    dea_ids {array string}
+	    total_allocated number
+	    total_available number
+	    total_used      number
+	}}}
     }} $ui
 }
 
@@ -375,7 +398,7 @@ proc ::stackato::jmap::fwinfo {ci} {
 	* {dict {
 	    appservers {array dict}
 	    runtimes   {array dict}
-	    detection  {array dict}
+	    detection  {narray dict}
 	}}
     }} $ci
 }

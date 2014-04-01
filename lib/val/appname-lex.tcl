@@ -10,6 +10,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require cmdr::validate::common
 package require stackato::validate::common
 
 debug level  validate/appname-lex
@@ -28,7 +29,7 @@ namespace eval ::stackato::validate::appname-lex {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail
 }
 
 proc ::stackato::validate::appname-lex::default  {p }  { return {} }
@@ -39,7 +40,7 @@ proc ::stackato::validate::appname-lex::validate {p x} {
     debug.validate/appname-lex {}
 
     if {![ok $p $x]} {
-	expected $p APPNAME-LEX "application" $x
+	fail $p APPNAME-LEX "application name (\[a-zA-Z0-9-\]*)" $x
     }
     return $x
 }

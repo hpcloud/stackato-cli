@@ -254,13 +254,19 @@ proc ::stackato::cmd::usermgr::add {config} {
     if {[$client isv2]} {
 	display ""
 
+	# Optional parts of the user definition.
+	set given  [$config @given]
+	set family [$config @family]
+
 	set theuser [v2 user new]
-	set doadmin [$theuser create! $username $email $password [$config @admin]]
+	set doadmin [$theuser create! $username $email \
+			 $given $family $password \
+			 [$config @admin]]
 	# implied commit
     } else {
 	set doadmin [$config @admin]
 	$client add_user $username $password
-	set theuser $email
+	set theuser $username ;# for grant-core
     }
     display [color green OK]
 
@@ -371,7 +377,7 @@ proc ::stackato::cmd::usermgr::DeleteV1 {config client} {
 	    }
 
 	    foreach a $apps {
-		app delete $client [dict getit $a name] 1
+		app delete $config $client [dict getit $a name] 1
 	    }
 	}
 
@@ -446,10 +452,24 @@ proc ::stackato::cmd::usermgr::ListV1 {config client} {
 proc ::stackato::cmd::usermgr::ListV2 {config client} {
     debug.cmd/usermgr {}
 
+    set mode [$config @mode]
+    # derived conditions for groups of headings.
+    set osa [expr {$mode in {all related}}]
+    set ngf [expr {$mode in {all name}}]
+
+    # depth controlled by mode.
+    if {$osa} {
+	# inline some relations
+	set depth 1
+    } else {
+	# no relation asked for, drop from request
+	set depth 0
+    }
+
     # depth 2 for spaces of the users, and apps in spaces.
     # note: depth 0 for json, maybe.
-    debug.cmd/usermgr {query cc /1}
-    set users [v2 user list 1]
+    debug.cmd/usermgr {query cc /$depth}
+    set users [v2 user list $depth include-relations spaces,managed_spaces,audited_spaces,organizations,billing_managed_organizations,managed_organizations,audited_organizations,apps]
 
     # Use the UAA list API to get its knowledge of users. This
     # prevents us from running lots of per-user queries of the same
@@ -512,36 +532,60 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 
     debug.cmd/usermgr {begin table @@@@@@@@@@@@@@@@@@@@@@@@@@@}
 
-    table::do t {{} Name Email Admin Spaces Applications} {
+    # full related Given Family Email Org/Space/App
+    # ---- ------- ----- ------ ----- -------------
+    #    0       0   x     x      x     
+    #    0       1                x     x
+    #    1       0   x     x      x     x
+    #    1       1   x     x      x     x
+    # ---- ------- ----- ------ ----- -------------
+    set headings {{} Name}
+    if {$ngf} { lappend headings Given Family }
+    lappend headings Email
+    if {$osa} { lappend headings Organizations Spaces Applications }
+
+    table::do t $headings {
 	foreach u $users {
 	    debug.cmd/usermgr {  process [$u url] }
 
-	    set name  [$u the_name]
-	    set email [$u email]
-
+	    set email  [$u email]
 	    if {[string match {(legacy-api)} $email]} continue
 
-	    set admin [$u @admin]
-	    set mark  [expr {($cu ne {}) && ($cu eq $email) ? "x" : ""}]
+	    set row {}
 
-	    debug.cmd/usermgr {  process [$u url] spaces }
-	    set smap {}
-	    foreach space [$u @spaces] {
-		dict set smap [$space full-name] $space
+	    set admin [expr {[$u @admin] ? "A" : " "}]
+	    set mark  [expr {($cu ne {}) && ($cu eq $email) ? "x" : " "}]
+
+	    # Standard fields.
+	    lappend row $mark$admin [$u the_name]
+
+	    if {$ngf} {
+		lappend row [$u given_name] [$u family_name]
 	    }
 
-	    debug.cmd/usermgr {  process [$u url] apps by space }
-	    set spaces {}
-	    set apps {}
-	    dict for {sname space} [dict sort $smap] {
-		set sapps [lsort -dict [$space @apps @name]]
-		foreach s [::list $sname] a $sapps {
-		    lappend spaces $s
-		    lappend apps   $a
+	    lappend row $email
+
+	    if {$osa} {
+		set smap [UserLinkedSpaces $u]
+		set orgs [lsort -dict [dict keys [UserLinkedOrgs $u]]]
+
+		# IV. Merge with applications by space and add to the table.
+		debug.cmd/usermgr {  process [$u url] apps by space }
+		set spaces {}
+		set apps {}
+		dict for {sname space} [dict sort $smap] {
+		    set sapps [lsort -dict [$space @apps @name]]
+		    foreach s [::list $sname] a $sapps {
+			lappend spaces $s
+			lappend apps   $a
+		    }
 		}
+
+		lappend row [join $orgs \n] [join $spaces \n] [join $apps \n]
 	    }
 
-	    $t add $mark $name $email $admin [join $spaces \n] [join $apps \n]
+	    # All collected and formatted, add row for this user.
+	    $t add {*}$row
 	}
 
 	if {[dict size $umap]} {
@@ -549,7 +593,7 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	    $t add //////////////////////////////////// ///// ///// ////////////
 	    dict for {g u} [dict sort $umap] {
 		set n [dict get $u userName]
-		$t add {} "$g ($n)" {} {} {}
+		$t add {} "$g ($n)" {} {} {} {} {} {}
 	    }
 	}
 
@@ -558,6 +602,117 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
     debug.cmd/usermgr {done_ table @@@@@@@@@@@@@@@@@@@@@@@@@@@}
     $t show display
     return
+}
+
+proc ::stackato::cmd::usermgr::UserLinkedSpaces {u} {
+    debug.cmd/usermgr {  process [$u url] spaces }
+
+    # Get all types of spaces (dev, managed, audited).
+    # Merge them into a single colum with a role information prefix.
+
+    # I. collect spaces and roles
+    set smap  {} ;# full-name => entity
+    set srole {} ;# full-name => roles
+
+    foreach space [$u @audited_spaces] {
+	set fn [$space full-name]
+	dict set    smap  $fn $space
+	dict append srole $fn A
+    }
+    foreach space [$u @managed_spaces] {
+	set fn [$space full-name]
+	dict set    smap  $fn $space
+	dict append srole $fn M
+    }
+    foreach space [$u @spaces] {
+	set fn [$space full-name]
+	dict set    smap  $fn $space
+	dict append srole $fn D
+    }
+
+    # II. Standardize the role information (fill missing parts)
+    dict for {n r} $srole {
+	dict set srole $n [dict get {
+	    A   A--
+	    AD  A-D
+	    AM  AM-
+	    AMD AMD
+	    D   --D
+	    M   -M-
+	    MD  -MD
+	} [dict get $srole $n]]
+    }
+
+    # III. Merge role information into the space map.
+    set tmp {}
+    dict for {n obj} $smap {
+	dict set tmp "[dict get $srole $n] $n" $obj
+    }
+
+    # Return the final map (perm + name --> obj)
+    return $tmp
+}
+
+proc ::stackato::cmd::usermgr::UserLinkedOrgs {u} {
+    debug.cmd/usermgr {  process [$u url] orgs }
+
+    # Get all types of orgs (dev, managed, billing, audited).
+    # Merge them into a single colum with a role information prefix.
+
+    # I. collect orgs and roles
+    set omap  {} ;# full-name => entity
+    set orole {} ;# full-name => roles
+
+    foreach org [$u @audited_organizations] {
+	set fn [$org @name]
+	dict set    omap  $fn $org
+	dict append orole $fn A
+    }
+    foreach org [$u @managed_organizations] {
+	set fn [$org @name]
+	dict set    omap  $fn $org
+	dict append orole $fn M
+    }
+    foreach org [$u @organizations] {
+	set fn [$org @name]
+	dict set    omap  $fn $org
+	dict append orole $fn D
+    }
+    foreach org [$u @billing_managed_organizations] {
+	set fn [$org @name]
+	dict set    omap  $fn $org
+	dict append orole $fn B
+    }
+
+    # II. Standardize the role information (fill missing parts)
+    dict for {n r} $orole {
+	dict set orole $n [dict get {
+	    A    A---
+	    AB   AB--
+	    AD   A--D
+	    ADB  AB-D
+	    AM   A-M-
+	    AMB  ABM-
+	    AMD  A-MD
+	    AMDB ABMD
+	    B    -B--
+	    D    ---D
+	    DB   -B-D
+	    M    --M-
+	    MB   -BM-
+	    MD   --MD
+	    MDB  -BMD
+	} [dict get $orole $n]]
+    }
+
+    # III. Merge role information into the org map.
+    set tmp {}
+    dict for {n obj} $omap {
+	dict set tmp "[dict get $orole $n] $n" $obj
+    }
+
+    # Return the final map (perm + name --> obj)
+    return $tmp
 }
 
 proc ::stackato::cmd::usermgr::token {config} {
@@ -658,7 +813,7 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    return
 
 	} trap {STACKATO CLIENT TARGETERROR} e {
-	    display [color red "Problem with login, invalid account or password while attempting to login to '[$client target]'. $e"]
+	    display [color red "Problem with login, invalid account or password while attempting to login to '$target'. $e"]
 
 	    incr tries
 	    if {($tries < 3) && $promptok && ![HasPassword $config]} continue
@@ -1107,10 +1262,11 @@ proc ::stackato::cmd::usermgr::InfoV1 {config client} {
     set info [$client info]
 
     if {![dict exists $info user]} {
-	set info {}
-    } else {
-	set info [$client user_info [dict get $info user]]
+	return -code error \
+	    -errorcode {STACKATO CLIENT AUTHERROR} \
+	    ""
     }
+    set info [$client user_info [dict get $info user]]
 
     if {[$config @json]} {
 	display [jmap map {dict {apps array}} $info]
@@ -1118,6 +1274,7 @@ proc ::stackato::cmd::usermgr::InfoV1 {config client} {
     }
 
     table::do t {Key Value} {
+	set apps {}
 	foreach ai [dict get $info apps] {
 	    lappend apps [dict get $ai name]
 	}
@@ -1136,6 +1293,11 @@ proc ::stackato::cmd::usermgr::InfoV2 {config client} {
     debug.cmd/usermgr {}
 
     set theuser [username validate [$config @name self] [$config @name]]
+
+    if {[$config @json]} {
+	display [$theuser as-json]
+	return
+    }
 
     table::do t {Key Value} {
 	$t add Name                    [$theuser @name]

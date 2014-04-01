@@ -69,8 +69,9 @@ namespace eval ::stackato::cmd::servicemgr {
 proc ::stackato::cmd::servicemgr::list-plans {config} {
     debug.cmd/servicemgr {}
 
-    set theplans [v2 service_plan list 1]
-    # chosen depth delivers plans and referenced services.
+    set theplans [v2 service_plan list 1 include-relations service]
+    # chosen depth delivers plans, services, and service instances.
+    # include-relations drops the unwanted latter.
 
     DisplayServicePlans $theplans no
     return
@@ -101,11 +102,12 @@ proc ::stackato::cmd::servicemgr::ListInstancesV2 {config client} {
     # Note: The global query does not handle the user-provided flag,
     # requiring us to perform a second call to get the user provided
     # instances as well.
-    set     provisioned    [v2 service_instance               list 3]
+    set     provisioned [v2 service_instance list 3 \
+			     include-relations space,organization,service_bindings,app]
     lappend provisioned {*}[v2 user_provided_service_instance list]
 
     # And the plans, plus their underlying service(-type)s.
-    set supported [v2 service_plan list 1]
+    set supported [v2 service_plan list 1 include-relations service]
 
     if {[$config @json]} {
 	set tmpp {}
@@ -144,6 +146,7 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {theplans {header yes}} {
 
     # Extract the information we wish to show.
     # Having it in list form makes sorting easier, later.
+    set plans {}
     foreach plan $theplans {
 	set service [$plan @service]
 	# plan    -> name, description, extra, &service
@@ -310,6 +313,10 @@ proc ::stackato::cmd::servicemgr::rename {config} {
     debug.cmd/servicemgr {}
     # V2 only.
     # client v2 = @service is entity instance
+
+    if {![$config @name set?]} {
+	$config notEnough
+    }
 
     set service [$config @service]
     set new     [$config @name]
@@ -547,7 +554,7 @@ proc ::stackato::cmd::servicemgr::DeleteV2 {config client} {
     foreach service $todelete {
 	set name [$service @name]
 
-	set bindings [$service @service_bindings get 1]
+	set bindings [$service @service_bindings get* {depth 1 include-relations app}]
 	set nbounds  [llength $bindings]
 
 	if {$nbounds && !$unbind} {
@@ -1191,7 +1198,7 @@ proc ::stackato::cmd::servicemgr::PushBindStart {config auth service turl} {
 proc ::stackato::cmd::servicemgr::StartTunnelHelper {config} {
     debug.cmd/servicemgr {}
 
-    app start1 $config [tunnelmgr app]
+    app start-single $config [tunnelmgr app]
     tunnelmgr invalidate-caches
     return
 }
@@ -1252,7 +1259,7 @@ proc ::stackato::cmd::servicemgr::PushTunnelHelper {config token turl} {
 	$theapp @name             set $appname
 	$theapp @space            set [cspace get]
 	$theapp @environment_json set [dict create TUNNEL_AUTH $token]
-	$theapp @memory           set 72
+	$theapp @memory           set 128
 	$theapp @total_instances  set 1
 
 	$theapp commit
