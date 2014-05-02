@@ -78,6 +78,8 @@ oo::class create ::stackato::v2::app {
 	# Read-only attribute.
 	my Attribute restart_required    boolean      label {Restart required}
 
+	my Attribute health_check_timeout null|integer label {Health Check Timeout}
+
 	my Many service_bindings
 	my Many	routes
 	my Many	events app_event

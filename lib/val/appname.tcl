@@ -31,11 +31,11 @@ namespace eval ::stackato::validate::appname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::validate::common::nospace
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::appname::default  {p }  { return {} }
@@ -117,11 +117,11 @@ proc ::stackato::validate::appname::validate {p x} {
 	return $intrep
     }
 
-    if {[$c isv2]} {
-	expected $p APPNAME "application" $x " in space '[[cspace get] @name]'"
-    } else {
-	expected $p APPNAME "application" $x
-    }
+    fail-unknown-thing $p APPNAME "application" $x \
+	[expr {[$c isv2]
+	       ? " in space '[[cspace get] @name]'"
+	       : ""}]
+
 }
 
 # # ## ### ##### ######## ############# #####################

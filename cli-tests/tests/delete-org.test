@@ -20,7 +20,7 @@ test delete-org-1.0 {delete-org, wrong args, not enough} -constraints cfv2 -setu
     run delete-org -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test delete-org-1.1 {delete-org, wrong args, too many} -constraints cfv2 -setup {
     stage-open

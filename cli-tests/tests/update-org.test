@@ -20,7 +20,7 @@ test update-org-1.0 {update-org, wrong args, not enough} -constraints cfv2 -setu
     run update-org -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test update-org-1.1 {update-org, wrong args, too many} -constraints cfv2 -setup {
     stage-open

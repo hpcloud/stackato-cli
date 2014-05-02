@@ -32,8 +32,8 @@ namespace eval ::stackato::validate::routename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::v2
 }
 
@@ -72,7 +72,7 @@ proc ::stackato::validate::routename::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/routename {FAIL}
-    expected $p ROUTENAME "route" $x
+    fail-unknown-thing $p ROUTENAME "route" $x
 }
 
 # # ## ### ##### ######## ############# #####################

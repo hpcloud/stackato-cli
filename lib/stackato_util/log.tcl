@@ -31,6 +31,10 @@ namespace eval ::stackato::log {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::log::wrap {text {down 0}} {
+    global env
+    if {[info exists env(STACKATO_NO_WRAP)]} {
+	return $text
+    }
     set c [expr {[linenoise columns]-$down}]
     return [textutil::adjust::adjust $text -length $c -strictlength 1]
 }

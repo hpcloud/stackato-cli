@@ -50,8 +50,8 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
-    namespace import ::stackato::log::psz
     namespace import ::stackato::log::err
+    namespace import ::stackato::log::psz
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cfile
@@ -92,6 +92,7 @@ proc ::stackato::cmd::query::raw-rest {config} {
     set op      [$config @operation]
     set url     [$config @path]
     set headers [$config @header]
+    set verbose [$config @show-extended]
 
     # Prepend a missing leading /
     # Should possibly go into validation type.
@@ -106,22 +107,50 @@ proc ::stackato::cmd::query::raw-rest {config} {
     }
     $client configure -headers $new
 
+    set cmd [dict get {
+	GET    http_get
+	HEAD   http_get
+	PUT    http_put
+	POST   http_post
+	DELETE http_delete
+    } $op]
+
+    lappend cmd $url
+
+    if {$op in {PUT POST}} {
+	# Handle a payload.
+
+	set data [$config @data]
+	if {$data in {- stdin}} {
+	    set data [read stdin]
+	}
+	lappend cmd $data
+
+    } elseif {[$config @data set?]} {
+	# Reject a payload
+	err "Operation $op does not allow specification of --data"
+    }
+
     try {
-	lassign [$client http_get $url] code response headers
+	lassign [$client {*}$cmd] code response headers
     } on error {e o} {
 	display "Response Code:    $e"
     } on ok {e o} {
-	display "Response Code:    $code"
+	if {$verbose} {
+	    display "Response Code:    $code"
 
-	set n      [MaxLen [dict keys $headers]]
-	set fmt    %-${n}s
-	set prefix {Response Headers:}
+	    set n      [MaxLen [dict keys $headers]]
+	    set fmt    %-${n}s
+	    set prefix {Response Headers:}
 
-	dict for {k v} $headers {
-	    display "$prefix [format $fmt $k] = ($v)"
+	    dict for {k v} $headers {
+		display "$prefix [format $fmt $k] = ($v)"
+	    }
+
+	    display "Response Body:    $response"
+	} else {
+	    display $response
 	}
-
-	display "Response Body:    $response"
     } finally {
 	$client configure -headers $old
     }
@@ -247,10 +276,26 @@ proc ::stackato::cmd::query::trace {config} {
     }
 
     set in [open [cfile get rest] r]
-    fconfigure $in    -translation binary
-    fconfigure stdout -translation binary
+
+    debug.cmd/query {input   = $in = [fconfigure $in -encoding] [fconfigure $in -translation] :: [cfile get rest]}
+    debug.cmd/query {output  = stdout = [fconfigure stdout -encoding] [fconfigure stdout -translation]}
+
+    fconfigure $in -translation binary
+
+    # Bug 103786. The windows console misbehaves (prints garbage) when
+    # we force the channel to binary. Its reported encoding is
+    # 'unicode', so we are making this an exception to the rule.
+    if {[fconfigure stdout -encoding] ni {unicode}} {
+	fconfigure stdout -translation binary
+    }
+
+    debug.cmd/query {input'  = $in = [fconfigure $in -encoding] [fconfigure $in -translation] :: [cfile get rest]}
+    debug.cmd/query {output' = stdout = [fconfigure stdout -encoding] [fconfigure stdout -translation]}
+
     fcopy $in stdout
     close $in
+
+    debug.cmd/query {/done}
     return
 }
 
@@ -284,7 +329,7 @@ proc ::stackato::cmd::query::AppinfoV1 {config client} {
 
     display [$config @application]
     [table::do t {Key Value} {
-	$t add Uris         [join [lsort -dict [dict get $app uris]] \n]
+	$t add Uris         [join [Uprefix [lsort -dict [dict get $app uris]]] \n]
 	$t add State        [dict get $app state]
 	$t add Health       [misc health $app]
 	$t add Instances    [dict get $app instances]
@@ -338,6 +383,7 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	}
 
 	foreach {var attr} {
+	    htim health_check_timeout
 	    ssoe sso_enabled
 	    desc description
 	    mini min_instances
@@ -356,13 +402,14 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	}
 
 	$t add Description      $desc
-	$t add Routes           [join [lsort -dict [$theapp uris]] \n]
+	$t add Routes           [join [Uprefix [lsort -dict [$theapp uris]]] \n]
 	$t add {Placement Zone} $z
 	$t add {SSO Enabled}    $ssoe
 
 	$t add State              [$theapp @state]
 	$t add {Restart required} $rere
 	$t add $htitle            $health
+	$t add {- Check Timeout}  $htim
 	$t add Instances          [$theapp @total_instances]
 	$t add Memory             [psz [MB [$theapp @memory]]]
 	$t add {Disk Quota}       [psz [MB [$theapp @disk_quota]]]
@@ -592,6 +639,7 @@ proc ::stackato::cmd::query::general {config} {
 	}
     }
 
+    client license-status $client 0 {License:  }
     return
 }
 
@@ -675,9 +723,8 @@ proc ::stackato::cmd::query::UsageV2 {client config all space} {
 	    set space [spacename validate [$config @userOrGroup self] $space]
 	} else {
 	    # Current space.
-	    set space [cspace get]
+	    set space [cspace get-auto [$config @userOrGroup self]]
 	}
-
 	return [$space usage]
     }
 }
@@ -704,7 +751,7 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 
     # While we pretty much always have a current space, not having one
     # is possible, so the else branch can happen.
-    if {![$config @all] && $cs ne {}} {
+    if {![$config @all] && ($cs ne {})} {
 	try {
 	    $cs summarize
 	    set applications [$cs @apps]
@@ -734,7 +781,7 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	return
     }
 
-    [table::do t {Application \# Mem Health URLS Services Drains} {
+    [table::do t {Application \# Mem Health URLs Services Drains} {
 	foreach app $applications {
 	    try {
 		set health [$app health]
@@ -757,7 +804,7 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	    set name         [$app @name]
 	    set numinstances [$app @total_instances]
 	    set mem          [$app @memory]
-	    set uris         [join [lsort -dict [$app uris]] \n]
+	    set uris         [join [Uprefix [lsort -dict [$app uris]]] \n]
 	    set services     [join [lsort -dict [$app services]] \n]
 	    set drains       [join [lsort -dict [DrainListV2 $app]] \n]
 
@@ -770,7 +817,6 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 }
 
 proc ::stackato::cmd::query::AppListV1 {config client} {
-
     # CF v1 API...
 
     set applications [$client apps]
@@ -803,7 +849,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 	return
     }
 
-    [table::do t {Application \# Health URLS Services Drains} {
+    [table::do t {Application \# Health URLs Services Drains} {
 	foreach app $applications {
 	    set health [misc health $app]
 	    if {[string is double -strict $health]} {
@@ -813,12 +859,20 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 		[dict getit $app name] \
 		[dict getit $app instances] \
 		$health \
-		[join [lsort -dict [dict getit $app uris]] \n] \
+		[join [Uprefix [lsort -dict [dict getit $app uris]]] \n] \
 		[join [lsort -dict [dict getit $app services]] \n] \
 		[join [lsort -dict [DrainListV1 $client $app]] \n]
 	}
     }] show display
     return
+}
+
+proc ::stackato::cmd::query::Uprefix {ulist} {
+    set res {}
+    foreach u $ulist {
+	lappend res https://$u
+    }
+    return $res
 }
 
 # # ## ### ##### ######## ############# #####################

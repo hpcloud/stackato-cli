@@ -3,7 +3,7 @@
 | Key              | Value *|
 +------------------+-*-+
 | Description      | * |
-| Routes           | node-env.* |
+| Routes           | *://node-env.* |
 | Placement Zone   | * |
 | SSO Enabled      | * |
 | State            | STOPPED *|

@@ -29,9 +29,9 @@ namespace eval ::stackato::validate::notquotaname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
 }
 
 proc ::stackato::validate::notquotaname::default  {p}   { return {} }
@@ -53,7 +53,7 @@ proc ::stackato::validate::notquotaname::validate {p x} {
     }
 
     debug.validate/notquotaname {FAIL}
-    not $p NOTQUOTANAME "quota definition" $x
+    fail-known-thing $p NOTQUOTANAME "quota definition" $x
 }
 
 # # ## ### ##### ######## ############# #####################

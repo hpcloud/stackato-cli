@@ -291,6 +291,14 @@ proc ::stackato::mgr::manifest::ssoenabled= {enabled} {
     return
 }
 
+proc ::stackato::mgr::manifest::health-timeout= {seconds} {
+    debug.mgr/manifest/core {}
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest timeout [Cscalar $seconds]
+    return
+}
+
 proc ::stackato::mgr::manifest::path= {path} {
     debug.mgr/manifest/core {}
     variable outmanifest
@@ -483,7 +491,24 @@ proc ::stackato::mgr::manifest::services {} {
 
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
-    return [yaml dict get' $currentappinfo services {}]
+    set services [yaml dict get' $currentappinfo services {}]
+
+    # Check all services details for keys with "null" values and
+    # convert them to empty strings.
+    dict for {name details} $services {
+	set changes 0
+	dict for {k v} $details {
+	    if {$v ne "null"} continue
+	    # Transform
+	    dict set details $k {}
+	    incr changes
+	}
+	if {!$changes} continue
+	# Save transformed
+	dict set services $name $details
+    }
+
+    return $services
 }
 
 proc ::stackato::mgr::manifest::instances {} {
@@ -565,6 +590,15 @@ proc ::stackato::mgr::manifest::ssoenabled {} {
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
     return [yaml dict get' $currentappinfo stackato sso-enabled {}]
+}
+
+proc ::stackato::mgr::manifest::health-timeout {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo timeout {}]
 }
 
 proc ::stackato::mgr::manifest::runtime {} {
@@ -1949,7 +1983,7 @@ proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
 
     set client [client authenticated]
     if {![$client isv2]} {
-	Error "space-base can only be used with a Stackato 3 target"
+	Error "The symbol \"space-base\" can only be used with a Stackato 3 target"
     }
 
     # Get current space.
@@ -1960,16 +1994,16 @@ proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
 
     set thespace [cspace get]
     if {$thespace eq {}} {
-	Error "space-base requires a current space, no such found"
+	Error "Unable to construct url. A current space is required, but not set."
     }
 
     set thedomains [$thespace @domains]
     set nd [llength $thedomains]
 
     if {!$nd} {
-	Error "space-base requires a domain mapped into the current space, no such found"
+	Error "Unable to construct url. We need a domain and found none. [self please domains {You can use}] to verify this."
     } elseif {$nd > 1} {
-	set msg "space-base is ambiguous, found multiple domains mapped into the space."
+	set msg "Unable to construct url. We found multiple domains and cannot choose."
 	if {[cmdr interactive?]} {
 	    foreach d $thedomains {
 		dict set map [$d @name] $d
@@ -1978,7 +2012,7 @@ proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
 			      "Which domain do you wish to use? " \
 			      [dict keys $map]]
 	} else {
-	    Error $msg
+	    Error "$msg [self please domains {You can use}] to verify this."
 	}
     } else {
 	set symvalue [[lindex $thedomains 0] @name]
@@ -2258,7 +2292,7 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 	name instances mem memory disk framework services processes
 	min_version env ignores hooks cron requirements drain subdomain
 	command app-dir url urls depends-on buildpack stack host domain
-	placement-zone description autoscale sso-enabled
+	placement-zone description autoscale sso-enabled timeout
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2802,8 +2836,10 @@ proc ::stackato::mgr::manifest::T_Urls {value} {
 
     debug.mgr/manifest/core {}
 
-    set hasurls 0
-    set urls    {}
+    set havehost   0
+    set havedomain 0
+    set hasurls    0
+    set urls      {} ;# set of collected urls, sequence.
 
     foreach key {url urls} {
 	if {[dict exists $value $key]} {
@@ -2829,10 +2865,13 @@ proc ::stackato::mgr::manifest::T_Urls {value} {
 	    }
 	}
 	dict unset value domain
+	incr havedomain
     } else {
 	set domain {${space-base}}
     }
 
+    # Create one url per possible chosen route, using the chosen
+    # domain (or the default).
     foreach key {host subdomain} {
 	if {[dict exists $value $key]} {
 	    yaml tags!do [dict get $value $key] "key \"$key\"" tag data {
@@ -2843,7 +2882,17 @@ proc ::stackato::mgr::manifest::T_Urls {value} {
 	    }
 	    dict unset value $key
 	    incr hasurls
+	    incr havehost
 	}
+    }
+
+    if {$havedomain && !$havehost} {
+	# Create a single url from app-name and the user's chosen
+	# domain. This is done only if the user did not choose
+	# host|subdomain as well.
+	set host {${name}}
+	lappend urls [Cscalar ${host}.${domain}]
+	incr hasurls
     }
 
     if {$hasurls} {
@@ -3102,6 +3151,9 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 		    }
 		}
 	    }
+	    timeout {
+		ValidateInt1 $avalue "key \"$akey\""
+	    }
 	    framework {
 		yaml validate-glob $avalue framework -- key value {
 		    name          { yaml tag!     scalar $value {key "framework:name"} }
@@ -3262,12 +3314,13 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 			}
 		    }
 		    hooks {
-			yaml validate-glob $svalue hooks -- ky value {
-			    pre-push     { ValidateCommand $value hooks:pre-push     }
-			    pre-staging  { ValidateCommand $value hooks:pre-staging  }
-			    post-staging { ValidateCommand $value hooks:post-staging }
-			    pre-running  { ValidateCommand $value hooks:pre-running  }
-			    *            { UnknownKey hooks:$key }
+			yaml validate-glob $svalue hooks -- hkey hvalue {
+			    pre-push       { ValidateCommand $hvalue hooks:$hkey }
+			    pre-staging    { ValidateCommand $hvalue hooks:$hkey }
+			    post-staging   { ValidateCommand $hvalue hooks:$hkey }
+			    pre-running    { ValidateCommand $hvalue hooks:$hkey }
+			    legacy-running { ValidateCommand $hvalue hooks:$hkey }
+			    *              { UnknownKey hooks:$hkey }
 			}
 		    }
 		    cron    { ValidateCommand $svalue cron }

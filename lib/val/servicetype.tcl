@@ -32,10 +32,10 @@ namespace eval ::stackato::validate::servicetype {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::servicetype::default  {p}   { return {} }
@@ -85,7 +85,7 @@ proc ::stackato::validate::servicetype::validate {p x} {
 	return $x
     }
     debug.validate/servicetype {FAIL}
-    expected $p SERVICETYPE "service" $x [FilterHint $p]
+    fail-unknown-thing $p SERVICETYPE "service" $x [FilterHint $p]
 }
 
 # # ## ### ##### ######## ############# #####################

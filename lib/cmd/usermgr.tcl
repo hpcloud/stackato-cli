@@ -47,7 +47,7 @@ namespace eval ::stackato::cmd::usermgr {
     namespace export \
 	add delete list login logout password who info \
 	link-org link-space unlink-org unlink-space \
-	token decode-token login-fields
+	token decode-token login-fields delete-by-uuid
     namespace ensemble create
 
     namespace import ::stackato::cmd::admin
@@ -93,10 +93,17 @@ proc ::stackato::cmd::usermgr::link-org {config} {
     $config @developer set yes
 
     foreach def [OrgRoles $config] {
-	lassign $def attr label
+	lassign $def attru attro label
 	display "Adding user [$theuser @name] to [$theorg @name], as $label ... " false
 
-	$theuser $attr add $theorg
+	# NOTE: While semantically equivalent in the final result
+	# these two operations have different permissions when it
+	# comes to non-admin users. The disabled form is restricted to
+	# full-blown admins, whereas the other, active code, works for
+	# any org-manager
+
+	#$theuser $attru add $theorg
+	$theorg  $attro add $theuser
 
 	display [color green OK]
     }
@@ -110,10 +117,13 @@ proc ::stackato::cmd::usermgr::link-space {config} {
     set thespace [$config @space]
 
     foreach def [SpaceRoles $config] {
-	lassign $def attr label
+	lassign $def attru attrs label
 	display "Adding user [$theuser @name] to [$thespace @name], as $label ... " false
 
-	$theuser $attr add $thespace
+	# NOTE: See link-org for the details.
+
+	#$theuser  $attru add $thespace
+	$thespace $attrs add $theuser
 
 	display [color green OK]
     }
@@ -127,11 +137,14 @@ proc ::stackato::cmd::usermgr::unlink-org {config} {
     set theorg  [$config @org]
 
     SetRolesForUnlink $config
-    foreach def [OrgRoles $config] {
-	lassign $def attr label
+    foreach def [lreverse [OrgRoles $config]] {
+	lassign $def attru attro label
 	display "Removing $label [$theuser @name] from [$theorg @name] ... " false
 
-	$theuser $attr remove $theorg
+	# NOTE: See link-org for the details.
+
+	#$theuser $attru remove $theorg
+	$theorg  $attro remove $theuser
 
 	display [color green OK]
     }
@@ -145,10 +158,13 @@ proc ::stackato::cmd::usermgr::unlink-space {config} {
     set thespace [$config @space]
 
     foreach def [SpaceRoles $config] {
-	lassign $def attr label
+	lassign $def attru attrs label
 	display "Removing $label [$theuser @name] from [$thespace @name] ... " false
 
-	$theuser $attr remove $thespace
+	# NOTE: See link-org for the details.
+
+	#$theuser  $attru remove $thespace
+	$thespace $attrs remove $theuser
 
 	display [color green OK]
     }
@@ -176,18 +192,18 @@ proc ::stackato::cmd::usermgr::SetRolesForUnlink {config} {
 
 proc ::stackato::cmd::usermgr::OrgRoles {config} {
     return [Roles $config {
-	@developer {@organizations                 Developer}
-	@manager   {@managed_organizations         Manager}
-	@billing   {@billing_managed_organizations Billing-Manager}
-	@auditor   {@audited_organizations         Auditor}
+	@developer {@organizations                 @users            Developer}
+	@manager   {@managed_organizations         @managers         Manager}
+	@billing   {@billing_managed_organizations @billing_managers Billing-Manager}
+	@auditor   {@audited_organizations         @auditors         Auditor}
     }]
 }
 
 proc ::stackato::cmd::usermgr::SpaceRoles {config} {
     return [Roles $config {
-	@developer {@spaces         Developer}
-	@manager   {@managed_spaces Manager}
-	@auditor   {@audited_spaces Auditor}
+	@developer {@spaces         @developers Developer}
+	@manager   {@managed_spaces @managers   Manager}
+	@auditor   {@audited_spaces @auditors   Auditor}
     }]
 }
 
@@ -318,6 +334,31 @@ proc ::stackato::cmd::usermgr::add {config} {
     # new user
 
     login $config
+    return
+}
+
+proc ::stackato::cmd::usermgr::delete-by-uuid {config} {
+    set client [$config @client]
+    set uuid   [$config @uuid]
+
+    try {
+	display "Deleting in AOK: $uuid ... " false
+	$client uaa_delete_user $uuid
+    } on error {e o} {
+	display [color red "ERR: $e"]
+    } on ok {e o} {
+	display [color green OK]
+    }
+
+    try {
+	display "Deleting in CC:  $uuid ... " false
+	$client delete-by-url /v2/users/$uuid
+    } on error {e o} {
+	display [color red "ERR: $e"]
+    } on ok {e o} {
+	display [color green OK]
+    }
+
     return
 }
 
@@ -457,10 +498,22 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
     set osa [expr {$mode in {all related}}]
     set ngf [expr {$mode in {all name}}]
 
+    debug.cmd/usermgr {mode = $mode}
+    debug.cmd/usermgr {osa  = $osa}
+    debug.cmd/usermgr {ngf  = $ngf}
+
     # depth controlled by mode.
     if {$osa} {
-	# inline some relations
-	set depth 1
+	# inline all relations
+	if {[$client is-stackato]} {
+	    # stackato target, client uses the new efficient list
+	    # format, we can go deep.
+	    set depth 3
+	} else {
+	    # CF target, client sticks to the old list format, balance
+	    # recursion to individual requests, go not as deep.
+	    set depth 1
+	}
     } else {
 	# no relation asked for, drop from request
 	set depth 0
@@ -495,21 +548,33 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
     set mapped 0
     foreach u $users {
 	set guid [$u @guid]
-	if {![dict exists $umap $guid]} continue
+	if {![dict exists $umap $guid]} {
+	    debug.cmd/usermgr {  uaa $guid unknown, ignored}
+	    continue
+	}
 	$u uaa= [dict get $umap $guid]
+
+	debug.cmd/usermgr {  uaa $guid joining cc = [$u @name] / [$u email]}
 	dict unset umap $guid
 	incr mapped
     }
 
     debug.cmd/usermgr {U/map=$mapped}
 
-    # disable display of unmapped UAA users.
-    set umap {}
-    # The map now contains only entries for users known to UAA but not
-    # the main system.
+    # Disable display of unmapped UAA users by default.
+    if {![$config @crosscheck]} {
+	debug.cmd/usermgr {ignored aok/cc mismatches: [dict size $umap]}
+	set umap {}
+	# The map now contains only entries for users known to UAA but
+	# not the main system.
+    }
 
     debug.cmd/usermgr {sort by email}
-    set users [v2 sort email $users -dict]
+    debug.cmd/usermgr {U/cc_=[llength $users]}
+
+    set users [v2 sort the_name $users -dict]
+
+    debug.cmd/usermgr {U/cc_=[llength $users]}
 
     if {[$config @json]} {
 	set tmp {}
@@ -546,9 +611,9 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 
     table::do t $headings {
 	foreach u $users {
-	    debug.cmd/usermgr {  process [$u url] }
+	    debug.cmd/usermgr {  process [$u url] = [$u @name] / [$u email] }
 
-	    set email  [$u email]
+	    set email [$u email]
 	    if {[string match {(legacy-api)} $email]} continue
 
 	    set row {}
@@ -1060,6 +1125,8 @@ proc ::stackato::cmd::usermgr::PostLoginV2 {client config} {
     }
 
     display [context format-large]
+    client license-status $client 0
+
     debug.cmd/usermgr {/done}
     return
 }

@@ -89,6 +89,12 @@ The easist way to get the Kettle sources is to copy the directory
 
 to a temp directory of your choice.
 
+ATTENTION: Make sure to either *not* copy the file .fslckout, or to
+delete it after copying. Its presence will cause Kettle to look for
+the fossil SCM during installation, and the information inside the
+file (repository location) is wrong anyway after the copy, making it
+invalid twice over.
+
 To install it then run
 
 	   tclsh ./kettle -f ./build.tcl install

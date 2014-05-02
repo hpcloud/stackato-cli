@@ -33,12 +33,12 @@ namespace eval ::stackato::validate::notappname {
     namespace export default validate complete release
     namespace ensemble create
 
-    namespace import ::cmdr::validate::common::fail
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
     namespace import ::stackato::validate::appname-lex
 }
 
@@ -105,7 +105,7 @@ proc ::stackato::validate::notappname::validate {p x} {
     }
 
     debug.validate/notappname {FAIL}
-    not $p NOTAPPNAME "application" $x
+    fail-known-thing $p NOTAPPNAME "application" $x
 }
 
 # # ## ### ##### ######## ############# #####################

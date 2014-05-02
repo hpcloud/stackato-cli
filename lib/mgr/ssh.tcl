@@ -35,6 +35,7 @@ namespace eval ::stackato::mgr::ssh {
     namespace import ::stackato::color
     namespace import ::stackato::misc
     namespace import ::stackato::log::err
+    namespace import ::stackato::log::say
     namespace import ::stackato::log::display
     namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cgroup
@@ -162,7 +163,7 @@ proc ::stackato::mgr::ssh::run {config args theapp instance {bg 0} {eincmd {}} {
     }
     lappend cmd {*}$opts stackato@$target stackato-ssh
 
-    if {[cgroup get] ne {}} {
+    if {(![$client isv2]) && ([cgroup get] ne {})} {
 	lappend cmd -G [cgroup get]
     }
 

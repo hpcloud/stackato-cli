@@ -4,6 +4,7 @@ cmd/admin
 cmd/alias
 cmd/app
 cmd/app/ignored
+cmd/buildpacks
 cmd/cgroup
 cmd/do
 cmd/domains
@@ -27,6 +28,7 @@ cmdr/actor
 cmdr/config
 cmdr/help
 cmdr/help/json
+cmdr/history
 cmdr/main
 cmdr/officer
 cmdr/parameter
@@ -75,6 +77,7 @@ v2/app
 v2/app_event
 v2/base
 v2/base/summary
+v2/buildpack
 v2/client
 v2/domain
 v2/memory
@@ -96,6 +99,7 @@ validate/appname
 validate/appname-api
 validate/appname-dot
 validate/appname-lex
+validate/buildpack
 validate/common
 validate/envassign
 validate/envmode
@@ -106,6 +110,7 @@ validate/instance
 validate/interval
 validate/memspec
 validate/notappname
+validate/notbuildpack
 validate/notorgname
 validate/notquotaname
 validate/notserviceauthtoken
@@ -125,6 +130,8 @@ validate/spaceuuid
 validate/target
 validate/ulmode
 validate/username
+validate/username-org
+validate/username-space
 validate/vappname
 validate/zonename
 yaml

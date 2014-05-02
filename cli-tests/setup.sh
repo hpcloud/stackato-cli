@@ -3,11 +3,19 @@
 
 # These variables must contain information created before testing, i.e. target, and target setup
 # This script uses them here to perform the setup
+
+# ATTENTION: The configuration used in the file "run-tests.sh" must
+# match the configuration initialized here.
+
 STACKATO_CLI_TEST_TARGET=api.stackato-nightly.activestate.com
 STACKATO_CLI_TEST_ADMIN=cli-test-admin@test
 STACKATO_CLI_TEST_APASS=cli-test-admin-pass
 STACKATO_CLI_TEST_ORG=cli-test-org
 STACKATO_CLI_TEST_SPACE=cli-test-space
+
+# ATTENTION
+# It is expected that the STACKATO_CLI_TEST_SPACE is the one and only
+# space within the STACKATO_CLI_TEST_ORG.
 
 # Execute the setup.
 

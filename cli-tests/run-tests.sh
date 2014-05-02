@@ -8,14 +8,22 @@ stem=X
 # Override the variables below to avoid conflicts with other
 # testsuites and instances of this running at the same time.
 
-# These variables must contain information created before testing, i.e. target, and target setup
-#
-#export STACKATO_CLI_TEST_TARGET =api.stackato-nightly.activestate.com
-#export STACKATO_CLI_TEST_ADMIN  =cli-test-admin@test
-#export STACKATO_CLI_TEST_APASS  =cli-test-admin-pass
-#export STACKATO_CLI_TEST_ORG    =cli-test-org
-#export STACKATO_CLI_TEST_SPACE  =cli-test-space
-#export STACKATO_CLI_TEST_DRAIN	 =tcp://flux.activestate.com:11100
+# These variables must contain information created before testing,
+# i.e. target, and target setup. See script "setup.sh" for code
+# setting up a configuration.
+
+# ATTENTION: The configuration used here must match configuration
+# created by "setup.sh".
+
+#export STACKATO_CLI_TEST_TARGET   =api.stackato-nightly.activestate.com
+#export STACKATO_CLI_TEST_ADMIN    =cli-test-admin@test
+#export STACKATO_CLI_TEST_APASS    =cli-test-admin-pass
+#export STACKATO_CLI_TEST_ORG      =cli-test-org
+#export STACKATO_CLI_TEST_SPACE    =cli-test-space
+#export STACKATO_CLI_TEST_DRAIN	   =tcp://flux.activestate.com:11100
+#export STACKATO_CLI_TEST_SBROKER_L=http://kvmbuild.activestate.com:5000
+#export STACKATO_CLI_TEST_SBROKER_U=foo
+#export STACKATO_CLI_TEST_SBROKER_P=bar
 
 #The values of these variables are used to create a non-admin user during the tests.
 #

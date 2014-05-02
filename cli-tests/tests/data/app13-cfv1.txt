@@ -2,7 +2,7 @@
 +--------------+-*-+
 | Key          | Value *|
 +--------------+-*-+
-| Uris         | node-env.* |
+| Uris         | *://node-env.* |
 | State        | STARTED *|
 | Health       | RUNNING *|
 | Instances    | 1 *|

@@ -59,17 +59,14 @@ test create-app-1.3 {create-app, non-admin login is ok} -setup {
     be-admin
     remove-non-admin
     stage-close
-} -match glob -result [per-api {*Framework:       node
-Runtime:         Node.js
-Application Url: test.*
-Creating Application ?TEST? in * ... OK} [map {No manifest
-Application Url:   test.@base@
-Creating Application \[TEST\] as \[@target@ -> @org@ -> @space@ -> TEST\] ... OK
-  Map test.@base@ ... OK} \
-    @org@    [theorg] \
-    @space@  [thespace] \
-    @base@   [thebase] \
-    @target@ [thetarget]]]
+} -match glob -result \
+    [per-api \
+	 [viewFile      data/capp13-cfv1.txt] \
+	 [map [viewFile data/capp13-cfv2.txt] \
+	      @org@    [theorg] \
+	      @space@  [thespace] \
+	      @base@   [thebase] \
+	      @target@ [thetarget]]]
 
 test create-app-1.4 {create-app, persists} -setup {
     stage-open

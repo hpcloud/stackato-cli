@@ -185,6 +185,7 @@ oo::class create ::stackato::v2::base {
 	set myfullmap [list dict [list entity $mymap metadata dict]]
 
 	debug.v2/base {json map = ($mymap)}
+	debug.v2/base {json map = ($myfullmap)}
 
 	set mydelete   0
 	set mydelargs  {}
@@ -225,6 +226,8 @@ oo::class create ::stackato::v2::base {
 	# Main entry point. Clear dict of seen entities.
 	my ResolvePhantom as-json
 	jmap seen-clear
+
+	debug.v2/base {$myfullmap}
 	jmap map $myfullmap $myjson
     }
 
@@ -276,7 +279,14 @@ oo::class create ::stackato::v2::base {
     classmethod list {{depth 0} args} {
 	# args = config
 	debug.v2/base {}
-	set type   [namespace tail [self]]s
+	set type [namespace tail [self]]
+	if {[string match *y $type]} {
+	    # y => ies pluralization
+	    set type [string range $type 0 end-1]ies
+	} else {
+	    # s pluralization.
+	    append type s
+	}
 	set client [stackato::mgr client authenticated]
 	if {$depth > 0} {
 	    lappend args depth $depth
@@ -286,7 +296,14 @@ oo::class create ::stackato::v2::base {
 
     classmethod list-filter {key value {depth 0} {config {}}} {
 	debug.v2/base {}
-	set type   [namespace tail [self]]s
+	set type [namespace tail [self]]
+	if {[string match *y $type]} {
+	    # y => ies pluralization
+	    set type [string range $type 0 end-1]ies
+	} else {
+	    # s pluralization.
+	    append type s
+	}
 	set client [stackato::mgr client authenticated]
 	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
     }
@@ -458,6 +475,12 @@ oo::class create ::stackato::v2::base {
 		debug.v2/base {Result  $json}
 
 		lassign [[authenticated] change-by-url [my url]$form $json] new myheaders
+
+		# Canonicalize to lower-case keys. (Original keys are kept).
+		dict for {k v} $myheaders {
+		    dict set myheaders [string tolower $k] $v
+		}
+
 		my = $new
 
 	    }
@@ -573,11 +596,28 @@ oo::class create ::stackato::v2::base {
     }
 
     method create-url {} {
-	return [my typeof]s
+	set type [my typeof]
+	if {[string match *y $type]} {
+	    # y => ies pluralization
+	    set type [string range $type 0 end-1]ies
+	} else {
+	    # s pluralization.
+	    append type s
+	}
+	return $type
     }
 
     method delete-url {} {
-	return [my typeof]s
+	set type [my typeof]
+	if {[string match *y $type]} {
+	    # y => ies pluralization
+	    set type [string range $type 0 end-1]ies
+	} else {
+	    # s pluralization.
+	    append type s
+	}
+
+	return $type
     }
 
     method url {} {
@@ -1060,6 +1100,28 @@ oo::class create ::stackato::v2::base {
 	    set url [$obj url]
 	    debug.v2/base {inlined ==> $url}
 
+	} elseif { [dict exists $myjson entity ${jname}_guid] &&
+		   [[authenticated] has-orphan [dict get $myjson entity ${jname}_guid]] } {
+
+	    # Semi-inlined entity through orphan-relations. We can
+	    # expect its data to be found in the orphan-cache of the
+	    # client. Well, no. The _guid key can exist and be set
+	    # even for a plain entity without orphan-relations
+	    # information. So, testing for existence before going into
+	    # this branch, and pass to the _url branch if the data is
+	    # missing.
+
+	    set guid [dict get $myjson entity ${jname}_guid]
+	    set json [[authenticated] get-orphan $guid]
+
+	    set obj [get-for $json]
+	    set url [$obj url]
+	    debug.v2/base {inlined ==> $url}
+
+	    # Make it a full inline.
+	    # Ok with Tcl, only a reference with a shared Tcl_Obj.
+	    dict set $myjson entity $jname $json
+
 	} elseif {[dict exists $myjson entity ${jname}_url]} {
 	    # Entity reference. Save the url for access.
 
@@ -1231,13 +1293,27 @@ oo::class create ::stackato::v2::base {
 	my ResolvePhantom ^^$name
 
 	if {[dict exists $myjson entity $jname]} {
-	    # Inlined array of related entities found. Create the
+	    # Inlined list of related entities found. Create the
 	    # objects and save their urls for access.
+
+	    # NOTE: Under orphan-relations the elements of the list
+	    # are guids, not json. We are testing this dynamically.
 
 	    set urllist {}
 	    set objlist {}
 
+	    set jl {}
 	    foreach json [dict get $myjson entity $jname] {
+		if {[[authenticated] has-orphan $json]} {
+		    # json is actually a guid. The json is in the
+		    # client's orphan cache.
+		    set json [[authenticated] get-orphan $json]
+		    lappend jl $json
+		    # Replace the list of uuids with the list of jsons
+		    # We assume that this branch is executed either none, or all the time.
+		    dict set myjson entity $jname $jl
+		}
+
 		set obj [get-for $json]
 		set url [$obj url]
 		debug.v2/base {inlined ==> $url}
@@ -1245,7 +1321,8 @@ oo::class create ::stackato::v2::base {
 		lappend objlist $obj
 		lappend urllist $url
 	    }
-	}  elseif {[dict exists $myjson entity ${jname}_url]} {
+
+	} elseif {[dict exists $myjson entity ${jname}_url]} {
 	    # Implied list of entity references, as single
 	    # url returning paginated array of the resources.
 
@@ -1322,15 +1399,29 @@ oo::class create ::stackato::v2::base {
 	    # that the json cache is skipped.
 
 	    if {![dict size $config] && [dict exists $myjson entity $jname]} {
-		# Inlined array of related entities found. Create the
+		# Inlined list of related entities found. Create the
 		# objects and save their urls for access.
 
 		debug.v2/base {inlined}
 
+		# NOTE: Under orphan-relations the elements of the
+		# list are guids, not json. We are testing this dynamically.
+
 		set urllist {}
 		set objlist {}
 
+		set jl {}
 		foreach json [dict get $myjson entity $jname] {
+		    if {[[authenticated] has-orphan $json]} {
+			# json is actually a guid. The json is in the
+			# client's orphan cache.
+			set json [[authenticated] get-orphan $json]
+			lappend jl $json
+			# Replace the list of uuids with the list of jsons
+			# We assume that this branch is executed either none, or all the time.
+			dict set myjson entity $jname $jl
+		    }
+
 		    set obj [get-for $json]
 		    set url [$obj url]
 		    debug.v2/base {inlined ==> $url}
@@ -1736,6 +1827,10 @@ oo::class create ::stackato::v2::base {
 		double      { set hint nnumber }
 		integer     { set hint nnumber }
 		dict        { set hint dict    }
+		ndict       {
+		    set hint ndict
+		    set type dict
+		}
 		list-string { set hint {array string} }
 		default     { set hint nstring }
 	    }

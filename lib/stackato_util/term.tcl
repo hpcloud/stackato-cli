@@ -238,6 +238,10 @@ proc ::stackato::term::Interact {header prompt args} {
 proc ::stackato::term::Fit {prompt space} {
     # Similar to stackato::log::wrap, except wrapping is conditional
     # here, with a split following.
+    global env
+    if {[info exists env(STACKATO_NO_WRAP)]} {
+	return [list {} $prompt]
+    }
 
     set w [expr {[linenoise columns] - $space }]
     # we leave space for some characters to be entered.

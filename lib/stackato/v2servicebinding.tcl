@@ -27,7 +27,7 @@ oo::class create ::stackato::v2::service_binding {
 	my Attribute service_instance &service_instance
 
 	# Attributes apparently copied from the referenced service-instance.
-	#my Attribute credentials     dict   ; # copied from service-instance
+	my Attribute credentials     dict   ; # copied from service-instance
 	#my Attribute gateway_data    dict   ; # copied from service-instance
 	#my Attribute gateway_name    string ; # copied from service-instance
 	#my Attribute binding_options dict   ; # copied from service-instance

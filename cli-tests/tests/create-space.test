@@ -20,7 +20,7 @@ test create-space-1.0 {create-space, wrong args, not enough} -constraints cfv2 -
     run create-space -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test create-space-1.1 {create-space, wrong args, too many} -constraints cfv2 -setup {
     stage-open
@@ -51,7 +51,8 @@ test create-space-1.3 {create-space, login required} -constraints cfv2 -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test create-space-1.4 {create-space, non-admin login is ok} -constraints cfv2 -setup {
+test create-space-1.4 {create-space, non-admin login is not ok} -constraints cfv2 -setup {
+    # create-space-1.4 - this could be 3.2+
     stage-open
     go-admin
     go-non-admin

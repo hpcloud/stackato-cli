@@ -7,5 +7,5 @@ else
     stem="$1"
 fi
 
-rm -rf ${stem}.* tests/*.out tests/*.err tests/thehome
+rm -rf ${stem}.* .kettle* tests/*.out tests/*.err tests/thehome
 

@@ -28,7 +28,7 @@ test delete-service-auth-token-1.1 {client delete-service-auth-token, wrong args
     run delete-service-auth-token -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'label'}
 
 test delete-service-auth-token-1.2 {client delete-service-auth-token, CFv2 target required} -constraints cfv1 -setup {
     stage-open

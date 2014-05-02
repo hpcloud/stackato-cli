@@ -29,8 +29,8 @@ namespace eval ::stackato::validate::notserviceauthtoken {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -52,7 +52,7 @@ proc ::stackato::validate::notserviceauthtoken::validate {p x} {
 	return $x
     }
     debug.validate/notserviceauthtoken {FAIL}
-    not $p NOTSERVICEAUTHTOKEN "service auth token" $x
+    fail-known-thing $p NOTSERVICEAUTHTOKEN "service auth token" $x
 }
 
 # # ## ### ##### ######## ############# #####################

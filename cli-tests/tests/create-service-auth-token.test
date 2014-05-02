@@ -28,7 +28,7 @@ test create-service-auth-token-1.1 {client create-service-auth-token, wrong args
     run create-service-auth-token -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'label'}
 
 test create-service-auth-token-1.2 {client create-service-auth-token, wrong args, not enough} -constraints cfv2 -setup {
     stage-open
@@ -38,7 +38,7 @@ test create-service-auth-token-1.2 {client create-service-auth-token, wrong args
     run create-service-auth-token -n L
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'auth-token'}
 
 test create-service-auth-token-1.3 {client create-service-auth-token, CFv2 target required} -constraints cfv1 -setup {
     stage-open

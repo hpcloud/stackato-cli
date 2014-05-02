@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::notusername {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
     namespace import ::stackato::v2
 }
 
@@ -70,7 +70,7 @@ proc ::stackato::validate::notusername::validate {p x} {
 	}
     }
     debug.validate/notusername {FAIL}
-    not $p NOTUSERNAME "A user" $x
+    fail-known-thing $p NOTUSERNAME "A user" $x
 }
 
 # # ## ### ##### ######## ############# #####################

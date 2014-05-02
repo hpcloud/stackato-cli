@@ -31,10 +31,10 @@ namespace eval ::stackato::validate::zonename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::log::err
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::zonename::default  {p}   { return {} }
@@ -74,7 +74,7 @@ proc ::stackato::validate::zonename::validate {p x} {
     }
 
     debug.validate/zonename {FAIL}
-    expected $p ZONENAME "zone" $x
+    fail-unknown-thing $p ZONENAME "zone" $x
 }
 
 # # ## ### ##### ######## ############# #####################

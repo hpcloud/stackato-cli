@@ -9,7 +9,6 @@
 package require Tcl 8.5
 package require cmdr::validate
 package require stackato::v2::client ;# get all entity classes.
-package require stackato::validate::common
 
 debug level  validate/entity
 debug prefix validate/entity {[debug caller] | }
@@ -27,7 +26,7 @@ namespace eval ::stackato::validate::entity {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::v2
 }
 
@@ -44,7 +43,7 @@ proc ::stackato::validate::entity::validate {p x} {
 	return $x
     }
     debug.validate/entity {FAIL}
-    expected $p ENTITY "CFv2 entity type" $x
+    fail-unknown-thing $p ENTITY "CFv2 entity type" $x
 }
 
 # # ## ### ##### ######## ############# #####################

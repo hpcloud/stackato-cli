@@ -3,7 +3,7 @@ Using manifest file "stackato.yml"
 +--------------+-*-+
 | Key          | Value *|
 +--------------+-*-+
-| Uris         | node-env.* |
+| Uris         | *://node-env.* |
 | State        | STOPPED *|
 | Health       | STOPPED *|
 | Instances    | 1 *|

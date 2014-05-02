@@ -23,9 +23,11 @@ oo::class create ::stackato::v2::service_broker {
     ## Life cycle
 
     constructor {{url {}}} {
-	my Attribute name       string
-	my Attribute broker_url string
-	my Attribute token      string
+	my Attribute name          string
+	my Attribute broker_url    string
+	my Attribute token         string
+	my Attribute auth_username string
+	my Attribute auth_password string
 
 	next $url
     }

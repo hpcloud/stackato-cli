@@ -73,7 +73,7 @@ test target-1.5 {client target, set, with schema prefix, http not allowed} -setu
     run target -n http://[theplaintarget]
 } -cleanup {
     stage-close
-} -returnCodes error -result "Error: Illegal use of http://[theplaintarget]. Either re-target to use https, or force acceptance via --allow-http"
+} -returnCodes error -result "Error: Illegal use of http://[theplaintarget].\nEither re-target to use https, or force acceptance via --allow-http"
 
 test target-1.6 {client target, set, force allow http} -setup {
     stage-open

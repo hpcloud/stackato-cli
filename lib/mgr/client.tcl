@@ -39,7 +39,8 @@ namespace eval ::stackato::mgr::client {
 	trace= plainc authenticatedc restlog \
 	get-ssh-key description min-version \
 	hasdrains chasdrains is-stackato \
-	is-stackato-opt close-restlog
+	is-stackato-opt close-restlog license-status \
+	max-version-opt min-version-opt
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -56,6 +57,15 @@ namespace eval ::stackato::mgr::client {
     namespace import ::stackato::log::err
     namespace import ::stackato::log::display
     namespace import ::stackato::validate::memspec
+
+    # The possible state of a target's *stackato) licensing, plus associated message.
+    variable license_state {
+	NO_LICENSE_COMPLIANT                       {No license installed.@nUsing @U of @L.}
+	NO_LICENSE_NONCOMPLIANT_UNDER_FREE_MEMORY  {No license installed.@nUsing @U of @L (@@ over licensed limit).@nGet a free license: @R}
+	NO_LICENSE_NONCOMPLIANT_OVER_FREE_MEMORY   {No license installed.@nUsing @U of @L (@@ over licensed limit).@nBuy a license: @R}
+	HAS_LICENSE_COMPLIANT                      {License installed, less than licensed memory in use.@n@S for "@O"@nUsing @U of @L.}
+	HAS_LICENSE_NONCOMPLIANT                   {License installed, more than licensed memory in use.@n@S for "@O"@nUsing @U of @L (@@ over licensed limit).@nUpgrade your license: @R}
+    }
 }
 
 debug level  mgr/client
@@ -504,6 +514,32 @@ proc ::stackato::mgr::client::min-version {version p} {
     return
 }
 
+proc ::stackato::mgr::client::max-version-opt {version p args} {
+    debug.mgr/client {}
+    $p config @motd
+
+    set  precision [llength [split $version .]]
+    debug.mgr/client {precision = $precision}
+    
+    set found [[$p config @client] server-version]
+    debug.mgr/client {found/* = $found}
+
+    set found [join [lrange [split $found .] 0 [incr precision -1]] .]
+    debug.mgr/client {found/[incr precision] = $found <= $version}
+
+    if {[package vcompare $found $version] <= 0} return
+    err "The option [$p flag] requires a target with version $version or earlier."
+    return
+}
+
+proc ::stackato::mgr::client::min-version-opt {version p args} {
+    debug.mgr/client {}
+    $p config @motd
+    if {[package vsatisfies [[$p config @client] server-version] $version]} return
+    err "The option [$p flag] requires a target with version $version or later."
+    return
+}
+
 proc ::stackato::mgr::client::is-stackato {p} {
     debug.mgr/client {}
     $p config @motd
@@ -684,6 +720,42 @@ proc ::stackato::mgr::client::description {} {
 proc ::stackato::mgr::client::support {} {
     variable support
     return  $support
+}
+
+proc ::stackato::mgr::client::license-status {client {onlyover 1} {prefix {}}} {
+    debug.mgr/client {}
+
+    set info [$client info]
+    if {![dict exists $info license]} return
+
+    set use    [dict get $info license memory_in_use]
+    set limit  [dict get $info license memory_limit]
+    set over   [expr {$use - $limit}]
+
+    if {($over <= 0) && $onlyover} return
+
+    # TODO: see if we can get colorization into the strings.
+    # Might have to replace the state table with a switch.
+
+    variable license_state
+
+    regsub -all {.} $prefix { } prefixb
+
+    set url    [dict get' $info license url          {}]
+    set org    [dict get' $info license organization <UnknownCustomer>]
+    set serial [dict get' $info license serial       <UnknownSerial>]
+    set state  [dict get' $info license state        {}]
+    set msg    [dict get' $license_state $state $state]
+
+    lappend map @R $url
+    lappend map @@ $over
+    lappend map @n \n$prefixb
+    lappend map @U ${use}G
+    lappend map @L ${limit}G
+    lappend map @O $org
+    lappend map @S $serial
+
+    display $prefix[string map $map $msg]
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -48,7 +48,7 @@ test update-1.1 {push as update, empty application} -setup {
 } -returnCodes error \
     -result [per-api \
 		 "Error: The framework \[standalone\] needs a non-empty start command. Please add a \"command\" key to your stackato.yml" \
-		 {Error: Application failed to stage}]
+		 {Error: Application failed to stage: Staging error: cannot get instances since staging failed (400)}]
 
 # # ## ### ##### ######## ############# #####################
 

@@ -20,7 +20,7 @@ test rename-org-1.0 {rename-org, wrong args, not enough} -constraints cfv2 -setu
     run rename-org -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test rename-org-1.1 {rename-org, wrong args, not enough} -constraints cfv2 -setup {
     stage-open
@@ -32,7 +32,7 @@ test rename-org-1.1 {rename-org, wrong args, not enough} -constraints cfv2 -setu
 } -cleanup {
     run delete-org -n OLD
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'newname'}
 
 test rename-org-1.2 {rename-org, wrong args, too many} -constraints cfv2 -setup {
     stage-open

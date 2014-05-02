@@ -32,17 +32,17 @@ namespace eval ::stackato::cmd::orgs {
     namespace ensemble create
 
     namespace import ::stackato::color
-    namespace import ::stackato::v2
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
-    namespace import ::stackato::log::psz
-    namespace import ::stackato::term
     namespace import ::stackato::log::err
+    namespace import ::stackato::log::psz
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::term
+    namespace import ::stackato::v2
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -50,10 +50,6 @@ namespace eval ::stackato::cmd::orgs {
 proc ::stackato::cmd::orgs::update {config} {
     debug.cmd/orgs {}
     # @name, @quota, @newname, @default
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     set org [$config @name]
     set changes 0
@@ -94,10 +90,6 @@ proc ::stackato::cmd::orgs::set-quota {config} {
     debug.cmd/orgs {}
     # @name
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set org [$config @name]
     set qd  [$config @quota]
 
@@ -111,10 +103,6 @@ proc ::stackato::cmd::orgs::set-quota {config} {
 proc ::stackato::cmd::orgs::switch {config} {
     debug.cmd/orgs {}
     # @name
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     try {
 	set org [$config @name]
@@ -138,11 +126,13 @@ proc ::stackato::cmd::orgs::create {config} {
     debug.cmd/orgs {}
     # @name - String, validated to not exist
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set name [$config @name]
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
+    if {$name eq {}} {
+	err "An empty organization name is not allowed"
+    }
 
     set org [v2 organization new]
 
@@ -187,10 +177,6 @@ proc ::stackato::cmd::orgs::delete {config} {
     debug.cmd/orgs {}
     # @name    - Organization's object.
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set org       [$config @name]
     set iscurrent [$org == [corg get]]
     set recursive [$config @recursive]
@@ -234,19 +220,20 @@ proc ::stackato::cmd::orgs::rename {config} {
     # @name    - Organization's object.
     # @newname - String, validated to not exist as org name.
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-    if {![$config @newname set?]} {
-	$config notEnough
-    }
-
     set org [$config @name]
+    set old [$org @name]
     set new [$config @newname]
+
+    if {![$config @newname set?]} {
+	$config @newname undefined!
+    }
+    if {$new eq {}} {
+	err "An empty organization name is not allowed"
+    }
 
     $org @name set $new
 
-    display "Renaming organization to [$org @name] ... " false
+    display "Renaming organization \[$old\] to '$new' ... " false
     $org commit
     display [color green OK]
     return
@@ -318,15 +305,11 @@ proc ::stackato::cmd::orgs::show {config} {
     # @name - Organization's object.
 
     set org [$config @name]
-    # TODO: org load - Depth 1/2 - How to specify ? Must be in dispatcher.
 
     if {[$config @json]} {
 	puts [$org as-json]
 	return
     }
-
-    # TODO: Make it more tabular...
-    #display "Organization: [$org @name]"
 
     display [context format-org]
     [table::do t {Key Value} {
@@ -342,7 +325,7 @@ proc ::stackato::cmd::orgs::show {config} {
 	    }
 	}
 
-	$t add Default      $isdef
+	$t add Default $isdef
 
 	if {[$config @full]} {
 	    $t add Billed [$org @billing_enabled]

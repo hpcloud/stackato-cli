@@ -1,0 +1,64 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client service-brokers
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test service-brokers-1.0 {client service-brokers, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run service-brokers X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test service-brokers-1.1 {client service-brokers, CFv2 target required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run service-brokers
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test service-brokers-1.2 {client service-brokers, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run service-brokers
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test service-brokers-1.3 {client service-brokers, non-admin login not allowed} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run service-brokers
+} -cleanup {
+    go-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test service-brokers-1.4 {client service-brokers, standard (empty)} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run service-brokers
+} -cleanup {
+    stage-close
+} -result {No service brokers available}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

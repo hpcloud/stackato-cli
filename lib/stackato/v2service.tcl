@@ -24,10 +24,10 @@ oo::class create ::stackato::v2::service {
 
     constructor {{url {}}} {
 	my Attribute label        string
-	my Attribute provider     string
+	my Attribute provider     null|string
 	my Attribute url          url    ; # TODO validator
 	my Attribute description  string
-	my Attribute version      string
+	my Attribute version      null|string
 	my Attribute info_url     url    ; # TODO validator
 	my Attribute acls         dict    default {} ; # nil
 	my Attribute timeout      integer default {} ; # nil

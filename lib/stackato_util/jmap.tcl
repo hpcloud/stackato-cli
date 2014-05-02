@@ -26,15 +26,25 @@ namespace eval ::stackato {
 
 proc ::stackato::jmap::manifest {m} {
     map {dict {
+	instances        number
+	runningInstances number
 	env       array
 	staging   {dict {
 	    runtime nstring
 	    stack   nstring
 	}}
-	resources dict
+	resources {dict {
+	    sudo bool
+	    *    number
+	}}
 	services  array
 	uris      narray
-	meta      dict
+	meta {dict {
+	    version number
+	    created number
+	    console nnumber
+	    debug   nnumber
+	}}
     }} $m
 }
 
@@ -68,6 +78,14 @@ proc ::stackato::jmap::number {_ s} {
     return $s
 }
 
+proc ::stackato::jmap::num|string {_ s} {
+    if {[string is double -strict $x]} {
+	return $s
+    } else {
+	return [map string $s]
+    }
+}
+
 proc ::stackato::jmap::nnumber {_ s} {
     if {$s eq "null"} { return null }
     if {$s eq {}}     { return null }
@@ -84,6 +102,12 @@ proc ::stackato::jmap::narray {t s} {
     if {$s eq {}} { return null }
     if {$s eq "null"} { return null }
     return [map [list array $t] $s]
+}
+
+proc ::stackato::jmap::ndict {t s} {
+    if {$s eq {}} { return null }
+    if {$s eq "null"} { return null }
+    return [map [list dict $t] $s]
 }
 
 proc ::stackato::jmap::seen-clear {} {
@@ -226,9 +250,17 @@ proc ::stackato::jmap::groups {gs} {
 
 proc ::stackato::jmap::appinfo {ai} {
     map {dict {
+	instances        number
+	runningInstances number
 	env       array
-	meta      dict
-	resources dict
+	meta {dict {
+	    version number
+	    created number
+	}}
+	resources {dict {
+	    sudo bool
+	    *    number
+	}}
 	services  array
 	staging   dict
 	uris      array
@@ -389,6 +421,10 @@ proc ::stackato::jmap::clientinfo {ci} {
 	    app_store_enabled bool
 	    aok_enabled       bool
 	    license_accepted  bool
+	}}
+	license {dict {
+	    memory_limit  number
+	    memory_in_use number
 	}}
     }} $ci
 }

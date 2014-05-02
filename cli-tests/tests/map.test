@@ -41,7 +41,19 @@ test map-1.2 {map, no application} -setup {
     stage-close
 } -returnCodes error -result {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to map.}
 
-test map-1.3 {map, bogus url} -setup {
+test map-1.3.1 {map, bogus url, CFv1} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 700: Invalid URI: 'bogus'}
+
+test map-1.3.2.1 {map, bogus url, CFv2, S3.0} -constraints s30le -setup {
     stage-open
     go-admin
     make-test-app
@@ -52,9 +64,20 @@ test map-1.3 {map, bogus url} -setup {
     remove-appdir
     stage-close
 } -returnCodes error -result \
-    [per-api \
-	 {Error 700: Invalid URI: 'bogus'} \
-	 {Error: Unknown domain '': Does not exist. Please use 'stackato map-domain' to create the domain and add it to the space.}]
+	 "Error: Unknown domain '': Does not exist. Please use 'stackato map-domain' to create the domain and add it to the space '[thespace]'."
+
+test map-1.3.2.2 {map, bogus url, CFv2, S3.2+} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+	 "Error: Unknown domain '': Does not exist. Please use 'stackato create-domain' to create the domain and add it to the org '[theorg]'."
 
 test map-1.4 {map, non-admin login is ok} -setup {
     stage-open
@@ -92,7 +115,7 @@ test map-1.5 {map} -setup {
     }
     remove-appdir
     stage-close
-} -result \
+} -match glob -result \
     [map [per-api \
 	      [viewFile data/map1.5-cfv1.txt] \
 	      [viewFile data/map1.5-cfv2.txt]] \
@@ -115,7 +138,7 @@ test map-1.6 {map, persistent} -setup {
     }
     remove-appdir
     stage-close
-} -match glob -result "*| TEST *| * | STOPPED *| [mapurl] *| * |*"
+} -match glob -result "*| TEST *| * | STOPPED *| *://[mapurl] *| * |*"
 
 test map-1.7 {map, running app, no! restart} -setup {
     stage-open
@@ -133,7 +156,7 @@ test map-1.7 {map, running app, no! restart} -setup {
     }
     remove-appdir
     stage-close
-} -result \
+} -match glob -result \
     [map [per-api \
 	      [viewFile data/map1.5-cfv1.txt] \
 	      [viewFile data/map1.5-cfv2.txt]] \
@@ -156,7 +179,7 @@ test map-1.8 {map, deployed stopped app, no restart} -setup {
     }
     remove-appdir
     stage-close
-} -result \
+} -match glob -result \
     [map [per-api \
 	      [viewFile data/map1.5-cfv1.txt] \
 	      [viewFile data/map1.5-cfv2.txt]] \

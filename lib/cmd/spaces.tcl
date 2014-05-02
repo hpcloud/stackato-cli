@@ -36,6 +36,7 @@ namespace eval ::stackato::cmd::spaces {
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
+    namespace import ::stackato::log::wrap
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::corg
@@ -50,10 +51,6 @@ namespace eval ::stackato::cmd::spaces {
 proc ::stackato::cmd::spaces::update {config} {
     debug.cmd/spaces {}
     # @name, @newname, @default
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     set space [$config @name]
     set changes 0
@@ -94,10 +91,6 @@ proc ::stackato::cmd::spaces::switch {config} {
     # @name
     # @organization
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set org [$config @organization]
 
     try {
@@ -136,49 +129,66 @@ proc ::stackato::cmd::spaces::create {config} {
     # @organization
 
     set name [$config @name]
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
     if {$name eq {}} {
-	$config notEnough
+	err "An empty space name is not allowed"
     }
 
-    set space [v2 space new]
+    set thespace [v2 space new]
+    set theorg   [corg get]
 
     display [context format-org]
 
-    display "Creating new space $name ... "
+    display "Creating new space \"$name\" ... " false
 
-    $space @name         set $name
-    $space @organization set [corg get]
-    $space @is_default   set [$config @default]
+    $thespace @name         set $name
+    $thespace @organization set $theorg
+    $thespace @is_default   set [$config @default]
+    $thespace commit
+    display [color green OK]
 
     if {[$config @developer] ||
 	[$config @manager]   ||
 	[$config @auditor]} {
 	set user [v2 deref-type user [[$config @client] user]]
 
-	if {[$config @developer]} {
-	    display "  Adding you as developer ... " false
-	    $space @developers add $user
-	    display [color green OK]
+	set relationissues 0
+	foreach {attrc attre label} {
+	    @developer @developers developer
+	    @manager   @managers   manager
+	    @auditor   @auditors   auditor
+	} {
+	    if {![$config $attrc]} continue
+
+	    set header "  Adding you as $label ... "
+	    set hlen [string length $header]
+	    display $header false
+	    try {
+		$thespace $attre add $user
+
+	    } trap {STACKATO CLIENT V2 INVALID RELATION} {e o} {
+		incr relationissues
+		display [wrap [color red $e] $hlen]
+	    } on error {e o} {
+		# General error, just show its message.
+		display [wrap [color red $e] $hlen]
+	    } on ok {e o} {
+		display [color green OK]
+	    }
 	}
-	if {[$config @manager]} {
-	    display "  Adding you as manager ... " false
-	    $space @managers add $user
-	    display [color green OK]
-	}
-	if {[$config @auditor]} {
-	    display "  Adding you as auditor ... " false
-	    $space @auditors add $user
-	    display [color green OK]
+
+	if {$relationissues} {
+	    # Relation errors, ping user about possible cause
+	    display [wrap [color blue "Are you a developer for organization \"[$theorg @name]\" ?"]]
+	    display [wrap [color blue "  For if not would explain the invalid-relation errors we got issued."]]
 	}
     }
 
-    display "Committing ... " false
-    $space commit
-    display [color green OK]
-
     if {[$config @activate]} {
-	display "Switching to space [$space @name] ... " false
-	cspace set $space
+	display "Switching to space [$thespace @name] ... " false
+	cspace set $thespace
 	cspace save
 	display [color green OK]
 
@@ -190,10 +200,6 @@ proc ::stackato::cmd::spaces::create {config} {
 proc ::stackato::cmd::spaces::delete {config} {
     debug.cmd/spaces {}
     # @name - Space object
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     set space     [$config @name]
     set iscurrent [$space == [cspace get]]
@@ -236,15 +242,15 @@ proc ::stackato::cmd::spaces::rename {config} {
     # @name
     # @newname
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-    if {![$config @newname set?]} {
-	$config notEnough
-    }
-
     set space [$config @name]
     set new   [$config @newname]
+
+    if {![$config @newname set?]} {
+	$config @newname undefined!
+    }
+    if {$new eq {}} {
+	err "An empty space name is not allowed"
+    }
 
     $space @name set $new
 

@@ -1,0 +1,132 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## rename (app)
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test rename-app-1.0 {rename (app), wrong args, too many} -setup {
+    stage-open
+} -body {
+    run rename -n A NA X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test rename-app-1.1 {rename (app), wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-app -n appdir
+} -body {
+    indir [appdir] {
+	run rename -n
+    }
+} -cleanup {
+    remove-appdir
+    run delete -n appdir
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test rename-app-1.2 {rename (app), wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-app -n testapp
+} -body {
+    run rename -n testapp
+} -cleanup {
+    run delete -n testapp
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test rename-app-1.3 {rename requires CFv2 API} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-app -n testapp
+} -body {
+    run rename -n testapp NA
+} -cleanup {
+    run delete -n testapp
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test rename-app-1.4 {rename (app), not logged in} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run rename -n testapp testapp2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test rename-app-1.5 {rename (app), non-admin login ok} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-app -n testapp
+    go-non-admin
+} -body {
+    run rename -n testapp testapp2
+} -cleanup {
+    go-admin
+    run delete -n testapp2
+    remove-non-admin
+    stage-close
+} -result {Renaming application [testapp] to testapp2 ... OK}
+
+test rename-app-1.6 {rename (app), unknown source app} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run rename -n testapp testapp2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input application application testapp " in space '[thespace]'"]
+
+test rename-app-1.7 {rename (app), duplicate destination app} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n testapp
+    run create-app -n testapp2
+} -body {
+    run rename -n testapp testapp2
+} -cleanup {
+    run delete -n testapp2
+    run delete -n testapp
+    stage-close
+} -returnCodes error -result [already input name application testapp2]
+
+test rename-app-1.8 {rename} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n testapp
+} -body {
+    run rename -n testapp testapp2
+} -cleanup {
+    run delete -n testapp2
+    stage-close
+} -result {Renaming application [testapp] to testapp2 ... OK}
+
+test rename-app-1.9 {rename (app), persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n testapp
+} -body {
+    run rename -n testapp testapp2
+    run app testapp2
+} -cleanup {
+    run delete -n testapp2
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

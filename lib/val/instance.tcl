@@ -34,11 +34,11 @@ namespace eval ::stackato::validate::instance {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::validate::integer0
 }
 
@@ -71,7 +71,7 @@ proc ::stackato::validate::instance::default {p}   {
 	}
 
 	# No instances, abort.
-	expected $p INSTANCE "instance index" 0 " for application '[$theapp @name]'"
+	fail-unknown-thing $p INSTANCE "instance index" 0 " for application '[$theapp @name]'"
 
     } else {
 	debug.validate/instance {/v1 = 0}
@@ -117,7 +117,7 @@ proc ::stackato::validate::instance::validate {p x} {
 	    return $x
 	}
 	debug.validate/instance {FAIL}
-	expected $p INSTANCE "instance index" $x " for application '[$theapp @name]'"
+	fail-unknown-thing $p INSTANCE "instance index" $x " for application '[$theapp @name]'"
     } else {
 	# v1 ... Validate as plain integer0
 	integer0 validate $p $x

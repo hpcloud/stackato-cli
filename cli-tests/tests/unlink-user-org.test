@@ -1,0 +1,115 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## unlink-user-org <user> [org]
+## --auditor --billing --manager (implied by developer)
+## developer implied
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test unlink-user-org-1.0 {unlink-user-org, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-org -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test unlink-user-org-1.1 {unlink-user-org, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-org U O X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test unlink-user-org-1.2 {unlink-user-org, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-org [theorg]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test unlink-user-org-1.3 {unlink-user-org, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run unlink-user-org [theuser] [theorg]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test unlink-user-org-1.4 {unlink-user-org, non-admin login is not ok (often)} -constraints cfv2 -setup {
+    # The non-admin is not an org manager, just regular dev.
+    # Does not see the org in question.
+    stage-open
+    go-admin
+    run create-org -n [theorg]-2 --no-activate
+    go-non-admin
+} -body {
+    run unlink-user-org [theuser] [theorg]-2
+} -cleanup {
+    be-admin
+    run delete-org -n [theorg]-2
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [unexpected input org organization [theorg]-2]
+
+test unlink-user-org-1.5 {unlink-user-org, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org -n [theorg]-2 --no-activate
+    make-non-admin
+    run link-user-org [theuser] [theorg]-2 --auditor --billing --manager ;# all roles
+} -body {
+    run unlink-user-org [theuser] [theorg]-2 ;# all roles implied
+    run users --mode related
+} -cleanup {
+    remove-non-admin
+    run delete-org -n [theorg]-2
+    stage-close
+} -match anti-glob -result "* [theuser] *|* [theorg]-2 *|*"
+
+foreach {n bits options} {
+    0 -BMD --auditor
+    1 A-MD --billing
+    2 AB-D --manager
+    3 --MD {--billing --auditor}
+    4 A--D {--manager --billing}
+    5 -B-D {--manager --auditor}
+} {
+    test unlink-user-org-1.6.$n "unlink-user-org $options " -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	run create-org -n [theorg]-2 --no-activate
+	make-non-admin
+	run link-user-org [theuser] [theorg]-2 --auditor --billing --manager ;# all roles
+    } -body {
+	run unlink-user-org [theuser] [theorg]-2 {*}$options
+	run users --mode related
+    } -cleanup {
+	#run unlink-user-org [theuser] [theorg]-2 ;# all remaining roles implied
+	# removal of user breaks the links to orgs
+	remove-non-admin
+	run delete-org   -n [theorg]-2
+	stage-close
+    } -match glob -result "* [theuser] *| $bits [theorg]-2 *|*"
+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

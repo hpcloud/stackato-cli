@@ -41,7 +41,7 @@ test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
     catch { remove-test-app appdir }
     remove-appdir
     stage-close
-} -returnCodes error -result {Error: Application failed to stage}
+} -returnCodes error -result {Error: Application failed to stage: Staging error: cannot get instances since staging failed (400)}
 
 # # ## ### ##### ######## ############# #####################
 

@@ -457,7 +457,7 @@ test scale-min-instances-1.4 {min instances, over max} -constraints s32ge -setup
     remove-test-app
     remove-appdir
     stage-close
-} -returnCodes error -result {Error 100001: The app is invalid: max_instances < min_instances (400)}
+} -returnCodes error -result {Error 150001: The app package is invalid: specified value of min_instances: 5 > current value of max_instances: 1 (400)}
 
 test scale-min-instances-1.5 {min instances, change} -constraints s32ge -setup {
     stage-open

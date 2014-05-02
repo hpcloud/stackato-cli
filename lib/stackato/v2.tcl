@@ -70,12 +70,13 @@ proc ::stackato::v2::sort {field objects args} {
     }
 
     foreach o $objects {
-	dict set per [$o $field] $o
+	#debug.v2 {sort item: ([$o $field]) ==> $o}
+	dict lappend per [$o $field] $o
     }
 
     set result {}
     foreach key [lsort {*}$args [dict keys $per]] {
-	lappend result [dict get $per $key]
+	lappend result {*}[dict get $per $key]
     }
 
     return $result
@@ -364,7 +365,13 @@ proc ::stackato::v2::TypeOf {url} {
     # Note: Chop the trailing plural 's' character of the type
     # name. Internally we mostly use singular form. The class names
     # for the types are among that.
-    return [regsub {s$} [lindex [split $url /] end-1] {}]
+    # Special case 'ies' => 'y'
+    set type [lindex [split $url /] end-1]
+    if {[string match *ies $type]} {
+	return [regsub {ies$} $type {y}]
+    } else {
+	return [regsub {s$} $type {}]
+    }
 }
 
 proc ::stackato::v2::Decompose {url tv iv} {

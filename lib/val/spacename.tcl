@@ -31,10 +31,10 @@ namespace eval ::stackato::validate::spacename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::spacename::default  {p}   { return {} }
@@ -66,7 +66,7 @@ proc ::stackato::validate::spacename::validate {p x} {
 	return $x
     }
     debug.validate/spacename {FAIL}
-    expected $p SPACENAME "space" $x " in organization '[$theorg @name]'"
+    fail-unknown-thing $p SPACENAME "space" $x " in organization '[$theorg @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

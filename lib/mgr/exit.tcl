@@ -324,6 +324,11 @@ proc ::stackato::mgr::exit::attempt {script} {
 	# - TODO: transient current group
 	# - TODO: transient token(-file)
 	# - Disabled prompting.
+
+	catch {
+	    ::stackato::mgr::::logstream kill
+	}
+
 	cmdr interactive 1
 	auth     reset
 	cgroup   reset

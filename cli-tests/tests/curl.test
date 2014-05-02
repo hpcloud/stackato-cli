@@ -87,7 +87,7 @@ test curl-1.5 {curl, non-admin login is ok (url dependent)} -setup {
     go-admin
     go-non-admin
 } -body {
-    run curl get info
+    run curl get info --show-extended
 } -cleanup {
     be-admin
     remove-non-admin
@@ -98,7 +98,7 @@ test curl-1.6 {curl, info endpoint} -setup {
     stage-open
     go-admin
 } -body {
-    run curl get info
+    run curl get info --show-extended
 } -cleanup {
     stage-close
 } -match glob -result "Response Code:    200\n*"
@@ -107,7 +107,7 @@ test curl-1.7 {curl, info endpoint, ignored header} -setup {
     stage-open
     go-admin
 } -body {
-    run curl get info X-CLI:TEST
+    run curl get info --show-extended X-CLI:TEST
 } -cleanup {
     stage-close
 } -match glob -result "Response Code:    200\n*"

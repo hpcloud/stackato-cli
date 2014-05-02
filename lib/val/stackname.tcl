@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::stackname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::v2
 }
 
@@ -65,7 +65,7 @@ proc ::stackato::validate::stackname::validate {p x} {
 	return $x
     }
     debug.validate/stackname {FAIL}
-    expected $p STACKNAME "OS stack" $x
+    fail-unknown-thing $p STACKNAME "OS stack" $x
 }
 
 # # ## ### ##### ######## ############# #####################

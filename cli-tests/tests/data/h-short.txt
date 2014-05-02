@@ -5,7 +5,7 @@ stackato add-service-broker [OPTIONS] [<name>]
 stackato add-user [OPTIONS] [<name>]
     Register a new user in the current or specified target. This operation
     requires administrator privileges, except if "allow_registration" is set
-    server-side.
+    server-side. This exception is specific to Stackato 2.
 
 stackato admin exit [OPTIONS]
     Exit the shell. No-op if not in a shell.
@@ -74,11 +74,15 @@ stackato create-service-auth-token [OPTIONS] [<label>] [<provider>]
     Create a new service authentication token. This is a Stackato 3 specific
     command.
 
+stackato create-service-broker [OPTIONS] [<name>]
+    Make the named service broker known. This is a Stackato 3 specific
+    command.
+
 stackato create-space [OPTIONS] [<name>]
     Create a new space. This is a Stackato 3 specific command.
 
 stackato curl [OPTIONS] <operation> <path> [<header>...]
-    Run a raw rest request against the chosen target
+    Run a raw rest request against the chosen target.
 
 stackato dbshell [OPTIONS] [<application>] [<service>]
     Invoke interactive db shell for a bound service.
@@ -216,6 +220,27 @@ stackato help [OPTIONS] [<cmdname>...]
     Retrieve help for a command or command set. Without arguments help for all
     commands is given. The default format is --full.
 
+stackato hide-service-plan [OPTIONS] <name> [<organization>]
+    Hide the specified service-plan from the named organization. This is a
+    Stackato 3 specific command.
+
+stackato history clear [OPTIONS]
+    Clear the saved history.
+
+stackato history exit [OPTIONS]
+    Exit the shell. No-op if not in a shell.
+
+stackato history help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato history limit [OPTIONS] [<n>]
+    Limit the size of the history. If no limit is specified the current limit
+    is shown.
+
+stackato history list [OPTIONS] [<n>]
+    Show the saved history of commands.
+
 stackato info [OPTIONS]
     Show the basic system and account information.
 
@@ -332,7 +357,7 @@ stackato quotas [OPTIONS]
 stackato register [OPTIONS] [<name>]
     Register a new user in the current or specified target. This operation
     requires administrator privileges, except if "allow_registration" is set
-    server-side.
+    server-side. This exception is specific to Stackato 2.
 
 stackato remove-service-broker [OPTIONS] [<name>]
     Remove the named service broker from the target. This is a Stackato 3
@@ -385,6 +410,10 @@ stackato service-brokers [OPTIONS]
     Show the list of known service brokers. This is a Stackato 3 specific
     command.
 
+stackato service-plan [OPTIONS] <name>
+    Show the details of the specified service plan. This is a Stackato 3
+    specific command.
+
 stackato service-plans [OPTIONS]
     List all available plans of the supported services. This is a Stackato 3
     specific command.
@@ -398,6 +427,10 @@ stackato set-env [OPTIONS] [<application>] <varname> <value>
 stackato set-placement-zone [OPTIONS] [<application>] <zone>
     Associate the application with a specific placement zone. This is a
     Stackato 3.2+ specific command.
+
+stackato show-service-plan [OPTIONS] <name> [<organization>]
+    Make the specified service-plan visible to the named organization. This is
+    a Stackato 3 specific command.
 
 stackato space [OPTIONS] [<name>]
     Show the named space's information. This is a Stackato 3 specific command.
@@ -495,6 +528,10 @@ stackato update-service-auth-token [OPTIONS] [<label>]
 
 stackato update-service-broker [OPTIONS] [<name>] [<newname>]
     Update the target's knowledge of the named service broker. This is a
+    Stackato 3 specific command.
+
+stackato update-service-plan [OPTIONS] [<name>] [<newname>]
+    Update the target's knowledge of the named service plan. This is a
     Stackato 3 specific command.
 
 stackato update-space [OPTIONS] [<name>]

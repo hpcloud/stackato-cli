@@ -9,7 +9,6 @@
 package require Tcl 8.5
 package require cmdr::validate
 package require stackato::mgr::alias
-package require stackato::validate::common
 
 debug level  validate/alias
 debug prefix validate/alias {[debug caller] | }
@@ -27,7 +26,7 @@ namespace eval ::stackato::validate::alias {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::alias
 }
 
@@ -44,7 +43,7 @@ proc ::stackato::validate::alias::validate {p x} {
 	return $x
     }
     debug.validate/alias {FAIL}
-    expected $p ALIAS "alias" $x
+    fail-unknown-thing $p ALIAS alias $x
 }
 
 # # ## ### ##### ######## ############# #####################

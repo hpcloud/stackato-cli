@@ -30,6 +30,7 @@ package require stackato::mgr::cgroup
 package require stackato::mgr::client ;# pulled v2 in also
 package require stackato::mgr::context
 package require stackato::mgr::cspace
+package require stackato::mgr::corg
 package require stackato::mgr::ctarget
 package require stackato::mgr::exit
 package require stackato::mgr::framework
@@ -84,6 +85,7 @@ namespace eval ::stackato::cmd::app {
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::cspace
+    namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::exit
     namespace import ::stackato::mgr::framework
@@ -99,6 +101,8 @@ namespace eval ::stackato::cmd::app {
     namespace import ::stackato::validate::stackname
     namespace import ::stackato::validate::zonename
     namespace import ::stackato::v2
+
+    variable resetinfo "If needed use option --reset to apply the ignored local changes."
 }
 
 debug level  cmd/app
@@ -217,6 +221,13 @@ proc ::stackato::cmd::app::Rename {config theapp} {
 
     set new [$config @name]
 
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
+    if {$new eq {}} {
+	err "An empty application name is not allowed"
+    }
+
     display "Renaming application \[[$theapp @name]\] to $new ... " false
     $theapp @name set $new
     $theapp commit
@@ -292,9 +303,10 @@ proc ::stackato::cmd::app::StartV2 {config theapp push} {
 
     display "Starting Application \[$appname\] ... "
 
-    if {[$config @tail]} {
+    if {[$config @tail] && [[$config @client] is-stackato]} {
 	# Start logyard streaming before sending the start request, to
-	# avoid loss of the first log entries.
+	# avoid loss of the first log entries. Note that the logyard is
+	# a stackato-specific feature.
 
 	logstream start $config $theapp any ; # The one place where a non-fast log stream is ok.
     }
@@ -338,6 +350,13 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
     # Use the standard CFv2 stager log if and only if no logyard
     # streaming is present and active, the target supports it as well,
     # and the user wanted logging at all.
+
+    debug.cmd/app {CF log ?}
+    debug.cmd/app {  @tail   = [$config @tail]}
+    debug.cmd/app {  logyard = [logstream active]}
+    debug.cmd/app {  x-a-s-l = [$theapp have-header x-app-staging-log]}
+    debug.cmd/app {}
+
     if {[$config @tail] && ![logstream active] && [$theapp have-header x-app-staging-log]} {
 	WaitV2Log $theapp [$theapp header x-app-staging-log]
     }
@@ -422,7 +441,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	    }
 	} ;# while
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
-	err "Application failed to stage"
+	err "Application failed to stage: $e"
     } finally {
 	debug.cmd/app {stop log stream}
 
@@ -471,6 +490,7 @@ proc ::stackato::cmd::app::WaitV2Log {theapp url} {
 }
 
 proc ::stackato::cmd::app::AnyFlapping {imap} {
+    debug.cmd/app {}
     dict for {n i} $imap {
 	if {[$i flapping?]} { return yes }
     }
@@ -478,6 +498,7 @@ proc ::stackato::cmd::app::AnyFlapping {imap} {
 }
 
 proc ::stackato::cmd::app::AnyStarting {imap} {
+    debug.cmd/app {}
     dict for {n i} $imap {
 	if {[$i starting?]} { return yes }
     }
@@ -485,6 +506,7 @@ proc ::stackato::cmd::app::AnyStarting {imap} {
 }
 
 proc ::stackato::cmd::app::NoneActive {imap} {
+    debug.cmd/app {}
     # Has (Starting|Running) <=> All (Flapping|Down)
     dict for {n i} $imap {
 	if {[$i starting?]} { return no }
@@ -494,6 +516,7 @@ proc ::stackato::cmd::app::NoneActive {imap} {
 }
 
 proc ::stackato::cmd::app::AllRunning {imap} {
+    debug.cmd/app {}
     dict for {n i} $imap {
 	if {![$i running?]} { return no }
     }
@@ -501,6 +524,7 @@ proc ::stackato::cmd::app::AllRunning {imap} {
 }
 
 proc ::stackato::cmd::app::OneRunning {imap} {
+    debug.cmd/app {}
     dict for {n i} $imap {
 	if {[$i running?]} { return yes }
     }
@@ -508,6 +532,7 @@ proc ::stackato::cmd::app::OneRunning {imap} {
 }
 
 proc ::stackato::cmd::app::PrintStatusSummary {imap} {
+    debug.cmd/app {}
     # Gather: total instances, plus counts of the various states. Make a report.
 
     set all 0
@@ -901,6 +926,7 @@ proc ::stackato::cmd::app::LogsStream {config theapp} {
     dict set mconfig appname   $theapp ;# name or entity, per CF version
 
     if {[$config @follow]} {
+	debug.cmd/app {/follow aka tail}
 	# Disable 'Interupted' output for ^C
 	exit trap-term-silent
 
@@ -909,6 +935,7 @@ proc ::stackato::cmd::app::LogsStream {config theapp} {
     }
 
     # Single-shot log retrieval...
+    debug.cmd/app {/single-shot}
     logstream show1 $mconfig
     return
 }
@@ -1342,11 +1369,11 @@ proc ::stackato::cmd::app::map-urls {config theapp urls {rollback 0} {sync 1}} {
 	debug.cmd/app {+ url = $url}
 
 	if {$sync} {
-	    display "  Map $url ... " false
+	    display "  Map https://$url ... " false
 	    $theapp @routes add [Url2Route $config $theapp $url $rollback]
 	    display [color green OK]
 	} else {
-	    display "  Map $url ... (Change Ignored)"
+	    display "  Map https://$url ... (Change Ignored)"
 	}
     }
 
@@ -1362,13 +1389,13 @@ proc ::stackato::cmd::app::unmap-urls {config theapp urls {sync 1}} {
 	debug.cmd/app {- url = $url}
 
 	if {$sync} {
-	    display "  Unmap $url ... " false
+	    display "  Unmap https://$url ... " false
 
 	    set r [routename validate [$config @url self] $url]
 	    $theapp @routes remove $r
 	    display [color green OK]
 	} else {
-	    display "  Unmap $url ... (Change Ignored)"
+	    display "  Unmap https://$url ... (Change Ignored)"
 	}
     }
 
@@ -1380,7 +1407,7 @@ proc ::stackato::cmd::app::kept-urls {theapp urls {sync 1}} {
     debug.cmd/app {}
 
     foreach u $urls {
-	display "  Kept  $u ... "
+	display "  Kept  https://$u ... "
     }
 
     debug.cmd/app {/done}
@@ -1409,12 +1436,30 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
 	if {$thedomain eq {}} {
 	    set space [[cspace get] @name]
 
-	    if {[llength [v2 domain list-by-name $domain]]} {
+	    # The error message is dependent on the target-version, as
+	    # that determines which of two sets of cli commands govern
+	    # the handling of domains
+	    # (3.0: map|unmap, and 3.2: create|delete).
+
+	    if {[package vsatisfies [[$config @client] server-version] 3.1]} {
+		# 3.2+ => Domains are handled at org-level with "create-domain".
+		set cmd   create-domain
+		set wherelong  "org '[[corg get] @name]'"
+		set whereshort $wherelong
+	    } else {
+		# 3.0 => Domains are handled at space-level with "map-domain".
+		set cmd   map-domain
+		set wherelong  "space '$space'"
+		set whereshort "space"
+	    }
+
+	    set matches [llength [v2 domain list-by-name $domain]]
+	    if {$matches} {
 		# domain exists, not mapped into the space.
-		set msg "Not mapped into the space '$space'. [self please map-domain] to add the domain to the space."
+		set msg "Not mapped into the space '$space'. [self please $cmd] to add the domain to the $whereshort."
 	    } else {
 		# domains does not exist at all.
-		set msg "Does not exist. [self please map-domain] to create the domain and add it to the space '$space'."
+		set msg "Does not exist. [self please $cmd] to create the domain and add it to the $wherelong."
 	    }
 	    display "" ; # Force new line.
 
@@ -2781,6 +2826,9 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set ssoe [AppSSOE $config]
     debug.cmd/app {sso-enabled   = $ssoe}
 
+    set htime [AppHealthTimeout $config]
+    debug.cmd/app {health-timeout= $htime}
+
     set command   [AppStartCommand $config {}]
     debug.cmd/app {command      = $command}
 
@@ -2854,6 +2902,10 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	debug.cmd/app {apply description "$description"}
 	$theapp @description set $description
     }
+    if {$htime ne {}} {
+	debug.cmd/app {apply health-timeout "$htime"}
+	$theapp @health_check_timeout set $htime
+    }
     if {$ssoe ne {}} {
 	debug.cmd/app {apply sso-enabled "$ssoe"}
 	$theapp @sso_enabled set $ssoe
@@ -2894,6 +2946,11 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	}
 	if {!$sync} {
 	    # Undo changes, ignored.
+	    if {$changes} {
+		variable resetinfo
+		display [color blue $resetinfo]
+	    }
+
 	    $theapp rollback
 	    set changes 0
 	}
@@ -2938,6 +2995,10 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    kept-urls          $theapp $unchanged
 	    map-urls   $config $theapp $added 0 $sync
 
+	    if {!$sync && ([llength $added] || [llength $removed])} {
+		variable resetinfo
+		display [color blue $resetinfo]
+	    }
 	} else {
 	    # Push, add all. Rollback app creation in case of trouble.
 	    # Note that this is not caught in the trap clauses below.
@@ -3205,6 +3266,8 @@ proc ::stackato::cmd::app::ExecPU {config appname} {
 
     manifest min-version-checks
 
+    client license-status [$config @client]
+
     if {[AppIsKnown $config $appname theapp]} {
 	# (N*u) Application exists. Update it.
 	Update $config $theapp
@@ -3447,6 +3510,8 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 
     set changes 0
     set blnk  {   }
+    set delta 0
+    set journal {}
 
     foreach {kp label islist special} {
 	{staging model}    {Framework} 0 0
@@ -3496,10 +3561,15 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 	}
 
 	# Apply?
+	incr delta
 	if {!$sync} continue
 	incr changes
 
-	dict set app $new
+	# Remember changes for application later (after we get a new
+	# app-info to detect/handle environment changes. We cannot use
+	# 'app' directly, as its created time will be too old, leading
+	# to a lock failure on the target.
+	lappend journal $kp $new
     }
 
     # Environment bindings. Controlled by separate option --env-mode
@@ -3515,11 +3585,21 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
     set app $newapp
 
     if {$changes} {
+	# Apply the journal to the latest app-info we got.
+	foreach {kp new} $journal {
+	    dict set app {*}$kp $new
+	}
+
 	# .../Write
 	$client update_app $appname $app
 	display [color green OK]
     } else {
 	display "    [color green {No changes}]"
+    }
+
+    if {!$sync && $delta} {
+	variable resetinfo
+	display [color blue $resetinfo]
     }
 
     # Services check, and binding, after.
@@ -3618,14 +3698,15 @@ proc ::stackato::cmd::app::GetManifestV2 {client theapp __} {
     manifest drains=    $drains
 
     foreach {attr method} {
-	@distribution_zone  zone=
-	@description        description=
-	@sso_enabled        ssoenabled=
-	@max_instances      maxInstances=
-	@min_instances      minInstances=
-	@max_cpu_threshold  maxCpuThreshold=
-	@min_cpu_threshold  minCpuThreshold=
-	@autoscale_enabled  autoscaling=
+	@distribution_zone    zone=
+	@description          description=
+	@sso_enabled          ssoenabled=
+	@health_check_timeout health-timeout=
+	@max_instances        maxInstances=
+	@min_instances        minInstances=
+	@max_cpu_threshold    maxCpuThreshold=
+	@min_cpu_threshold    minCpuThreshold=
+	@autoscale_enabled    autoscaling=
     } {
 	catch {
 	    set v [$theapp $attr]
@@ -4097,6 +4178,27 @@ proc ::stackato::cmd::app::AppDescription {config} {
     return $description
 }
 
+proc ::stackato::cmd::app::AppHealthTimeout {config} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @health-timeout set?]} {
+	set htime [$config @health-timeout]
+	debug.cmd/app {option   = $htime}
+    } else {
+	set htime [manifest health-timeout]
+	debug.cmd/app {manifest = $htime}
+    }
+
+    if {$htime ne {}} {
+	display "Health Timeout:    $htime"
+	manifest health-timeout= $htime
+    }
+
+    return $htime
+}
+
 proc ::stackato::cmd::app::AppSSOE {config} {
     debug.cmd/app {}
 
@@ -4191,9 +4293,9 @@ proc ::stackato::cmd::app::AppRuntime {config frameobj} {
 
     if {$runtime ne {}} {
 	manifest runtime= $runtime
-	display "Runtime:         [dict get $runtimes $runtime description]"
+	display "Runtime:           [dict get $runtimes $runtime description]"
     } else {
-	display "Runtime:         <framework-specific default>"
+	display "Runtime:           <framework-specific default>"
     }
 
     set as [manifest app-server]
@@ -4314,7 +4416,7 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     foreach u $urls {
 	set u [string tolower $u]
 	lappend tmp $u
-	display "Application Url:   $u"
+	display "Application Url:   https://$u"
     }
     set urls $tmp
 
@@ -4329,7 +4431,23 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
 proc ::stackato::cmd::app::DefaultUrl {config frameobj} {
     debug.cmd/app {}
 
-    if {[[$config @client] isv2]} {
+    if {[$config @domain set?]} {
+	debug.cmd/app {User specified domain.}
+
+	set domain [$config @domain]
+
+	set stock_template "\${name}.$domain"
+	set stock [list scalar $stock_template]
+	manifest resolve stock
+	set stock [lindex $stock 1]
+
+	# NOTE: We do _not_ have to consider a 'domain' key specified
+	# in the stackato.yml here. Because if such happens it was
+	# used to generate an url together with the application name
+	# (like we do here), and thus this procedure, "DefaultUrl"
+	# will not be called upon at all anymore.
+
+    } elseif {[[$config @client] isv2]} {
 	debug.cmd/app {CFv2 - space-specific}
 	# For a Stackato 3 target use the domain mapped to the current
 	# space as the base of the default url.
@@ -4467,7 +4585,7 @@ proc ::stackato::cmd::app::AppFrameworkComplete {frameobj supported {check 1}} {
 	err "The specified framework \[[$frameobj name]\] is not supported by the target.\n[self please frameworks] to get the list of supported frameworks."
     }
 
-    display "Framework:       [$frameobj name]"
+    display "Framework:         [$frameobj name]"
 
     manifest framework= [$frameobj name]
 
@@ -4526,7 +4644,7 @@ proc ::stackato::cmd::app::AppMem {config starting frameobj instances runtime} {
 
     # Check capacity now, if the app will be started as part of the
     # push.
-    if {!$starting} {
+    if {!$starting && ![$client isv2]} {
 	# Calculate required capacity based on defaults, if needed.
 	if {($instances eq {}) || ($instances < 1)} {
 	    set instances 1
@@ -6044,7 +6162,7 @@ proc ::stackato::cmd::app::SCP {config theapp} {
     set paths    [$config @paths]
 
     if {[llength $paths] < 2} {
-	$config notEnough
+	$config notEnough ;# scp. proper additional check
     }
 
     ssh copy $config $paths $theapp $instance

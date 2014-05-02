@@ -32,6 +32,7 @@ namespace eval ::stackato::cmd::quotas {
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::psz
+    namespace import ::stackato::log::err
     namespace import ::stackato::term
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
@@ -53,12 +54,15 @@ proc ::stackato::cmd::quotas::create {config} {
     debug.cmd/quotas {}
     # @name - String, validated to not exist
 
+    set name [$config @name]
     if {![$config @name set?]} {
-	$config notEnough
+	$config @name undefined!
+    }
+    if {$name eq {}} {
+	err "An empty quota definition name is not allowed"
     }
 
-    set name [$config @name]
-    set qd   [v2 quota_definition new]
+    set qd [v2 quota_definition new]
 
     display "Creating new quota definition $name ... "
     $qd @name set $name
@@ -80,10 +84,6 @@ proc ::stackato::cmd::quotas::configure {config} {
     variable map
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     set qd [$config @name]
 
@@ -126,10 +126,6 @@ proc ::stackato::cmd::quotas::delete {config} {
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set qd [$config @name]
 
     if {[cmdr interactive?] &&
@@ -149,10 +145,6 @@ proc ::stackato::cmd::quotas::rename {config} {
     debug.cmd/quotas {}
     # @name    - quota_definition's object.
     # @newname - String, validated to not exist as quota name.
-
-    if {![$config @name set?]} {
-	$config notEnough
-    }
 
     set qd  [$config @name]
     set new [$config @newname]

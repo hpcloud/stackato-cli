@@ -54,8 +54,7 @@ test delete-app-1.1.2 {delete-app, non-admin login is ok} -constraints cfv2 -set
     be-admin
     remove-non-admin
     stage-close
-} -result {Deleting application [TEST] ... OK
-Deleting route [test.stackato-nightly.activestate.com] ... OK}
+} -match glob -result {Deleting application \[TEST\] ... OK*}
 
 test delete-app-1.2 {delete-app, persists} -setup {
     stage-open
@@ -109,12 +108,9 @@ test delete-app-1.4.2 {delete-app, all apps} -constraints cfv2 -setup {
     run delete -n --all
 } -cleanup {
     stage-close
-} -result {Deleting application [TEST1] ... OK
-Deleting route [test1.stackato-nightly.activestate.com] ... OK
-Deleting application [TEST2] ... OK
-Deleting route [test2.stackato-nightly.activestate.com] ... OK
-Deleting application [TEST3] ... OK
-Deleting route [test3.stackato-nightly.activestate.com] ... OK}
+} -match glob -result {Deleting application \[TEST1\] ... OK*
+Deleting application \[TEST2\] ... OK*
+Deleting application \[TEST3\] ... OK*}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

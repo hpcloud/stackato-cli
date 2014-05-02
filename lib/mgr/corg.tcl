@@ -292,14 +292,14 @@ proc ::stackato::mgr::corg::select-for {what p {mode noauto}} {
 	return {}
     }
 
+    if {![llength $choices]} {
+	warn "No organizations available to ${what}. [self please link-user-org] to connect users with orgs."
+    }
+
     if {![cmdr interactive?]} {
 	debug.mgr/corg {no interaction}
 	$p undefined!
 	# implied return/failure
-    }
-
-    if {![llength $choices]} {
-	warn "No organizations available to ${what}. [self please link-user-org] to connect users with orgs."
     }
 
     foreach o $choices {

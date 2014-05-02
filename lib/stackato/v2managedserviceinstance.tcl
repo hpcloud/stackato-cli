@@ -29,7 +29,7 @@ oo::class create ::stackato::v2::managed_service_instance {
 	my Attribute dashboard_url string
 	my Attribute credentials   dict
 	my Attribute service_plan  &service_plan
-	my Attribute gateway_data  dict
+	my Attribute gateway_data  ndict
 
 	next $url
     }

@@ -7,7 +7,6 @@
 
 package require Tcl 8.5
 package require cmdr::validate
-package require stackato::validate::common
 
 debug level  validate/http-operation
 debug prefix validate/http-operation {[debug caller] | }
@@ -26,9 +25,8 @@ namespace eval ::stackato::validate::http-operation {
 
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::cmdr::validate::common::fail
-    #namespace import ::stackato::validate::common::expected
 
-    variable legalvalues {get put post head}
+    variable legalvalues {get put post head delete}
 }
 
 proc ::stackato::validate::http-operation::default  {p}   { return {} }

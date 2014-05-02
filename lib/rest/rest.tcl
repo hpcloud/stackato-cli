@@ -416,10 +416,12 @@ oo::class create ::REST {
 
 			set tok [http::geturl $url {*}$request]
 
-			my StateSet $tok x:rest:start $reqstart
+			my StateSet $tok x:rest:start  $reqstart
+			my StateSet $tok x:rest:binary [dict exists $request -binary]
 
 			debug.rest {http::geturl ... $tok}
 			debug.rest {http::geturl ... binary=[my StateGet $tok binary]}
+			debug.rest {http::geturl ... binary=[my StateGet $tok x:rest:binary]}
 
 		} e o]} {
 			::http::Log {REST DONE err}
@@ -489,8 +491,13 @@ oo::class create ::REST {
 		if {[http::ncode $tok] > 399} {
 			set status [http::ncode $tok]
 			set msg    [http::data  $tok]
-
-			my Raise $cookie $msg REST HTTP $status
+			set meta   [http::meta  $tok]
+			dict for {k v} $meta {
+				dict unset meta $k
+				dict set meta [string tolower $k] $v
+			}
+			set meta [dict get' $meta content-type {}]
+			my Raise $cookie [list $meta $msg] REST HTTP $status
 			debug.rest {/FAIL}
 			return 1
 		}
@@ -537,8 +544,14 @@ oo::class create ::REST {
 		set data [http::data  $tok]
 
 		debug.rest {binary       = [my StateGet $tok binary]}
+		debug.rest {binary/cli   = [my StateGet $tok x:rest:binary]}
 		debug.rest {content-type = [my StateGet $tok type]}
 		debug.rest {charset      = [my StateGet $tok charset]}
+
+		if {[my StateGet $tok x:rest:binary]} {
+			debug.rest {Return [string length $data], binary}
+			return $data
+		}
 
 		# ATTENTION. Responses of type "application/json" have to be
 		# recoded as per their charset. I.e. they are text data,

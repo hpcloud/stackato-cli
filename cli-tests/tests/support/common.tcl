@@ -10,14 +10,17 @@ package require try
 apply {{} {
     global env
     foreach {ev proc fallback} {
-	STACKATO_CLI_TEST_TARGET theplaintarget todo-fallback-target
-	STACKATO_CLI_TEST_USER   theuser        todo-fallback-nonadminusername
-	STACKATO_CLI_TEST_GROUP	 thegroup       todo-fallback-groupname
-	STACKATO_CLI_TEST_DRAIN	 thedrain       todo-fallback-drainurl
-	STACKATO_CLI_TEST_ADMIN  adminuser      todo-fallback-adminusername
-	STACKATO_CLI_TEST_APASS  adminpass      todo-fallback-adminpassword
-	STACKATO_CLI_TEST_ORG    theorg         todo-fallback-org
-	STACKATO_CLI_TEST_SPACE  thespace       todo-fallback-space
+	STACKATO_CLI_TEST_TARGET    theplaintarget todo-fallback-target
+	STACKATO_CLI_TEST_USER      theuser        todo-fallback-nonadminusername
+	STACKATO_CLI_TEST_GROUP     thegroup       todo-fallback-groupname
+	STACKATO_CLI_TEST_DRAIN     thedrain       todo-fallback-drainurl
+	STACKATO_CLI_TEST_ADMIN     adminuser      todo-fallback-adminusername
+	STACKATO_CLI_TEST_APASS     adminpass      todo-fallback-adminpassword
+	STACKATO_CLI_TEST_ORG       theorg         todo-fallback-org
+	STACKATO_CLI_TEST_SPACE     thespace       todo-fallback-space
+	STACKATO_CLI_TEST_SBROKER_L thebroker      todo-service-broker-location-url
+	STACKATO_CLI_TEST_SBROKER_U thebrokeruser  todo-service-broker-user-name
+	STACKATO_CLI_TEST_SBROKER_P thebrokerpass  todo-service-broker-user-password
     } {
 	if {[info exists env($ev)]} {
 	    set value $env($ev)
@@ -40,6 +43,16 @@ proc NOTE {args} {
 proc TODO {args} {
     #puts "@=TODO: $args"
     return
+}
+
+proc DEBUG-CHECKS {} {
+    # Various checks to help debug the testsuites themselves.
+    # 1. Look for a leaked "appdir" application.
+    if {![catch {
+	 run guid app appdir
+    }]} {
+	puts "@=NOTE: HAS app|appdir"
+    }
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -165,7 +178,7 @@ proc nokeep {} { variable keep 0 }
 
 proc run {args} {
     variable verbose
-    if {$verbose} { puts "%% s $args" }
+    if {$verbose} { puts "\n\n%% s $args" }
 
     set out [file join [tmp] [pid].out]
     set err [file join [tmp] [pid].err]
@@ -175,11 +188,37 @@ proc run {args} {
     try {
 	file delete $out $err
 	set env(HOME) [thehome]
+	set env(STACKATO_NO_WRAP) 1
 	set fail [catch {
 	    exec > $out 2> $err [Where] {*}$args
 	}]
     } finally {
-	set env(HOME) $here
+	set   env(HOME) $here
+	unset env(STACKATO_NO_WRAP)
+    }
+
+    Capture $out $err $fail
+}
+
+proc run-any {args} {
+    variable verbose
+    if {$verbose} { puts "\n\n%% s $args" }
+
+    set out [file join [tmp] [pid].out]
+    set err [file join [tmp] [pid].err]
+
+    global env
+    set here $env(HOME)
+    try {
+	file delete $out $err
+	set env(HOME) [thehome]
+	set env(STACKATO_NO_WRAP) 1
+	set fail [catch {
+	    exec > $out 2> $err {*}$args
+	}]
+    } finally {
+	set   env(HOME) $here
+	unset env(STACKATO_NO_WRAP)
     }
 
     Capture $out $err $fail
@@ -290,8 +329,9 @@ proc unexpected {ptype pname type name {context {}}} {
 }
 
 
-proc ssh-cmd {app dry} {
-    return "/*/ssh -i */key_* -o IdentitiesOnly=yes -t -o \"PasswordAuthentication no\" -o \"ChallengeResponseAuthentication no\" -o \"PreferredAuthentications publickey\" -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@[theplaintarget] stackato-ssh * $app 0 $dry"
+proc ssh-cmd {app dry {group {}}} {
+    if {$group ne {}} { set group " -G $group" }
+    return "/*/ssh -i */key_* -o IdentitiesOnly=yes -t -o \"PasswordAuthentication no\" -o \"ChallengeResponseAuthentication no\" -o \"PreferredAuthentications publickey\" -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@[theplaintarget] stackato-ssh${group} * $app 0 $dry"
 }
 
 proc ref-target {} {
@@ -314,7 +354,7 @@ proc be-non-admin {} {
     if {$isv1} {
 	run login -n [theuser] --password P
     } else {
-	run login --ignore-missing -n [theuser] --password P --organization [theorg]
+	run login -n --ignore-missing [theuser] --password P --organization [theorg] --space [thespace]
     }
 }
 
@@ -336,6 +376,7 @@ proc remove-non-admin {} {
 proc go-admin {} {
     ref-target
     be-admin
+    # DEBUG-CHECKS
 }
 
 proc go-non-admin {} {
@@ -366,6 +407,17 @@ proc remove-test-app {{name TEST}} {
     catch {
 	run delete-route -n [string tolower $name].[targetdomain]
     }
+    return
+}
+
+proc recycle-org {} {
+    # Delete domain owned by an org by killing the container, and
+    # regenerating it and the space.
+    run delete-org   -n [theorg] --recursive
+    run create-org   -n [theorg]
+    run create-space -n [thespace]
+    run link-user-org   -n [adminuser] [theorg]
+    run link-user-space -n [adminuser] [thespace] --developer --manager
     return
 }
 

@@ -10,7 +10,6 @@
         "managers_url"          : "/v2/organizations/*/managers",
         "name"                  : "@@@@",
         "private_domains_url"   : "/v2/organizations/*/private_domains",
-        "quota_definition"      : *,
         "quota_definition_guid" : "*",
         "quota_definition_url"  : "/v2/quota_definitions/*",
         "spaces"                : \[*\],

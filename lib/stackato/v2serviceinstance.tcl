@@ -36,6 +36,7 @@ oo::class create ::stackato::v2::service_instance {
 	# args = config
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
+	# s pluralization, fixed
 	set client [stackato::mgr client authenticated]
 	if {$depth > 0} {
 	    lappend args depth $depth
@@ -46,6 +47,7 @@ oo::class create ::stackato::v2::service_instance {
     classmethod list-filter {key value {depth 0} {config {}}} {
 	debug.v2/base {}
 	set type   [namespace tail [self]]s
+	# s pluralization, fixed
 	set client [stackato::mgr client authenticated]
 	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
     }

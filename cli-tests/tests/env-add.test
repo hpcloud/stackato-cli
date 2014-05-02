@@ -97,9 +97,8 @@ test env-add-1.6 {env-add, running app, restart} -setup {
     remove-appdir
     stage-close
 } -match glob -result {Adding Environment Variable \[VAR=VAL\] ... 
-Stopping Application \[node-env\] ... OK
-Starting Application \[node-env\] ... *
-OK
+Stopping Application \[node-env\] ... *OK
+Starting Application \[node-env\] ... *OK
 *//node-env.* deployed}
 
 test env-add-1.7 {env-add, deployed stopped app, no restart} -setup {

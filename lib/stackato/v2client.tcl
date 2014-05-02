@@ -29,6 +29,7 @@ package require url
 
 package require stackato::v2::app
 package require stackato::v2::app_event
+package require stackato::v2::buildpack
 package require stackato::v2::domain
 package require stackato::v2::organization
 package require stackato::v2::quota_definition
@@ -41,6 +42,7 @@ package require stackato::v2::service_instance
 package require stackato::v2::managed_service_instance
 package require stackato::v2::user_provided_service_instance
 package require stackato::v2::service_plan
+package require stackato::v2::service_plan_visibility
 package require stackato::v2::space
 package require stackato::v2::stack
 package require stackato::v2::user
@@ -74,7 +76,7 @@ oo::class create ::stackato::v2::client {
 
     variable mytarget myhost myuser myproxy myauth_token \
 	mytrace myprogress myheaders myrefresh_token \
-	myclientinfo
+	myclientinfo myorphans
 
     method target       {} { return $mytarget }
     method authtoken    {} { return $myauth_token }
@@ -94,6 +96,7 @@ oo::class create ::stackato::v2::client {
 	}
 
 	#set myclientinfo {}
+	set myorphans {}
 	set myhost {}
 	set myuser {}
 	set myproxy {}
@@ -337,6 +340,7 @@ oo::class create ::stackato::v2::client {
 	set info [my info]
 
 	set    authorizer [dict get $info authorization_endpoint]
+	set    uaahost    [lindex [split [url domain $authorizer] /] 0]
 	append authorizer /oauth/token
 
 	set query [http::formatQuery       \
@@ -350,12 +354,14 @@ oo::class create ::stackato::v2::client {
 
 	    my configure -headers $authheaders
 
-	    # Using raw POST to prevent auto-application of the
-	    # standard REST baseurl.
-	    lassign [my DoRequest POST $authorizer \
-			 "application/x-www-form-urlencoded;charset=utf-8" \
-			 $query] \
-		code data _
+	    my HttpTrap {
+		# Using raw POST to prevent auto-application of the
+		# standard REST baseurl.
+		lassign [my DoRequest POST $authorizer \
+			     "application/x-www-form-urlencoded;charset=utf-8" \
+			     $query] \
+		    code data _
+	    } "UAA $uaahost"
 	} finally {
 	    my configure -headers $myheaders
 	}
@@ -430,6 +436,83 @@ oo::class create ::stackato::v2::client {
 	    form2 zipfile data application $zipfile
 	}
 	lassign [form2 compose data] contenttype data dlength
+
+	if {0} {
+	    # Debugging ... Stream to temp file for review, and stream
+	    # upload from the same file because the cat and subordinates
+	    # are destroyed by the fcopy.
+	    set c [open UPLOAD_FORM w]
+	    fconfigure $c -translation binary
+	    fcopy $data $c
+	    close $data
+	    close $c
+	    set data [open UPLOAD_FORM r]
+	    fconfigure $data -translation binary
+
+	    set dlength [file size UPLOAD_FORM]
+	}
+
+	debug.v2/client {$contenttype | $dlength := $data}
+
+	# Provide rest/http with the content-length information for
+	# the non-seekable channel
+	try {
+	    dict set myheaders Content-Length $dlength
+	    my configure -headers $myheaders
+
+	    set tries 10
+
+	    set myprogress 1
+	    while {$tries} {
+		incr tries -1
+		try {
+		    if {[my cc-nginx]} {
+			my http_post $dst $data $contenttype
+		    } else {
+			my http_put $dst $data $contenttype
+		    }
+		} trap {REST HTTP REFUSED} {e o} - \
+		  trap {REST HTTP BROKEN} {e o} {
+		      if {!$tries} {
+			  return {*}$o $e
+		      }
+
+		      say! \n[color red "$e"]
+		      say "Retrying in a second... (trials left: $tries)"
+		      after 1000
+		      continue
+		  }
+		break
+	    }
+	} finally {
+	    dict unset myheaders Content-Length
+	    my configure -headers $myheaders
+	    display ""
+	    clearlast ;# (**)
+	    set myprogress 0
+	}
+	return
+    }
+
+    method upload-by-url-zip {url zipfile} {
+	debug.v2/client {}
+	#@type zipfile = path
+
+	set dst $url
+
+	# v2 always uses a multipart/form-data payload to upload the
+	# application bits, zip file or not. Without zip file the
+	# relevant form field is simply not provided. Furthermore, the
+	# form field "_method" has been dropped.
+
+	#form2 start   data
+	#form2 zipfile data application $zipfile
+	#lassign [form2 compose data] contenttype data dlength
+
+	set contenttype application/x-zip
+	set dlength [file size $zipfile]
+	set data [open $zipfile]
+	fconfigure $data -translation binary
 
 	if {0} {
 	    # Debugging ... Stream to temp file for review, and stream
@@ -675,6 +758,7 @@ oo::class create ::stackato::v2::client {
 	# separate authentication server
 
 	set    authorizer [dict get $info authorization_endpoint]
+	set    uaahost    [lindex [split [url domain $authorizer] /] 0]
 	append authorizer /oauth/token
 
 	set query [http::formatQuery \
@@ -687,12 +771,14 @@ oo::class create ::stackato::v2::client {
 
 	    my configure -headers $authheaders
 
-	    # Using raw POST to prevent auto-application of the
-	    # standard REST baseurl.
-	    lassign [my DoRequest POST $authorizer \
-			 "application/x-www-form-urlencoded;charset=utf-8" \
-			 $query] \
-		code data _
+	    my HttpTrap {
+		# Using raw POST to prevent auto-application of the
+		# standard REST baseurl.
+		lassign [my DoRequest POST $authorizer \
+			     "application/x-www-form-urlencoded;charset=utf-8" \
+			     $query] \
+		    code data _
+	    } "UAA $uaahost"
 	} finally {
 	    my configure -headers $myheaders
 	}
@@ -997,7 +1083,13 @@ oo::class create ::stackato::v2::client {
 	if {[dict exists $config inline-relations-depth] &&
 	    [dict get    $config inline-relations-depth]} {
 	    set force 1
+
+	    if {[my is-stackato]} {
+		dict set config orphan-relations 1
+	    }
 	}
+
+	#dict set config pretty 1
 
 	if {[dict size $config]} {
 	    append url ?[http::formatQuery {*}$config]
@@ -1009,6 +1101,16 @@ oo::class create ::stackato::v2::client {
 	while {1} {
 	    debug.v2/client {<== $url}
 	    set page [my json_get $url]
+
+	    if {[dict exists $page relations]} {
+		# Save the relations, if any, into the orphan cache.
+		# The higher layers use has|get-orphan to retrieve
+		# information at need. get-by-url inspects it as well
+		# and short-circuits requests we can serve from it.
+		dict for {uuid json} [dict get $page relations] {
+		    dict set myorphans $uuid $json
+		}
+	    }
 
 	    foreach item [dict get $page resources] {
 		set obj [stackato v2 get-for $item]
@@ -1034,10 +1136,45 @@ oo::class create ::stackato::v2::client {
     ## Entity support
     # # ## ### ##### ######## #############
 
+    method has-orphan {uuid} {
+	return [dict exists $myorphans $uuid]
+    }
+
+    method get-orphan {uuid} {
+	debug.v2/memory { PULL__ $uuid}
+
+	if {![dict exists $myorphans $uuid]} {
+	    return -code error \
+		-errorcode {STACKATO SERVER ORPHAN MISS} \
+		"The requested orphan <$uuid> is not known"
+	}
+
+	debug.v2/memory {CACHED! [dict get $myorphans $uuid metadata url]}
+	return [dict get $myorphans $uuid]
+    }
+
     method get-by-url {url args} {
 	debug.v2/client {}
 	debug.v2/memory { LOAD__ $url}
 	#TODO load - handle query args (inlined depth etc.)
+
+	# Extract uuid from the url and check if we have the data
+	# already, in our orphan cache.
+	# url = /v2/TYPE/UUID/...
+
+	if {[regexp {/v2/[^/]+/([^/?]+)} -> uuid]} {
+	    debug.v2/memory {CACHED? ($uuid)}
+	    if {[dict exists $myorphans $uuid]} {
+		debug.v2/memory {CACHED* [dict get $myorphans $uuid metadata url]}
+		# cross-check against the stored url
+		if {$url eq [dict get $myorphans $uuid metadata url]} {
+		    debug.v2/memory {CACHED! return}
+		    return [dict get $myorphans $uuid]
+		}
+	    }
+	}
+
+	# append url ?[http::formatQuery pretty 1]
 
 	try {
 	    set result [my Request GET $url application/json]
@@ -1363,17 +1500,12 @@ oo::class create ::stackato::v2::client {
 
 	    my configure -headers $authheaders -accept-no-location 1
 
-	    # Using raw POST to prevent auto-application of the
-	    # standard REST baseurl.
-	    lassign [my DoRequest $method $uaa $qtype $query] \
-		code data _
-
-	} trap {POSIX ECONNREFUSED} {e o} - \
-	  trap {HTTP SOCK OPEN} {e o} {
-	    my BadTarget $e "UAA $uaahost"
-	    # Code from local modified copy of the http package.
-	    # Better than <string match {*couldn't open socket*} $e>
-
+	    my HttpTrap {
+		# Using raw POST to prevent auto-application of the
+		# standard REST baseurl.
+		lassign [my DoRequest $method $uaa $qtype $query] \
+		    code data _
+	    } "UAA $uaahost"
 	} finally {
 	    my configure -headers $myheaders -accept-no-location $savedflag
 	}
@@ -1408,10 +1540,18 @@ oo::class create ::stackato::v2::client {
 	    } else {
 		http::config -accept */*
 	    }
-
-	    set result [my DoRequest $method $mytarget$path \
-			    $content_type $payload]
+	    my HttpTrap {
+		set result [my DoRequest $method $mytarget$path \
+				$content_type $payload]
+	    }
 	    return $result
+	}
+	return
+    }
+
+    method HttpTrap {script {context {}}} {
+	try {
+	    return [uplevel 1 $script]
 
 	} trap {REST HTTP} {e o} {
 	    # e = response body, possibly json
@@ -1440,7 +1580,7 @@ oo::class create ::stackato::v2::client {
 
 	} trap {POSIX ECONNREFUSED} {e o} - \
 	  trap {HTTP SOCK OPEN} {e o} {
-	    my BadTarget $e
+	    my BadTarget $e $context
 
 	} on error {e o} {
 	    # See also HTTP SOCK OPEN above. Dependent on local
@@ -1565,6 +1705,8 @@ oo::class create ::stackato::v2::client {
     }
 
     method PEM {status data} {
+	lassign $data ctype data
+
 	debug.v2/client {}
 
 	if {$status == 413} {
@@ -1573,6 +1715,18 @@ oo::class create ::stackato::v2::client {
 
 	try {
 	    set parsed [json::json2dict $data]
+
+	    debug.v2/client {parsed = ($parsed)}
+
+	    if {($parsed ne {}) &&
+		[my HAS $parsed error_description]} {
+
+		set map     [list "\"" {'}]
+		set desc    [string map $map [dict get $parsed error_description]]
+		append desc " ($status)"
+		return $desc
+	    }
+
 	    if {($parsed ne {}) &&
 		[my HAS $parsed code] &&
 		[my HAS $parsed description]} {
@@ -1586,6 +1740,13 @@ oo::class create ::stackato::v2::client {
 		    debug.v2/client {bad request}
 		    return -code error \
 			-errorcode {STACKATO CLIENT V2 INVALID REQUEST} \
+			$desc
+		}
+
+		if {$errcode == 1002} {
+		    debug.v2/client {invalid relation}
+		    return -code error \
+			-errorcode {STACKATO CLIENT V2 INVALID RELATION} \
 			$desc
 		}
 
@@ -1630,6 +1791,13 @@ oo::class create ::stackato::v2::client {
                     return "Error $errcode: $desc"
                 }
 	    } else {
+		if {[string match *html*    $ctype] ||
+		    [string match *DOCTYPE* $data] ||
+		    [string match *html*    $data]} {
+		    # Error message is html dump.
+		    set data {<HTML dump elided>}
+		}
+
 		return "Error (HTTP $status): $data"
 	    }
 	} trap {STACKATO CLIENT V2} {e o} {
@@ -1638,6 +1806,13 @@ oo::class create ::stackato::v2::client {
 	    if {$data eq {}} {
 		return "Error ($status): No Response Received"
 	    } else {
+		if {[string match *html*    $ctype] ||
+		    [string match *DOCTYPE* $data] ||
+		    [string match *html*    $data]} {
+		    # Error message is html dump.
+		    set data {<HTML dump elided>}
+		}
+
 		#@todo: no trace => truncate
 		#return "Error (JSON $status): $e"
 		return "Error (JSON $status): $data"

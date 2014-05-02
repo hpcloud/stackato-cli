@@ -28,7 +28,7 @@ test quota-delete-1.1 {quota delete, wrong args, not enough} -constraints cfv2 -
     run quota delete -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test quota-delete-1.2 {quota requires CFv2 API} -constraints cfv1 -setup {
     stage-open

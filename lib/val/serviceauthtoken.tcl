@@ -29,8 +29,8 @@ namespace eval ::stackato::validate::serviceauthtoken {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -60,7 +60,7 @@ proc ::stackato::validate::serviceauthtoken::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/serviceauthtoken {FAIL}
-    expected $p SERVICEAUTHTOKEN "service auth token" $x
+    fail-unknown-thing $p SERVICEAUTHTOKEN "service auth token" $x
 }
 
 # # ## ### ##### ######## ############# #####################

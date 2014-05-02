@@ -156,10 +156,14 @@ Applications
                                                               its current
                                                               placement zone
 
+Introspection
+    Command history
+        stackato history clear          Clear the saved history
+        stackato history limit [<n>]    Limit the size of the history
+        stackato history list [<n>]     Show the saved history of commands
+
 Services
     stackato service <name>    Show the information about the named service
-    stackato service-plans     List all available plans of the supported
-                               services
     stackato services          List the supported and provisioned services of
                                the target
 
@@ -188,6 +192,9 @@ Services
 
     Brokers
         stackato add-service-broker [<name>]                   Make the named
+                                                               service broker
+                                                               known
+        stackato create-service-broker [<name>]                Make the named
                                                                service broker
                                                                known
         stackato delete-service-broker [<name>]                Remove the named
@@ -268,6 +275,31 @@ Services
                                                                        applicati
                                                                        on
 
+    Plans
+        stackato hide-service-plan <name> [<organization>]    Hide the
+                                                              specified
+                                                              service-plan from
+                                                              the named
+                                                              organization
+        stackato service-plan <name>                          Show the details
+                                                              of the specified
+                                                              service plan
+        stackato service-plans                                List all
+                                                              available plans
+                                                              of the supported
+                                                              services
+        stackato show-service-plan <name> [<organization>]    Make the
+                                                              specified
+                                                              service-plan
+                                                              visible to the
+                                                              named
+                                                              organization
+        stackato update-service-plan [<name>] [<newname>]     Update the
+                                                              target's
+                                                              knowledge of the
+                                                              named service
+                                                              plan
+
 Organizations
     stackato create-org [<name>]                Create a new organization
     stackato delete-org [<name>]                Delete the named organization
@@ -343,40 +375,8 @@ Administration
                                                   target
     stackato frameworks                           List the supported frameworks
                                                   of the target
-    stackato group [<name>]                       Report the current group, or
-                                                  (un)set it
-    stackato groups add-user <group> <user>       Add the named user to the
-                                                  specified group
-    stackato groups create <name>                 Create a new group with the
-                                                  specified name
-    stackato groups delete <name>                 Delete the named group
-    stackato groups delete-user <group> <user>    Remove the named user from
-                                                  the specified group
-    stackato groups limits [<group>]              Show and/or modify the limits
-                                                  applying to applications in
-                                                  the named group
-    stackato groups show                          Show the list of groups known
-                                                  to the target
-    stackato groups users [<group>]               Show the list of users in the
-                                                  named group
     stackato info                                 Show the basic system and
                                                   account information
-    stackato limits [<group>]                     Show and/or modify the limits
-                                                  applying to applications in
-                                                  the named group
-    stackato quota configure [<name>]             Reconfigure the named quota
-                                                  definition
-    stackato quota create [<name>]                Create a new quota definition
-    stackato quota delete [<name>]                Delete the named quota
-                                                  definition
-    stackato quota list                           List the available quota
-                                                  definitions
-    stackato quota rename [<name>] <newname>      Rename the named quota
-                                                  definition
-    stackato quota show [<name>]                  Show the details of the named
-                                                  quota definition
-    stackato quotas                               List the available quota
-                                                  definitions
     stackato runtimes                             List the supported runtimes
                                                   of the target
     stackato stacks                               List the supported stacks of
@@ -401,6 +401,42 @@ Administration
                                                   specified target
     stackato version                              Print the version number of
                                                   the client
+
+    Groups (Stackato 2)
+      stackato group [<name>]                     Report the current group, or
+                                                  (un)set it
+      stackato groups add-user <group> <user>     Add the named user to the
+                                                  specified group
+      stackato groups create <name>               Create a new group with the
+                                                  specified name
+      stackato groups delete <name>               Delete the named group
+      stackato groups delete-user <group> <user>  Remove the named user from
+                                                  the specified group
+      stackato groups limits [<group>]            Show and/or modify the limits
+                                                  applying to applications in
+                                                  the named group
+      stackato groups show                        Show the list of groups known
+                                                  to the target
+      stackato groups users [<group>]             Show the list of users in the
+                                                  named group
+      stackato limits [<group>]                   Show and/or modify the limits
+                                                  applying to applications in
+                                                  the named group
+
+    Quotas
+      stackato quota configure [<name>]           Reconfigure the named quota
+                                                  definition
+      stackato quota create [<name>]              Create a new quota definition
+      stackato quota delete [<name>]              Delete the named quota
+                                                  definition
+      stackato quota list                         List the available quota
+                                                  definitions
+      stackato quota rename [<name>] <newname>    Rename the named quota
+                                                  definition
+      stackato quota show [<name>]                Show the details of the named
+                                                  quota definition
+      stackato quotas                             List the available quota
+                                                  definitions
 
     User Management
         stackato add-user [<name>]      Register a new user in the current or

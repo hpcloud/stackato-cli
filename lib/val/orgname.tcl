@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::orgname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::orgname::default  {p}   { return {} }
@@ -60,7 +60,7 @@ proc ::stackato::validate::orgname::validate {p x} {
 	return $x
     }
     debug.validate/orgname {FAIL}
-    expected $p ORGNAME "organization" $x
+    fail-unknown-thing $p ORGNAME "organization" $x
 }
 
 # # ## ### ##### ######## ############# #####################

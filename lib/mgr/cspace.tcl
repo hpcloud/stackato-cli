@@ -30,7 +30,7 @@ namespace eval ::stackato::mgr {
 namespace eval ::stackato::mgr::cspace {
     namespace export \
 	set setc get getc get-auto get-id \
-	reset save select-for
+	reset save select-for get-auto-s30
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -238,6 +238,19 @@ proc ::stackato::mgr::cspace::Discard {store uuid {reason {invalid value}}} {
     return
 }
 
+proc ::stackato::mgr::cspace::get-auto-s30 {p} {
+    # Irrelevant when talking to a CF API v1 target.
+    if {![[$p config @client] isv2]} {
+	return {}
+    }
+    if {[package vsatisfies [[$p config @client] server-version] 3.1]} {
+	# 3.2+ => ignore
+	return {}
+    }
+
+    get-auto $p
+}
+
 proc ::stackato::mgr::cspace::get-auto {p} {
     # generate callback
     debug.mgr/cspace {}
@@ -329,14 +342,14 @@ proc ::stackato::mgr::cspace::select-for {what p {mode noauto}} {
 	return {}
     }
 
+    if {![llength $choices]} {
+	warn "No spaces available to ${what}. [self please link-user-space] to connect users with spaces."
+    }
+
     if {![cmdr interactive?]} {
 	debug.mgr/cspace {no interaction}
 	$p undefined!
 	# implied return/failure
-    }
-
-    if {![llength $choices]} {
-	warn "No spaces available to ${what}. [self please link-user-space] to connect users with spaces."
     }
 
     foreach o $choices {

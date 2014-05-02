@@ -43,10 +43,10 @@ test login-1.2.1 {login, transient target} -constraints cfv1 -setup {
 test login-1.2.2 {login, transient target} -constraints cfv2 -setup {
     stage-open
 } -body {
-    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run login -n [adminuser] --password [adminpass] --target [thetarget] --organization [theorg] --space [thespace]
 } -cleanup {
     stage-close
-} -result "Attempting login to \[[thetarget]\]\nSuccessfully logged into \[[thetarget]\]\nChoosing the one available space: \"[thespace]\"\nTarget:       [thetarget]\nOrganization: [theorg]\nSpace:        [thespace]"
+} -match glob -result "*Successfully logged into \\\[[thetarget]\\\]*\nTarget:       [thetarget]\nOrganization: [theorg]\nSpace:        [thespace]"
 
 test login-1.3.1 {login, transient target is such} -constraints cfv1 -setup {
     stage-open
@@ -60,7 +60,7 @@ test login-1.3.1 {login, transient target is such} -constraints cfv1 -setup {
 test login-1.3.2 {login, transient target is such} -constraints cfv2 -setup {
     stage-open
 } -body {
-    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run login -n [adminuser] --password [adminpass] --target [thetarget] --organization [theorg] --space [thespace]
     run target
 } -cleanup {
     stage-close
@@ -78,7 +78,7 @@ test login-1.4.1 {login, transient target, persistent token} -constraints cfv1 -
 test login-1.4.2 {login, transient target, persistent token} -constraints cfv2 -setup {
     stage-open
 } -body {
-    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run login -n [adminuser] --password [adminpass] --target [thetarget] --organization [theorg] --space [thespace]
     run targets
 } -cleanup {
     stage-close
@@ -96,7 +96,7 @@ test login-1.5.1 {login, transient target, persistent token, json} -constraints 
 test login-1.5.2 {login, transient target, persistent token, json} -constraints cfv2 -setup {
     stage-open
 } -body {
-    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run login -n [adminuser] --password [adminpass] --target [thetarget] --organization [theorg] --space [thespace]
     run targets --json
 } -cleanup {
     stage-close

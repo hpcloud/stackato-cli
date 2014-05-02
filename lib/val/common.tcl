@@ -21,60 +21,10 @@ namespace eval ::stackato::validate {
 }
 
 namespace eval ::stackato::validate::common {
-    namespace export refresh-client nospace not expected
+    namespace export refresh-client nospace
     namespace ensemble create
 
     namespace import ::stackato::mgr::client
-}
-
-# # ## ### ##### ######## ############# #####################
-## Nicer error message for the regular validation types.
-
-proc ::stackato::validate::common::expected {p code type x {context {}}} {
-    set ptype [$p type]
-
-    if {$ptype eq "option"} {
-	set name [$p flag]
-    } else {
-	set name [$p label]
-    }
-
-    if {[string match {A *} $type] ||
-	[string match {An *} $type]} {
-	set lead {}
-    } elseif {[string match {[aeiouAEIOU]*} $type]} {
-	set lead {An }
-    } else {
-	set lead {A }
-    }
-
-    return -code error -errorcode [list CMDR VALIDATE {*}$code] \
-	"Found a problem with $ptype \"$name\": $lead$type \"$x\" does not exist$context. Please use a different value."
-}
-
-# # ## ### ##### ######## ############# #####################
-## Nicer error message for the not* validation types.
-
-proc ::stackato::validate::common::not {p code type x {context {}}} {
-    set ptype [$p type]
-
-    if {$ptype eq "option"} {
-	set name [$p flag]
-    } else {
-	set name [$p label]
-    }
-
-    if {[string match {A *} $type] ||
-	[string match {An *} $type]} {
-	set lead {}
-    } elseif {[string match {[aeiouAEIOU]*} $type]} {
-	set lead {An }
-    } else {
-	set lead {A }
-    }
-
-    return -code error -errorcode [list CMDR VALIDATE {*}$code] \
-	"Found a problem with $ptype \"$name\": $lead$type named \"$x\" already exists$context. Please use a different name."
 }
 
 # # ## ### ##### ######## ############# #####################

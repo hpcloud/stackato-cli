@@ -8,7 +8,6 @@
 
 package require Tcl 8.5
 package require cmdr::validate
-package require stackato::validate::common
 
 debug level  validate/ulmode
 debug prefix validate/ulmode {[debug caller] | }
@@ -26,7 +25,7 @@ namespace eval ::stackato::validate::ulmode {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail-unknown-thing
 
     variable legalvalues {name related all}
 }
@@ -47,7 +46,7 @@ variable legalvalues
 	return $x
     }
     debug.validate/ulmode {FAIL}
-    expected $p ULMODE "user listing mode" $x
+    fail-unknown-thing $p ULMODE "user listing mode" $x
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -38,7 +38,7 @@ test quota-rename-1.2 {quota rename, wrong args, not enough} -constraints cfv2 -
     run quota rename -n Q
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test quota-rename-1.3 {quota requires CFv2 API} -constraints cfv1 -setup {
     stage-open

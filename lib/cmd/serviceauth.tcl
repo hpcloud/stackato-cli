@@ -88,21 +88,18 @@ proc ::stackato::cmd::serviceauth::update {config} {
     # V2 only.
     # client v2 = @label is entity instance
 
-    if {![$config @label set?]} {
-	$config notEnough
-    }
+    set thetoken [$config @label]
+    set tokenstr [$config @auth-token]
+
     if {![$config @auth-token set?]} {
-	$config notEnough
+	$config @auth-token undefined!
     }
 
-    set atoken [$config @label]
-    set value  [$config @auth-token]
+    $thetoken @token set $tokenstr
 
-    $atoken @token set $value
-
-    display "Updating token \[[$atoken @label]\] ... " false
-    $atoken @token set $value
-    $atoken commit
+    display "Updating token \[[$thetoken @label]\] ... " false
+    $thetoken @token set $tokenstr
+    $thetoken commit
     display [color green OK]
 
     debug.cmd/serviceauth {/done}
@@ -114,11 +111,14 @@ proc ::stackato::cmd::serviceauth::update {config} {
 proc ::stackato::cmd::serviceauth::create {config} {
     debug.cmd/serviceauth {}
 
+    set thetoken [$config @label]
     if {![$config @label set?]} {
-	$config notEnough
+	$config @label undefined!
     }
+
+    set tokenstr [$config @auth-token]
     if {![$config @auth-token set?]} {
-	$config notEnough
+	$config @auth-token undefined!
     }
 
     # @label      string
@@ -129,9 +129,9 @@ proc ::stackato::cmd::serviceauth::create {config} {
 
     display "Creating new service auth token \[[$config @label]\] ... " false
 
-    $atoken @label    set [$config @label]
+    $atoken @label    set $thetoken
     $atoken @provider set [$config @provider]
-    $atoken @token    set [$config @auth-token]
+    $atoken @token    set $tokenstr
 
     $atoken commit
     display [color green OK]
@@ -147,10 +147,6 @@ proc ::stackato::cmd::serviceauth::delete {config} {
 
     # V2 only.
     # client v2 = @label is entity instance
-
-    if {![$config @label set?]} {
-	$config notEnough
-    }
 
     set atoken [$config @label]
 

@@ -30,6 +30,9 @@ oo::class create ::stackato::v2::service_plan {
 	my Attribute extra       string
 	my Attribute service     &service
 
+	my Attribute free   boolean
+	my Attribute public boolean
+
 	my Many service_instances
 
 	my SearchableOn service
@@ -50,8 +53,19 @@ oo::class create ::stackato::v2::service_plan {
 
 	dict set info plan     [my @name]
 	dict set info label    [$service @label]
+
+	# Provider is deprecated. However on search (See cmd/app.tcl
+	# LocateService2, and val/serviceinstance.tcl) provider ==
+	# core is assumed when not specified, so keep saving it, even
+	# if the empty string.
 	dict set info provider [$service @provider]
-	dict set info version  [$service @version]
+
+	# Version is deprecated. Do not save if not specified (empty
+	# string), to disable the restriction when searching for it.
+	set v [$service @version]
+	if {$v ne {}} {
+	    dict set info version $v
+	}
 
 	debug.v2/service_plan {==> ($info)}
 	return $info

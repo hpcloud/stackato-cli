@@ -36,13 +36,21 @@ proc ::stackato::validate::http-header::validate {p x} {
     # Must contain colon separator only once (2 list elements).
     # 1st element must not be empty.
 
-    if {![string match *:* $x]}          { Fail $p $x {missing colon} }
+    if {![string match *:* $x]} {
+	Fail $p $x {missing colon}
+    }
 
-    set kv [split $x :]
-    if {[llength $kv] != 2}              { Fail $p $x {not 2 elements} }
+    # Note: While colon (:) is the separator of key and value the
+    #       value is allowed to and may contain further colons.
+    # So we search only for the first colon to split, and split via regexp.
 
-    lassign $kv k v
-    if {$k eq {}}                        { Fail $p $x {empty key name} }
+    if {![regexp {^([^:]*):(.*)$} $x -> k v]} {
+	Fail $p $x {bad syntax}
+    }
+
+    if {$k eq {}} {
+	Fail $p $x {empty key name}
+    }
 
     debug.validate/http-header {= OK}
 

@@ -31,10 +31,10 @@ namespace eval ::stackato::validate::serviceplan {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::serviceplan::default  {p}   { return {} }
@@ -80,7 +80,7 @@ proc ::stackato::validate::serviceplan::validate {p x} {
 	return $x
     }
     debug.validate/serviceplan {FAIL}
-    expected $p SERVICEPLAN "service plan" $x " for '[$vendor @label]'"
+    fail-unknown-thing $p SERVICEPLAN "service plan" $x " for '[$vendor @label]'"
 }
 
 # # ## ### ##### ######## ############# #####################

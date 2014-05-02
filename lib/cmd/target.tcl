@@ -163,6 +163,7 @@ proc ::stackato::cmd::target::Set {config} {
 	    if {[[client plain] isv2]} {
 		Switch $config
 		display [context format-large]
+		client license-status $client 0
 	    }
 	}
 	2 {
@@ -238,6 +239,7 @@ proc ::stackato::cmd::target::Show {config} {
     if {[$client isv2]} {
 	Switch $config
 	display [context format-large]
+	client license $client 0
     } else {
 	display "\n\[$target\]"
     }

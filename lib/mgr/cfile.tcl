@@ -105,6 +105,7 @@ namespace eval ::stackato::mgr::cfile {
 	clients   {~/.stackato/client/clients   ~/.stackato/clients   ~/.stackato_clients}
 	group     {~/.stackato/client/group}
 	rest      {~/.stackato/client/trace-rest}
+	history   {~/.stackato/client/history}
     }
 }
 

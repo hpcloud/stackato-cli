@@ -30,6 +30,7 @@ oo::class create ::stackato::v2::user {
 	my Attribute admin         boolean
 	my Attribute active        boolean
 	my Attribute default_space &space
+	my Attribute username      string
 
 	my Many spaces
 	my Many managed_spaces                space
@@ -61,26 +62,49 @@ oo::class create ::stackato::v2::user {
     export  @name
 
     method emails {} {
+	if {[my id] eq "legacy-api"} {
+	    return {}
+	}
 	return [dict get' [my UAA] emails {}]
     }
 
     method email {} {
+	if {[my id] eq "legacy-api"} {
+	    return "([my id])"
+	}
 	return [dict get' [lindex [my emails] 0] value ([my id])]
     }
 
     method the_name {} {
+	if {[my id] eq "legacy-api"} {
+	    return "legacy-api"
+	}
+	# A stackato target provides user name information in the CC
+	# entity. We can avoid usage of UAA.
+	if {[my @username defined?]} {
+	    return [my @username]
+	}
 	return [dict get' [my UAA] userName {}]
     }
 
     method given_name {} {
+	if {[my id] eq "legacy-api"} {
+	    return {}
+	}
 	return [dict get' [my UAA] name givenName {}]
     }
 
     method family_name {} {
+	if {[my id] eq "legacy-api"} {
+	    return {}
+	}
 	return [dict get' [my UAA] name familyName {}]
     }
 
     method full_name {} {
+	if {[my id] eq "legacy-api"} {
+	    return {}
+	}
 	return "[my given_name] [my family_name]"
     }
 

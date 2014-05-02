@@ -28,7 +28,7 @@ test quota-create-1.1 {quota create, wrong args, not enough} -constraints cfv2 -
     run quota create -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result "wrong#args, not enough*"
+} -returnCodes error -result {Missing definition for argument 'name'}
 
 test quota-create-1.2 {quota requires CFv2 API} -constraints cfv1 -setup {
     stage-open

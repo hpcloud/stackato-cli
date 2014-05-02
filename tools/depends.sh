@@ -37,6 +37,7 @@ for i in \
     cmdr::config \
     cmdr::help \
     cmdr::help::json \
+    cmdr::history \
     cmdr::officer \
     cmdr::parameter \
     cmdr::private \

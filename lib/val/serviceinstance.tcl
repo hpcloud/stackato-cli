@@ -31,9 +31,9 @@ namespace eval ::stackato::validate::serviceinstance {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::validate::common::nospace
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -83,7 +83,7 @@ proc ::stackato::validate::serviceinstance::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/serviceinstance {FAIL}
-    expected $p SERVICEINSTANCE "service instance" $x " in space '[$thespace @name]'"
+    fail-unknown-thing $p SERVICEINSTANCE "service instance" $x " in space '[$thespace @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

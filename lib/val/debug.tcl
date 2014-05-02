@@ -30,7 +30,7 @@ namespace eval ::stackato::validate::debug {
     namespace export default validate complete release levels
     namespace ensemble create
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::stackato::validate::common::expected
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::self
 }
 
@@ -42,7 +42,7 @@ proc ::stackato::validate::debug::complete {p x} {
 
 proc ::stackato::validate::debug::validate {p x} {
     if {$x in [levels]} { return $x }
-    expected $p DEBUG-LEVEL "debug level" $x
+    fail-unknown-thing $p DEBUG-LEVEL "debug level" $x
 }
 
 # # ## ### ##### ######## ############# #####################

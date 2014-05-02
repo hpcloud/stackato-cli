@@ -33,7 +33,7 @@ test create-domain-1.1 {create-domain, wrong args, too many} -constraints cfv2 -
     stage-close
 } -returnCodes error -match glob -result "wrong#args, too many*"
 
-test create-domain-1.2 {create-domain, not allowed for cfv1} -constraints cfv1 -setup {
+test create-domain-1.2.0 {create-domain, not allowed for cfv1} -constraints cfv1 -setup {
     stage-open
     ref-target
     go-admin
@@ -42,6 +42,16 @@ test create-domain-1.2 {create-domain, not allowed for cfv1} -constraints cfv1 -
 } -cleanup {
     stage-close
 } -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test create-domain-1.2.1 {create-domain, not allowed for S3.0} -constraints s30le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-domain clitestdomain
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
 
 test create-domain-1.3 {create-domain, login required} -constraints cfv2 -setup {
     stage-open
@@ -52,7 +62,7 @@ test create-domain-1.3 {create-domain, login required} -constraints cfv2 -setup 
     stage-close
 } -returnCodes error -result [login-required]
 
-test create-domain-1.4 {create-domain, bad domain format} -constraints cfv2 -setup {
+test create-domain-1.4 {create-domain, bad domain format} -constraints s32ge -setup {
     stage-open
     go-admin
     go-non-admin
@@ -64,7 +74,7 @@ test create-domain-1.4 {create-domain, bad domain format} -constraints cfv2 -set
     stage-close
 } -returnCodes error -result {Error 130001: The domain is invalid: name format (400)}
 
-test create-domain-1.5 {create-domain, non-admin login} -constraints cfv2 -setup {
+test create-domain-1.5 {create-domain, non-admin login} -constraints s32ge -setup {
     stage-open
     go-admin
     go-non-admin
@@ -77,7 +87,7 @@ test create-domain-1.5 {create-domain, non-admin login} -constraints cfv2 -setup
     stage-close
 } -result "Creating new domain clitestdomain.activestate.com (Owned by [theorg]) ... OK"
 
-test create-domain-1.6 {create-domain, persists} -constraints cfv2 -setup {
+test create-domain-1.6 {create-domain, persists} -constraints s32ge -setup {
     stage-open
     go-admin
 } -body {
@@ -88,7 +98,7 @@ test create-domain-1.6 {create-domain, persists} -constraints cfv2 -setup {
     stage-close
 } -match glob -result "*| clitestdomain.activestate.com *| [theorg] *| *|*"
 
-test create-domain-1.7 {create-domain, duplicate domains} -constraints cfv2 -setup {
+test create-domain-1.7 {create-domain, duplicate domains} -constraints s32ge -setup {
     stage-open
     go-admin
     run create-domain clitestdomain.activestate.com
@@ -99,7 +109,7 @@ test create-domain-1.7 {create-domain, duplicate domains} -constraints cfv2 -set
     stage-close
 } -returnCodes error -result {Error: Unable to create domain clitestdomain.activestate.com, it exists already.}
 
-test create-domain-1.8 {create-domain, shared} -constraints cfv2 -setup {
+test create-domain-1.8 {create-domain, shared} -constraints s32ge -setup {
     stage-open
     go-admin
 } -body {

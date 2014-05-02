@@ -1,16 +1,16 @@
 ============== Service Plans ================
 
-+------------+-------------------------------+----------+---------+------+---------+
-| Name       | Description                   | Provider | Version | Plan | Details |
-+------------+-------------------------------+----------+---------+------+---------+
-| filesystem | Persistent filesystem service | core     | * | free | free    |
-| harbor     | External port mapping service | core     | * | free | free    |
-| mongodb    | MongoDB NoSQL store           | core     | * | free | free    |
-| mysql      | MySQL database service        | core     | * | free | free    |
-| postgresql | PostgreSQL database service   | core     | * | free | free    |
-| rabbitmq   | RabbitMQ message queue        | core     | * | free | free    |
-| rabbitmq3  | RabbitMQ message queue        | core     | * | free | free    |
-| redis      | Redis key-value store service | core     | * | free | free    |
-+------------+-------------------------------+----------+---------+------+---------+
++----+------------+-------------------------------+----------+---------+------+---------+------+
+|    | Name       | Description                   | Provider | Version | Plan | Details | Orgs |
++----+------------+-------------------------------+----------+---------+------+---------+------+
+| FP | filesystem | Persistent filesystem service | core     | * | free | free    |      |
+| FP | harbor     | External port mapping service | core     | * | free | free    |      |
+| FP | mongodb    | MongoDB NoSQL store           | core     | * | free | free    |      |
+| FP | mysql      | MySQL database service        | core     | * | free | free    |      |
+| FP | postgresql | PostgreSQL database service   | core     | * | free | free    |      |
+| FP | rabbitmq   | RabbitMQ message queue        | core     | * | free | free    |      |
+| FP | rabbitmq3  | RabbitMQ message queue        | core     | * | free | free    |      |
+| FP | redis      | Redis key-value store service | core     | * | free | free    |      |
++----+------------+-------------------------------+----------+---------+------+---------+------+
 
 =========== Provisioned Services ============*

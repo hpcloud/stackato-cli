@@ -29,8 +29,8 @@ namespace eval ::stackato::validate::servicebroker {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -57,7 +57,7 @@ proc ::stackato::validate::servicebroker::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/servicebroker {FAIL}
-    expected $p SERVICEBROKER "service broker" $x
+    fail-unknown-thing $p SERVICEBROKER "service broker" $x
 }
 
 # # ## ### ##### ######## ############# #####################

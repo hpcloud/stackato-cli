@@ -1,12 +1,12 @@
-+------------+-------------------------------+----------+---------+------+---------+
-| Name       | Description                   | Provider | Version | Plan | Details |
-+------------+-------------------------------+----------+---------+------+---------+
-| filesystem | Persistent filesystem service | core     | 1.0     | free | free    |
-| harbor     | External port mapping service | core     | 1.0     | free | free    |
-| mongodb    | MongoDB NoSQL store           | core     | 2.4     | free | free    |
-| mysql      | MySQL database service        | core     | 5.5     | free | free    |
-| postgresql | PostgreSQL database service   | core     | 9.1     | free | free    |
-| rabbitmq   | RabbitMQ message queue        | core     | 2.8     | free | free    |
-| rabbitmq3  | RabbitMQ message queue        | core     | 3.1     | free | free    |
-| redis      | Redis key-value store service | core     | 2.8     | free | free    |
-+------------+-------------------------------+----------+---------+------+---------+
++----+------------+-------------------------------+----------+---------+------+---------+------+
+|    | Name       | Description                   | Provider | Version | Plan | Details | Orgs |
++----+------------+-------------------------------+----------+---------+------+---------+------+
+| FP | filesystem | Persistent filesystem service | core     | 1.0     | free | free    |      |
+| FP | harbor     | External port mapping service | core     | 1.0     | free | free    |      |
+| FP | mongodb    | MongoDB NoSQL store           | core     | 2.4     | free | free    |      |
+| FP | mysql      | MySQL database service        | core     | 5.5     | free | free    |      |
+| FP | postgresql | PostgreSQL database service   | core     | 9.1     | free | free    |      |
+| FP | rabbitmq   | RabbitMQ message queue        | core     | 2.8     | free | free    |      |
+| FP | rabbitmq3  | RabbitMQ message queue        | core     | 3.1     | free | free    |      |
+| FP | redis      | Redis key-value store service | core     | 2.8     | free | free    |      |
++----+------------+-------------------------------+----------+---------+------+---------+------+

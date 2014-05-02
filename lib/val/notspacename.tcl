@@ -31,10 +31,10 @@ namespace eval ::stackato::validate::notspacename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
 }
 
 proc ::stackato::validate::notspacename::default  {p}   { return {} }
@@ -63,7 +63,7 @@ proc ::stackato::validate::notspacename::validate {p x} {
     }
 
     debug.validate/notspacename {FAIL}
-    not $p NOTSPACENAME "space" $x " in organization '[$theorg @name]'"
+    fail-known-thing $p NOTSPACENAME "space" $x " in organization '[$theorg @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

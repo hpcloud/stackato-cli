@@ -40,7 +40,10 @@ test admin-report-1.2 {admin report, admin login required} -setup {
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Error 200: Operation not permitted (403)}
+} -returnCodes error -result \
+    [per-api \
+	 {Error 200: Operation not permitted (403)} \
+	 [not-authorized]]
 
 test admin-report-1.3 {admin report} -setup {
     stage-open
@@ -60,6 +63,17 @@ test admin-report-1.4 {admin report, generates a file} -setup {
 } -cleanup {
     stage-close
 } -result 1
+
+test admin-report-1.5 {admin report, file is proper gzipped tarball} -setup {
+    stage-open
+    go-admin
+} -body {
+    run admin report [thehome]/report
+    run-any tar tvfz [thehome]/report
+    # not gzipped tarball => stderr has output
+} -cleanup {
+    stage-close
+} -match glob -result *
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

@@ -198,9 +198,30 @@ proc ::stackato::cmd::domains::list {config} {
     # @all, @space
     # No arguments.
 
+    if {[$config @all]} {
+	set domains [v2 domain list 1 \
+			 include-relations owning_organization]
+    } else {
+	if {[package vsatisfies [[$config @client] server-version] 3.1]} {
+	    # 3.2+
+	    set domains [[corg get] @domains get* \
+			     {depth 1 include-relations owning_organization}]
+	    if {![$config @json]} {
+		display "Org [[corg get] @name]..."
+	    }
+	} else {
+	    # 3.0
+	    set domains [[cspace get] @domains get* \
+			     {depth 1 include-relations owning_organization}]
+	    if {![$config @json]} {
+		display "Space [[cspace get] @name]..."
+	    }
+	}
+    }
+
     if {[$config @json]} {
 	set tmp {}
-	foreach r [v2 domain list] {
+	foreach r $domains {
 	    lappend tmp [$r as-json]
 	}
 	display [json::write array {*}$tmp]
@@ -208,14 +229,6 @@ proc ::stackato::cmd::domains::list {config} {
     }
 
     [table::do t {Name Owner Shared} {
-	if {[$config @all]} {
-	    set domains [v2 domain list 1 \
-			    include-relations owning_organization]
-	} else {
-	    set domains [[cspace get] @domains get* \
-			     {depth 1 include-relations owning_organization}]
-	    display [[cspace get] @name]...
-	}
 	foreach domain [v2 sort @name $domains -dict] {
 	    if {[$domain @owning_organization defined?]} {
 		set owner  [$domain @owning_organization @name]

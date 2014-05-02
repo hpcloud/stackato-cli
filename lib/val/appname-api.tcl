@@ -31,11 +31,11 @@ namespace eval ::stackato::validate::appname-api {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::validate::common::nospace
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::appname-api::default  {p}   { return {} }
@@ -103,7 +103,7 @@ proc ::stackato::validate::appname-api::validate {p x} {
     }
 
     debug.validate/appname-api {FAIL}
-    expected $p APPNAME-API "application" $x
+    fail-unknown-thing $p APPNAME-API "application" $x
 }
 
 # # ## ### ##### ######## ############# #####################

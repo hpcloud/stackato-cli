@@ -43,7 +43,9 @@ namespace eval ::stackato::cmd::servicemgr {
 	list-instances list-plans show tunnel \
 	bind unbind clone create delete rename \
 	select-for-create select-for-delete \
-	select-for-change select-plan-for-create
+	select-for-change select-plan-for-create \
+	update-plan link-plan-org unlink-plan-org \
+	show-plan
     namespace ensemble create
 
     namespace import ::stackato::cmd::app
@@ -62,6 +64,185 @@ namespace eval ::stackato::cmd::servicemgr {
     namespace import ::stackato::v2
     namespace import ::stackato::validate::appname
     namespace import ::stackato::validate::servicetype
+
+    #   attr-config   attr-entity    label canbeempty
+    variable def {
+	@newname      @name          {name       } 0
+	@description  @description   {description} 1
+	@public       @public        {public     } 0
+	@free         @free          {free       } 0
+    }
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::show-plan {config} {
+    debug.cmd/servicemgr {}
+
+    set theplan [$config @name]
+
+    if {[$config @json]} {
+	display [$theplan as-json]
+	return
+    }
+
+    # Determine all linked orgs (= orgs the plan is visible in).
+    # code below can make use of.
+
+    set orgs [struct::list filter [v2 service_plan_visibility list] [lambda {p link} {
+	[$link @service_plan] == $p
+    } $theplan]]
+
+    display \n[$theplan name]
+    [table::do t {What Value} {
+
+	set kind [$theplan @service]
+	set p    [$kind @provider]
+	set v    [$kind @version]
+
+	$t add Type [$kind @label]
+
+	if {$p ne {}} { $t add Provider $p }
+	if {$v ne {}} { $t add Version  $v }
+
+	$t add "Description" [$theplan @description]
+	$t add "Free"        [$theplan @free]
+	$t add "Public"      [$theplan @public]
+	$t add {Visible In}  [join $orgs \n]
+
+    }] show display
+
+    debug.cmd/servicemgr {/done}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::update-plan {config} {
+    debug.cmd/servicemgr {}
+
+    # V2 only.
+    # client v2 = @name is service plan entity
+    variable def
+
+    set theplan [$config @name]
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
+
+    set changes 0
+
+    display "Updating service plan \[[$theplan name]\] ..."
+
+    set lines {}
+
+    foreach {attrc attre label canbeempty} $def {
+	if {![$config $attrc set?]} {
+	    # Fill per interaction.
+	    #$config $attrc interact "[string totitle [string trim $label]]: "
+	    # Note: Cmdr interact does not allow for a default.
+	    # More complicated by the fact that our defaults are dynamic.
+
+	    if {[$theplan $attre defined?]} {
+		set current [$theplan $attre]
+		set prompt  "[string totitle [string trim $label]] ($current): "
+		set new [term ask/string $prompt $current]
+		if {$new eq $current} continue
+	    } else {
+		set prompt  "[string totitle [string trim $label]]: "
+		set new [term ask/string $prompt]
+	    }
+
+	    $config $attrc set $new
+	}
+
+	set value [$config $attrc]
+	if {!$canbeempty && ($value eq {})} {
+	    err "An empty plan [string trim $label] is not allowed"
+	}
+
+	$theplan $attre set $value
+	lappend lines "  Changed $label to \"$value\""
+	incr changes
+    }
+
+    if {$changes} {
+	display [join $lines \n]
+	$theplan commit
+	display [color green OK]
+    } else {
+	display "No changes made."
+    }
+
+    debug.cmd/servicemgr {/done}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::link-plan-org {config} {
+    debug.cmd/servicemgr {}
+
+    set theplan [$config @name]
+    set theorg  [$config @organization]
+
+    # Print a warning when plan/org already bound together.
+    set msg "Making [$theplan name] visible to [$theorg @name] ..."
+
+    if {[llength [struct::list filter [v2 service_plan_visibility list] [lambda {p o link} {
+	expr {[[$link @service_plan] == $p] &&
+	      [[$link @organization] == $o]}
+    } $theplan $theorg]]]} {
+	display "${msg} SKIPPED (already done)"
+
+	debug.cmd/servicemgr {/skipped}
+	return
+    }
+
+    set link [v2 service_plan_visibility new]
+
+    $link @service_plan set $theplan
+    $link @organization set $theorg
+
+    display $msg false
+    $link commit
+    display [color green " OK"]
+
+    debug.cmd/servicemgr {/done}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::unlink-plan-org {config} {
+    debug.cmd/servicemgr {}
+
+    set theplan [$config @name]
+    set theorg  [$config @organization]
+
+    # Print a warning when plan/org not bound bound together.
+    set msg "Hiding [$theplan name] from [$theorg @name] ..."
+
+    set links [struct::list filter [v2 service_plan_visibility list] [lambda {p o link} {
+	expr {[[$link @service_plan] == $p] &&
+	      [[$link @organization] == $o]}
+    } $theplan $theorg]]
+
+    if {![llength $links]} {
+	display "$msg  SKIPPED (already hidden)"
+	debug.cmd/servicemgr {/skipped}
+	return 0
+    }
+
+    display $msg false
+    foreach link $links {
+	$link delete
+	$link commit
+    }
+
+    display [color green " OK"]
+    debug.cmd/servicemgr {/done}
+    return
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -73,7 +254,7 @@ proc ::stackato::cmd::servicemgr::list-plans {config} {
     # chosen depth delivers plans, services, and service instances.
     # include-relations drops the unwanted latter.
 
-    DisplayServicePlans $theplans no
+    DisplayServicePlans $config $theplans no
     return
 }
 
@@ -125,15 +306,24 @@ proc ::stackato::cmd::servicemgr::ListInstancesV2 {config client} {
 	return
     }
 
-    DisplayServicePlans          $supported
+    DisplayServicePlans          $config $supported
     DisplayProvisionedServicesV2 $provisioned
 
     debug.cmd/servicemgr {/done}
     return
 }
 
-proc ::stackato::cmd::servicemgr::DisplayServicePlans {theplans {header yes}} {
+proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header yes}} {
     debug.cmd/servicemgr {}
+
+    if {[$config @json]} {
+	set tmp {}
+	foreach s $theplans {
+	    lappend tmp [$s as-json]
+	}
+	display [json::write array {*}$tmp]
+	return
+    }
 
     if {$header} {
 	display "\n============== Service Plans ================\n"
@@ -143,6 +333,15 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {theplans {header yes}} {
 	debug.cmd/servicemgr {/done NONE}
 	return
     }
+
+
+    # Pull the plan <-> org linkage and convert into a map the table
+    # code below can make use of.
+    set vis {}
+    foreach link [v2 service_plan_visibility list] {
+	dict lappend vis [$link @service_plan] 	[$link @organization @name]
+    }
+
 
     # Extract the information we wish to show.
     # Having it in list form makes sorting easier, later.
@@ -155,20 +354,30 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {theplans {header yes}} {
 	# Do not show plans depending on inactive services.
 	if {![$service @active]} continue
 
+	# Permission bits (free, public).
+	set    bits {}
+	append bits [expr {[$plan @free]   ? "F" : "-"}]
+	append bits [expr {[$plan @public] ? "P" : "-"}]
+
+	set p [$service @provider]
+	set v [$service @version]
+
+	lappend details $bits
 	lappend details [$service @label]
 	lappend details [$service @description]
-	lappend details [$service @provider]
-	lappend details [$service @version]
+	lappend details $p
+	lappend details $v
 	lappend details [$plan    @name]
 	lappend details [$plan    @description]
+	lappend details [join [dict get' $vis $plan {}] \n]
 
 	lappend plans $details
 	unset details
     }
 
     # Now format and display the table
-    [table::do t {Name Description Provider Version Plan Details} {
-	foreach plan [lsort -dict $plans] {
+    [table::do t {{} Name Description Provider Version Plan Details Orgs} {
+	foreach plan [lsort -dict -index 1 [lsort -dict $plans]] {
 	    $t add {*}$plan
 	}
     }] show display
@@ -314,12 +523,15 @@ proc ::stackato::cmd::servicemgr::rename {config} {
     # V2 only.
     # client v2 = @service is entity instance
 
-    if {![$config @name set?]} {
-	$config notEnough
-    }
-
     set service [$config @service]
     set new     [$config @name]
+
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
+    if {$new eq {}} {
+	err "An empty service name is not allowed"
+    }
 
     display "Renaming service \[[$service @name]\] to $new ... " false
     $service @name set $new
@@ -648,31 +860,58 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 	}]} {
 	    $t add Type         user-provided
 	} else {
-	    set kind [$plan    @service]
+	    set kind [$plan @service]
+	    set p    [$kind @provider]
+	    set v    [$kind @version]
 
 	    $t add Type         [$kind @label]
-	    $t add Provider     [$kind @provider]
-	    $t add Version      [$kind @version]
-	    $t add Plan         [$plan @name]
-	    $t add Description  [$plan @description]
+
+	    if {$p ne {}} { $t add Provider $p }
+	    if {$v ne {}} { $t add Version  $v }
+
+	    $t add Plan            [$plan @name]
+	    $t add "- Description" [$plan @description]
+	    $t add "- Free"        [$plan @free]
+	    $t add "- Public"      [$plan @public]
 	    $t add Dashboard    [$service @dashboard_url]
 	}
 
-	$t add Space        [$service @space full-name]
+	$t add Space [$service @space full-name]
 
-	$t add {} {}
-	$t add Credentials
 	set creds [$service @credentials]
-	foreach k [lsort -dict [dict keys $creds]] {
-	    set vx [dict get $creds $k]
-	    if {$k in {created updated}} {
-		set vx [clock format $vx]
+	if {[dict size $creds]} {
+	    $t add Credentials {}
+	    foreach k [lsort -dict [dict keys $creds]] {
+		set vx [dict get $creds $k]
+		if {$k in {created updated}} {
+		    set vx [clock format $vx]
+		}
+		$t add " - $k" $vx
 	    }
-	    $t add "- $k" $vx
 	}
-	$t add {} {}
 
-	$t add Applications [join [lsort -dict [$service @service_bindings @app @name]] \n]
+	# Create data structure to map app name to credentials from binding.
+	set tmp {}
+	foreach binding [$service @service_bindings] {
+	    lappend tmp [list \
+			     [$binding @app @name] \
+			     [$binding @credentials]]
+	}
+
+	$t add Applications {}
+	foreach item [lsort -dict -index 0 $tmp] {
+	    lassign $item app creds
+
+	    $t add "- $app" {}
+	    foreach k [lsort -dict [dict keys $creds]] {
+		set vx [dict get $creds $k]
+		if {$k in {created updated}} {
+		    set vx [clock format $vx]
+		}
+		$t add "  - $k" $vx
+	    }
+	}
+
     }] show display
 
     debug.cmd/servicemgr {/done}

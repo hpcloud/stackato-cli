@@ -26,7 +26,7 @@ namespace eval ::stackato::mgr::logstream {
     namespace export start stop stop-m active \
 	set-use-c get-use-c set-use get-use \
 	needfast needslow isfast show1 tail \
-	new-entries no-new-entries
+	new-entries no-new-entries kill
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -57,6 +57,7 @@ proc ::stackato::mgr::logstream::stop-m {config theapp {mode any}} {
 proc ::stackato::mgr::logstream::start {config theapp {mode fast}} {
     variable active
     variable pid
+    variable client
 
     set client [$config @client]
     if {[$client isv2]} {
@@ -154,6 +155,34 @@ proc ::stackato::mgr::logstream::stop {config {mode any}} {
     }
 
     set pid {}
+    return
+}
+
+proc ::stackato::mgr::logstream::kill {} {
+    variable pid
+    variable active
+    variable client
+
+    if {$pid ne {}} {
+	variable stopdelay
+	# Wait for NNN millis without new log entries before actually
+	# stopping the log-stream and the command calling for it.
+	DelayForInactive $stopdelay
+
+	debug.mgr/logstream {kill pid = $pid}
+	# pid = handle of the currently running async log request.
+	#  or | handle of the timer delaying the next log request.
+	# Either must be canceled
+	if {[string match after* $pid]} {
+	    catch { after cancel $pid }
+	} else {
+	    catch { $client logs_cancel $pid }
+	}
+    }
+
+    set active 0
+    set pid {}
+    set client {}
     return
 }
 

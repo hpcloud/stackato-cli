@@ -31,10 +31,10 @@ namespace eval ::stackato::validate::spaceuuid {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
 }
 
 proc ::stackato::validate::spaceuuid::default  {p}   { return {} }
@@ -62,7 +62,7 @@ proc ::stackato::validate::spaceuuid::validate {p x} {
     }
 
     debug.validate/spaceuuid {FAIL}
-    expected $p SPACEUUID "space (uuid)" $x
+    fail-unknown-thing $p SPACEUUID "space (uuid)" $x
 }
 
 # # ## ### ##### ######## ############# #####################

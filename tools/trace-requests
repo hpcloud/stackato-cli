@@ -1,2 +1,2 @@
 #!/bin/bash
-grep -a 'GET\|PUT\|POST'
+grep -a 'GET\|PUT\|POST\|DELETE'

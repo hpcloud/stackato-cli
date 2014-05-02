@@ -1184,6 +1184,8 @@ oo::class create ::stackato::client {
     }
 
     method PEM {status data} {
+	lassign $data ctype data
+
 	try {
 	    set parsed [json::json2dict $data]
 	    if {($parsed ne {}) &&
@@ -1201,12 +1203,26 @@ oo::class create ::stackato::client {
                     return "Error $errcode: $desc"
                 }
 	    } else {
+		if {[string match *html*    $ctype] ||
+		    [string match *DOCTYPE* $data] ||
+		    [string match *html*    $data]} {
+		    # Error message is html dump.
+		    set data {<HTML dump elided>}
+		}
+
 		return "Error (HTTP $status): $data"
 	    }
 	} on error e {
 	    if {$data eq {}} {
 		return "Error ($status): No Response Received"
 	    } else {
+		if {[string match *html*    $ctype] ||
+		    [string match *DOCTYPE* $data] ||
+		    [string match *html*    $data]} {
+		    # Error message is html dump.
+		    set data {<HTML dump elided>}
+		}
+
 		#@todo: no trace => truncate
 		#return "Error (JSON $status): $e"
 		return "Error (JSON $status): $data"

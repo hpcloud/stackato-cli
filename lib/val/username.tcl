@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::username {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-unknown-thing
     namespace import ::stackato::mgr::client
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::expected
     namespace import ::stackato::v2
 }
 
@@ -82,7 +82,7 @@ proc ::stackato::validate::username::validate {p x} {
 	}
     }
     debug.validate/username {FAIL}
-    expected $p USERNAME "A user" $x
+    fail-unknown-thing $p USERNAME "A user" $x
 }
 
 # # ## ### ##### ######## ############# #####################

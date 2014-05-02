@@ -30,9 +30,9 @@ namespace eval ::stackato::validate::notorgname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
+    namespace import ::cmdr::validate::common::fail-known-thing
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
-    namespace import ::stackato::validate::common::not
 }
 
 proc ::stackato::validate::notorgname::default  {p}   { return {} }
@@ -60,7 +60,7 @@ proc ::stackato::validate::notorgname::validate {p x} {
     }
 
     debug.validate/notorgname {FAIL}
-    not $p NOTORGNAME "organization" $x
+    fail-known-thing $p NOTORGNAME "organization" $x
 }
 
 # # ## ### ##### ######## ############# #####################
