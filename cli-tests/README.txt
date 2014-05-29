@@ -1,19 +1,46 @@
-Using the cli-tests/ testsuite for the stackoto cli
-===================================================
+Using the "cli-tests/" testsuite for the stackoto cli
+=====================================================
 
 Dependencies
 ------------
 
 An ActiveTcl installation whose tclsh is in the PATH.
-The Tcl packages 'fileutil' and 'try', installable with teacup.
-(A run of "teacup update" after AT install might be easiest).
 
-The 'Kettle' package and application.
-More details about this in a separate section.
+The Tcl packages 'fileutil' and 'try', installable with teacup. A run
+of "teacup update" after AT install might be easiest.
+
+The 'Kettle' package and application, plus dependencies. More details
+about this in a moment, see the next section.
 
 Stackato, of course.
-The commands expect the 'stackato' cli in the PATH.
+The commands expect to find the "stackato" cli in the PATH.
 
+Kettle
+------
+
+Kettle is a package and application to ease the development of Tcl
+packages. Part of that is its ability to drive a tcltest based
+testsuite.
+
+The file "build.tcl" is the configuration file for Kettle, and
+"fake.tcl" the fake Tcl package through which we get the 'test'
+target.  See inside "run-tests.sh" for where this is used.
+
+To install Kettle go to
+
+	(main site)	https://core.tcl.tk/akupries/kettle/index
+or	(2dary site)	https://chiselapp.com/user/andreas_kupries/repository/Kettle/index
+
+and follow the instructions on
+
+	How To Get The Sources
+and	How To Build And Install The Packages
+
+found on these pages.
+
+Assuming that ActiveTcl is used as foundation I reiterate that using
+the command "teacup update" is the easiest way of getting all the
+necessary dependencies.
 
 Commands and Scripts
 --------------------
@@ -25,7 +52,8 @@ Commands and Scripts
 Configuration
 -------------
 
-The code of the testsuite has a number of configurable settings in the file
+The code of the testsuite has a number of configurable settings, all
+found in the file
 
 	tests/support/common.tcl
 
@@ -43,8 +71,8 @@ testsuite to generate things while it executes.
 The script "setup.sh" shows the variables of the first group again,
 and demonstrates how to set a target up with them.
 
-When overriding a variable (most often the target itself), do it in
-both scripts.
+When overriding a variable (most often the target itself), it should
+be done in both scripts.
 
 Performing tests
 ----------------
@@ -58,51 +86,17 @@ Performing tests
 
 (4) Run "run-tests.sh" to run the testsuite.
     The full testsuite can run for 1.5 to 2 hours.
+    This depends on the network and the speed of the target.
 
-The result of a testsuite run are files named X.*, like X.log,
-etc. These contain the results in details. During the run the
-testsuite shows only aggregate information per test-file (number of
-passed, skipped, failed, and total tests).
+    The results of a testsuite run are found in files named X.*, like
+    X.log, etc. These contain the results in details. During the run
+    the testsuite shows only aggregate information per test-file
+    (number of passed, skipped, failed, and total tests).
 
 (5) Run "cleanup-tests.sh" after each test run to remove the results
     and other leftover files.
 
     Save the results if they are needed elsewhere.
-
-Kettle
-------
-
-Kettle is a package an application to make dev of Tcl packages
-easier. Part of that is its ability to drive a tcltest based
-testsuite.
-
-Using this part of Kettle for the cli tests was easier than having to
-replicate all of that.
-
-The file "build.tcl" is the configuration file for Kettle, and
-"fake.tcl" the fake package through which we get the 'test' target.
-See inside "run-tests.sh" for where this is used.
-
-The easist way to get the Kettle sources is to copy the directory
-
-	NAS/andreask/Dev/Aside/Tools/Kettle/fetch
-
-to a temp directory of your choice.
-
-ATTENTION: Make sure to either *not* copy the file .fslckout, or to
-delete it after copying. Its presence will cause Kettle to look for
-the fossil SCM during installation, and the information inside the
-file (repository location) is wrong anyway after the copy, making it
-invalid twice over.
-
-To install it then run
-
-	   tclsh ./kettle -f ./build.tcl install
-
-from within that temp directory.
-
-The "tclsh" in the command above must be the tclsh from your
-installation of AT for the testsuite.
 
 Advanced use
 ------------
@@ -117,4 +111,3 @@ Most often used is something like
 This restricts the testsuite to execute only those tests whose names
 match the pattern, i.e. 'foo*'. This can of course be the exact name
 of a test as well.
-
