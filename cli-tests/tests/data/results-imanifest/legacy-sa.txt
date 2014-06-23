@@ -7,4 +7,6 @@ applications:
     memory: 256M
     name: node-env
     path: @APPDIR@
+    stackato:
+      force-war-unpacking: yes
     urls: []

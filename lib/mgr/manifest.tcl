@@ -18,6 +18,7 @@ package require stackato::validate::stackname
 package require stackato::yaml
 package require varsub ; # Utility package, local, variable extraction and resolution
 package require cmdr
+package require zipfile::decode 0.6 ;# want the iszip test command
 
 namespace eval ::stackato::mgr {
     namespace export manifest
@@ -51,11 +52,17 @@ namespace eval ::stackato::mgr::manifest {
     # theconfig:      A cmdr::config instance. Through this we can reach
     #                 all parameters. Saved during setup.
     #
-    # basepath:       Toplevel directory for the application sources.
+    # basepath:       Toplevel path for the application sources.
+    #                 While usually a directory it can be a file (.war, ...)
     #                 Usually the CWD, overridable via --path (config @path).
     #
+    # mbase:          Path of the manifest base directory. The same as
+    #                 basepath, if (and only if) the former is a
+    #                 directory. If the basepath refers a file then
+    #                 this uses the CWD instead.
+    #
     # rootfile:       Path of the main manifest file.
-    #                 Usually searched for relative to basepath and up.
+    #                 Usually searched for relative to mbase and up.
     #                 Overridable via --manifest (config @manifest).
     #
     # manifest:       In-memory representation of the manifest information.
@@ -755,8 +762,23 @@ proc ::stackato::mgr::manifest::path {} {
 	return $result
     } else {
 	variable basepath
-	return $basepath
+	return  $basepath
     }
+}
+
+proc ::stackato::mgr::manifest::force-war-unpacking {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    return [yaml dict get' $currentappinfo stackato force-war-unpacking {}]
+}
+
+proc ::stackato::mgr::manifest::mbase {} {
+    debug.mgr/manifest/core {}
+    variable mbase
+    return  $mbase
 }
 
 proc ::stackato::mgr::manifest::standalone {} {
@@ -981,16 +1003,9 @@ proc ::stackato::mgr::manifest::on_all_1plus {mode config cmd {revers 0}} {
     debug.mgr/manifest/core {manifest = ($oplist)}
 
     if {![llength $oplist]} {
-	if {![HasIt]} {
-	    display [color red "No application specified, and no manifest found."]
-	} else {
-	    display [color red "No application specified, and none found in the manifest \"[ItsLocation]\"."]
-	}
-
-	# Invoke help on the command in use.
-	[$config context root] do \
-	    help --full {*}[$config context get *prefix*]
-	err {} {}
+	# No manifest found, or manifest has no applications.
+	# Make a last-ditch attempt and ask (like get_single).
+	set oplist [list [askname]]
     }
 
     if {$revers} {
@@ -1208,8 +1223,8 @@ proc ::stackato::mgr::manifest::askname {} {
     debug.mgr/manifest/core {}
     Init
 
-    variable basepath
-    set maybe [file tail $basepath]
+    variable mbase
+    set maybe [file tail $mbase]
     if {[cmdr interactive?]} {
 	set proceed [term ask/yn \
 	 "Would you like to use '$maybe' as application name ? "]
@@ -1242,7 +1257,7 @@ proc ::stackato::mgr::manifest::currentInfo {dstfile version} {
 
     variable currentappinfo
     variable manifest
-    variable basepath
+    #variable basepath
 
     debug.mgr/manifest/core {currentInfo => $dstfile (version $version)}
     debug.mgr/manifest/core {=== APP INFO MANIFEST =====================}
@@ -1382,8 +1397,11 @@ proc ::stackato::mgr::manifest::select_apps {{panic 1}} {
 
     # This is where the app sources are. Usually the current working
     # directory. Can be specified with --path.
-    variable basepath
-    set where [file normalize $basepath]
+    #variable basepath
+    #set wbase $basepath
+    variable mbase
+    set wbase $mbase
+    set where [file normalize $wbase]
 
     debug.mgr/manifest/core {    where = $where}
 
@@ -1419,7 +1437,7 @@ proc ::stackato::mgr::manifest::select_apps {{panic 1}} {
     }
 
     if {$where ne [NormPath {}]} {
-	err "The path '$basepath' is not known to the manifest '$rootfile'."
+	err "The path '$wbase' is not known to the manifest '$rootfile'."
     }
 
     debug.mgr/manifest/core {/done (all ==> ($appnames)) }
@@ -1552,6 +1570,7 @@ proc ::stackato::mgr::manifest::reset {} {
     debug.mgr/manifest/core {}
     # Full reset of all state after a command has completed.
     variable basepath       ; unset -nocomplain basepath
+    variable mbase          ; unset -nocomplain mbase
     variable rootfile       ; unset -nocomplain rootfile
     variable manifest       ; unset -nocomplain manifest
     variable currentapp     ; unset -nocomplain currentapp
@@ -1586,6 +1605,18 @@ proc ::stackato::mgr::manifest::setup {path manifestfile {reset {}}} {
     debug.mgr/manifest/core {manifest setup ($path) ($manifestfile) /$reset}
 
     variable basepath [file normalize $path]
+    variable mbase    $basepath
+
+    if {[file isfile $mbase]} {
+	# Check that we got a zip file.
+	# Easier to validate separately here than writing a custom
+	# validation type accepting directories and zip files.
+
+	if {![zipfile::decode::iszip $mbase]} {
+	    err "Option --path expected a zip archive, got \"$path\""
+	}
+	set mbase [pwd]
+    }
 
     if {$reset ne {}} {
 	variable rootfile   ; unset -nocomplain rootfile
@@ -2102,15 +2133,15 @@ proc ::stackato::mgr::manifest::ResolveInContext {symbol context resultvar} {
 proc ::stackato::mgr::manifest::FindIt {} {
     debug.mgr/manifest/core {}
 
-    variable basepath
+    variable mbase
     variable rootfile
 
     if {[info exists rootfile]} {
 	debug.mgr/manifest/core {manifest file = ($rootfile) /cached}
 	return $rootfile
     }
-    if {(![FindStackato.yml $basepath rootfile]) &&
-	(![FindManifest.yml $basepath rootfile])} {
+    if {(![FindStackato.yml $mbase rootfile]) &&
+	(![FindManifest.yml $mbase rootfile])} {
 	set rootfile {}
 
 	debug.mgr/manifest/core {manifest file - nothing found}
@@ -2293,6 +2324,7 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 	min_version env ignores hooks cron requirements drain subdomain
 	command app-dir url urls depends-on buildpack stack host domain
 	placement-zone description autoscale sso-enabled timeout
+	force-war-unpacking
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2305,6 +2337,7 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 
 proc ::stackato::mgr::manifest::TransformASStackato {yml} {
     debug.mgr/manifest/core {}
+    set props {}
 
     # This code assumes that the input is the stackato.yml data for an
     # application and generates the canonical internal representation
@@ -2367,8 +2400,16 @@ proc ::stackato::mgr::manifest::TransformASStackato {yml} {
 	set value [TransformStackato $value]
     }
 
+    # Construct the final output in pieces ...
+    # applications tree always, properties tree only if needed.
+
+    dict set out applications [Cmapping $name [Cmapping {*}$value]]
+    if {[dict size $props]} {
+	dict set out properties [Cmapping {*}$props]
+    }
+
     # Treat the stackato data as an application under the given name.
-    return [Cmapping applications [Cmapping $name [Cmapping {*}$value]]]
+    return [Cmapping {*}$out]
 }
 
 proc ::stackato::mgr::manifest::TS_Framework {value} {
@@ -2518,7 +2559,7 @@ proc ::stackato::mgr::manifest::TS_Isolate {value} {
     foreach k {
 	processes min_version env ignores hooks cron
 	requirements drain placement-zone description
-	sso-enabled autoscale
+	sso-enabled autoscale force-war-unpacking
     } {
 	if {![dict exists $value $k]} continue
 
@@ -3006,6 +3047,21 @@ proc ::stackato::mgr::manifest::TG_LegacyWorker {name appdef} {
 	}
     }
 
+    if {$legacy} {
+	# General legacy application. Force the use of the old war
+	# file handling, as expected by the legacy buildpack.  Note
+	# that we have to check if the user specified a conflicting
+	# value, and throw an error if yes.
+
+	if {[yaml dict find $appdef value stackato force-war-unpacking]} {
+	    ValidateBoolean [Cscalar $value] "key \"stackato:force-war-unpacking\""
+	    if {!$value} {
+		Error "Legacy-based application needs force-war-unpacking, user-set value is in conflict."
+	    }
+	}
+	yaml dict set appdef stackato force-war-unpacking [Cscalar yes]
+    }
+
     debug.mgr/manifest/core {/done}
     return $appdef
 }
@@ -3171,6 +3227,7 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 		    placement-zone {
 			yaml tag! scalar $svalue "key \"$skey\""
 		    }
+		    force-war-unpacking -
 		    sso-enabled {
 			ValidateBoolean $svalue "key \"$skey\""
 		    }

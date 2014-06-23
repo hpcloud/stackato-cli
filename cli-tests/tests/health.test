@@ -24,7 +24,7 @@ test health-1.0 {health, undeployed application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 [unexpected input application application node-env] \
-	 [unexpected input application application node-env " in space '[thespace]'"]]
+	 [unexpected input application application node-env " in space '[theorg]::[thespace]'"]]
 
 test health-1.1 {health, no application} -setup {
     stage-open
@@ -33,17 +33,25 @@ test health-1.1 {health, no application} -setup {
     run health -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [no-application health]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application tests] \
+	 [unexpected input application application tests " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application health]
 
 test health-1.2 {health, no application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run health }
+    indir [appdir] { run health -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application health]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application health]
 
 # # ## ### ##### ######## ############# #####################
 

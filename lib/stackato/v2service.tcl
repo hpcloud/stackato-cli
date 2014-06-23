@@ -23,7 +23,7 @@ oo::class create ::stackato::v2::service {
     ## Life cycle
 
     constructor {{url {}}} {
-	my Attribute label        string
+	my Attribute label        !string
 	my Attribute provider     null|string
 	my Attribute url          url    ; # TODO validator
 	my Attribute description  string
@@ -43,6 +43,11 @@ oo::class create ::stackato::v2::service {
 	my SearchableOn service_plan
 
 	next $url
+    }
+
+    method purge! {} {
+	my delete purge true
+	my commit
     }
 
     forward @name my @label

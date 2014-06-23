@@ -32,6 +32,7 @@ for i in \
     autoproxy \
     base64 \
     cmdline \
+    clock::iso8601 \
     cmdr \
     cmdr::actor \
     cmdr::config \
@@ -39,8 +40,10 @@ for i in \
     cmdr::help::json \
     cmdr::history \
     cmdr::officer \
+    cmdr::pager \
     cmdr::parameter \
     cmdr::private \
+    cmdr::tty \
     cmdr::util \
     cmdr::validate \
     cmdr::validate::common \
@@ -88,6 +91,7 @@ for i in \
     tls \
     uri \
     uuid \
+    websocket \
     zipfile::decode \
     zipfile::encode \
     zlibtcl

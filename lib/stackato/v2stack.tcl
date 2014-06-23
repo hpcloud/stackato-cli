@@ -23,7 +23,7 @@ oo::class create ::stackato::v2::stack {
     ## Life cycle
 
     constructor {{url {}}} {
-	my Attribute name        string
+	my Attribute name        !string
 	my Attribute description string
 
 	next $url

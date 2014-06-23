@@ -71,11 +71,18 @@ proc ::stackato::validate::username-org::validate {p x} {
     }
 
     # Last attempt, try the global information
-    if {![catch {
+    try {
 	set x [v2 user find-by-name $x]
-    } e o]} {
+    } trap {STACKATO CLIENT V2 AUTHERROR}   {e o} - \
+      trap {STACKATO CLIENT V2 TARGETERROR} {e o} {
+	debug.validate/username-org {FAIL, permission denied}
+	# rethrow
+	return {*}$o $e
+    } on ok {e o} {
 	debug.validate/username-org {OK/canon/global = $x}
 	return $x
+    } on error {e o} {
+	# capture and pass
     }
 
     debug.validate/username-org {FAIL}

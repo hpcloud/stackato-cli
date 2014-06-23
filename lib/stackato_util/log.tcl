@@ -7,10 +7,11 @@
 # # ## ### ##### ######## ############# #####################
 
 package require Tcl 8.5
-package require textutil::adjust
-package require linenoise
-package require tty
+package require clock::iso8601
+package require cmdr::tty
 package require debug
+package require linenoise
+package require textutil::adjust
 
 debug level  log
 debug prefix log {[debug caller] | }
@@ -71,7 +72,7 @@ proc ::stackato::log::wrapl {text {down 0}} {
 proc ::stackato::log::to {chan} {
     debug.log {}
     variable log $chan
-    if {($chan ne "stdout") || ![tty stdout]} {
+    if {($chan ne "stdout") || ![cmdr tty stdout]} {
 	# No feedback when not logging to stdout,
 	# or stdout is not a tty.
 	variable feedback 0
@@ -221,12 +222,45 @@ proc ::stackato::log::psz {size {prec 1}} {
     return [format "%.${prec}f" $size]G
 }
 
+proc ::stackato::log::pretty-since {x} {
+    if {$x <=       0} { return "just now" }
+    if {$x <=       1} { return "a second ago" }
+    if {$x <=      59} { return "$x seconds ago" }
+    if {$x <=     119} { return "a minute ago" }
+    if {$x <=    3540} { return "[expr {int($x/60)}] minutes ago" }
+    if {$x <=    7100} { return "an hour ago" }
+    if {$x <=   82800} { return "[expr {int(($x+99)/3600)}] hours ago" }
+    if {$x <=  172000} { return "a day ago" }
+    if {$x <=  518400} { return "[expr {int(($x+800)/86400)}] days ago" }
+    if {$x <= 1036800} { return "a week ago" }
+    return "[expr {int((a+180000)/604800)}] weeks ago"
+
+    # Notes on the various constants:
+    #    120 = 2 minutes |
+    #   3600 = 1 hour    |   3540  = 1h - 1m
+    #  86400 = 1 day     |   82800 = 1d - 1h
+    # 604800 = 1 week    |  518400 = 1w - 1d
+    #                    | 1036800 = 1w + 5d
+    #
+    #     99 = 1m 39s
+    #    800 = 13m 20s
+    # 180000 = 2d 2h
+}
+
+proc ::stackato::log::since {x} {
+    expr {[clock seconds] - $x}
+}
+
+proc ::stackato::log::epoch-of {x} {
+    return [clock::iso8601::parse_time $x]
+}
+
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::log {
     namespace export say say! header banner display clear err quit \
 	uptime psz to defined again+ clearlast wrap wrapl feedback \
-	warn
+	warn pretty-since since epoch-of
     namespace ensemble create
 
     variable feedback 1

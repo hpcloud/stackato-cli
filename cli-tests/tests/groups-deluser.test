@@ -55,7 +55,7 @@ test groups-delete-user-1.4 {groups delete-user, admin login required} -constrai
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Error 200: Operation not permitted}
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
 
 test groups-delete-user-1.5 {groups delete-user, bogus group} -constraints cfv1 -setup {
     stage-open
@@ -63,7 +63,7 @@ test groups-delete-user-1.5 {groups delete-user, bogus group} -constraints cfv1 
 } -body {
     run groups delete-user test-group grouper@test
     stage-close
-} -returnCodes error -result {Error 100: Bad request}
+} -returnCodes error -result {Error 100: Bad request (400)}
 
 test groups-delete-user-1.6 {groups delete-user, bogus user} -constraints cfv1 -setup {
     stage-open
@@ -74,7 +74,7 @@ test groups-delete-user-1.6 {groups delete-user, bogus user} -constraints cfv1 -
 } -cleanup {
     run groups delete test-group
     stage-close
-} -returnCodes error -result {Error 100: Bad request}
+} -returnCodes error -result {Error 100: Bad request (400)}
 
 test groups-delete-user-1.7 {groups delete-user} -constraints cfv1 -setup {
     stage-open

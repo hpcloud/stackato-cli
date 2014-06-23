@@ -44,7 +44,7 @@ test unbind-service-1.2 {unbind-service, no application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to unbind-service.} \
-	 [unexpected input service {service instance} S " in space '[thespace]'"]]
+	 [unexpected input service {service instance} S " in space '[theorg]::[thespace]'"]]
 
 test unbind-service-1.3.1 {unbind-service, non-admin login is ok} -constraints cfv1 -setup {
     stage-open

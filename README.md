@@ -15,7 +15,7 @@ Prerequisites
 
   * (UNIX-only) run ``tools/depends.sh`` to automatically install the
     below list of packages.
-  
+
   * run the command ``INSTALLDIR/bin/teacup update`` to get and
     install _all_ packages provided by ActiveState's TEApot repository
     for your platform.

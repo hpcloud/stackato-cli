@@ -64,11 +64,18 @@ proc ::stackato::validate::username::validate {p x} {
     if {[$c isv2]} {
 	debug.validate/username {/v2}
 
-	if {![catch {
+	try {
 	    set x [v2 user find-by-name $x]
-	}]} {
+	} trap {STACKATO CLIENT V2 AUTHERROR}   {e o} - \
+	  trap {STACKATO CLIENT V2 TARGETERROR} {e o} {
+	    debug.validate/username {FAIL, permission denied}
+	    # rethrow
+	    return {*}$o $e
+	} on ok {e o} {
 	    debug.validate/username {OK/canon = $x}
 	    return $x
+	} on error {e o} {
+	    # capture and pass
 	}
     } else {
 	debug.validate/username {/v1}

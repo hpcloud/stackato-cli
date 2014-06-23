@@ -62,7 +62,7 @@ namespace eval ::stackato::cmd::app {
 	securesh dbshell open_browser env_list env_add env_delete \
 	drain_add drain_delete drain_list rename map-urls \
 	check-app-for-restart upload-files the-upload-manifest \
-	list-events start-single
+	list-events start-single activate
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -722,6 +722,27 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::app::activate {config} {
+    debug.cmd/app {}
+    manifest user_1app each $config ::stackato::cmd::app::Activate
+    return
+}
+
+proc ::stackato::cmd::app::Activate {config theapp} {
+    # Support for versioning is checked in the 'appversion' validation
+    # type used for the @version validation.
+
+    set theversion [$config @version]
+    set codeonly   [$config @code-only]
+
+    display "Switching to version [$theversion name] of [$theapp @name] ..." false
+    $theversion activate $codeonly
+    display [color green OK]
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::app::stop {config} {
     debug.cmd/app {}
     manifest user_all each $config ::stackato::cmd::app::stop1 1
@@ -914,6 +935,8 @@ proc ::stackato::cmd::app::LogsStream {config theapp} {
     # Convert the external config object into the dictionary expected
     # by the manager.
 
+    # See also ::stackato::mgr::logstream::start (consolidate)
+    dict set mconfig _config   $config
     dict set mconfig client    [$config @client]
     dict set mconfig json      [$config @json]
     dict set mconfig nosts     [$config @no-timestamps]
@@ -1334,7 +1357,7 @@ proc ::stackato::cmd::app::Map1 {config appname} {
 	debug.cmd/app {+ url = $url}
 	dict lappend app uris $url
 
-	display "  Map $url"
+	display "  Map https://$url"
     }
 
     display "Commit ..."
@@ -3249,6 +3272,9 @@ proc ::stackato::cmd::app::ExecSetupSingle {config appname} {
 
     manifest current= $appname yes ; #Ye inside
 
+    # See also AppName for the situation where we are creating an app
+    # without manifest.
+    #
     # Check if application to use on target differs from the
     # application selected in the manifest. If yes, tweak the
     # in-memory manifest to match.
@@ -3307,7 +3333,7 @@ proc ::stackato::cmd::app::Push {config appname {interact 0}} {
     client check-app-limit $client
 
     set theapp [Create $interact $starting 1 $config $appname]
-    # Note: defersd set! We have to create services and drains
+    # Note: defered set! We have to create services and drains
     # after Regen below, to get any name changes into them.
     # v1: app name, v2: app instance
 
@@ -3495,7 +3521,7 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 
     # Read/... See caller.
     set cmd [expr {$sync ? "Syncing" : "Comparing"}]
-    display "$cmd application \[$appname\] to \[[ctarget get]\] ... "
+    display "$cmd Application \[$appname\] to \[[ctarget get]\] ... "
 
     # Now the local information.
     set m [ManifestOfAppV1 0 $config $appname [manifest path]]
@@ -3812,8 +3838,8 @@ proc ::stackato::cmd::app::SaveManifestInitial {config {mode full}} {
 
     # Saving a manifest may happen when there is no manifest present yet.
     if {$dst eq {}} {
-	debug.cmd/app {Falling back to @path}
-	set dst [$config @path]/stackato.yml
+	debug.cmd/app {Falling back to manifest base}
+	set dst [manifest mbase]/stackato.yml
     }
 
     debug.cmd/app {dst = $dst}
@@ -3905,7 +3931,7 @@ proc ::stackato::cmd::app::AppPath {config} {
     debug.cmd/app {}
 
     # Can't ask user, or --path was specified anyway.
-    if {![cmdr interactive?]}       return
+    if {![cmdr interactive?]} return
     if {[$config @path set?]} return
 
     set proceed \
@@ -3933,9 +3959,19 @@ proc ::stackato::cmd::app::AppName {config} {
 
     set client  [$config @client]
 
-    # (3) May ask the user, use deployment path as default ...
+    # See also ExecSetupSingle. This is similar, except we have no
+    # manifest. The default appname would come out of fallbacks, like
+    # the directory name, or from the user. The --as option can
+    # preempt this.
+    if {[$config @as set?]} {
+	debug.cmd/app {rename: ([$config @as])}
 
-    set appname [manifest askname]
+	set appname [$config @as]
+    } else {
+	# (3) May ask the user, use deployment path as default ...
+
+	set appname [manifest askname]
+    }
 
     # Fail without or bad name
     if {$appname eq {}} {
@@ -4950,78 +4986,21 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
     # TODO/FUTURE: See if we can consolidate and refactor here and
     # there.
 
-    # All service types, plus associated plans.
-    set services [v2 service list 1]
-
-    debug.cmd/app {services/all      = <[llength $services]>=($services)}
-
-    # Drop inactive service types
-    set services [struct::list filter $services [lambda {s} {
-	$s @active
-    }]]
-    debug.cmd/app {services/active   = <[llength $services]>=($services)}
-
-    # Restrict by label.
-    if {[llength $services]} {
-	#checker -scope line exclude badOption
-	set label [dict get' $spec label [dict get' $spec type [dict get' $spec vendor {}]]]
-	debug.cmd/app {select label = ($label)}
-
-	set services [struct::list filter $services [lambda {p s} {
-	    debug.cmd/app {    Match $p == ($s [$s @label]) --> [string equal $p [$s @label]]}
-
-	    string equal $p [$s @label]
-	} $label]]
-    }
-
-    debug.cmd/app {services/*label   = <[llength $services]>=($services)}
-
-    # Restrict by version, if specified
-    if {[llength $services] && [dict exists $spec version]} {
-	set version [dict get $spec version]
-	debug.cmd/app {select version = ($version)}
-
-	set services [struct::list filter $services [lambda {p s} {
-	    debug.cmd/app {    Match $p ($s [$s @version]) --> [string equal $p [$s @version]]}
-	    string equal $p [$s @version]
-	} $version]]
-    }
-
-    debug.cmd/app {services/version  = <[llength $services]>=($services)}
-
-    # Restrict by provider, default to 'core'.
-    if {[llength $services]} {
-	#checker -scope line exclude badOption
-	set provider [dict get' $spec provider core]
-
-	debug.cmd/app {select provider = ($provider)}
-
-	set services [struct::list filter $services [lambda {p s} {
-	    debug.cmd/app {    Match $p ($s [$s @provider]) --> [string equal $p [$s @provider]]}
-	    string equal $p [$s @provider]
-	} $provider]]
-    }
-
-    debug.cmd/app {services/provider = <[llength $services]>=($services)}
-
-    # Find plans, default to 'free'. (cf difference, cf uses D100).
-    set plans {}
-    if {[llength $services]} {
-	set plan [dict get' $spec plan free]
-
-	debug.cmd/app {select plan = ($plan)}
-
-	foreach s $services {
-	    lappend plans {*}[$s @service_plans filter-by @name $plan]
-	}
-    }
+    # All service types, plus associated plans, through a chain of
+    # filters and transformers.
+    set services [LS2_All]
+    set services [LS2_Active         $services]
+    set services [LS2_Label    $spec $services]
+    set services [LS2_Version  $spec $services]
+    set services [LS2_Provider $spec $services]
+    set plans    [LS2_ToPlans        $services]
+    set plans    [LS2_Plan     $spec $plans]
 
     # Reject specification if ambiguous, or not matching anything.
     set n [llength $plans]
     if {!$n} {
 	err "Unable to locate service plan matching [jmap map dict $spec]"
-    }
-    if {$n > 1} {
+    } elseif {$n > 1} {
 	err "Found $n plans matching [jmap map dict $spec], unable to choose."
     }
 
@@ -5030,6 +5009,155 @@ proc ::stackato::cmd::app::LocateService2 {client spec} {
 
     debug.cmd/app {plan = ($plan)}
     return $plan
+}
+
+proc ::stackato::cmd::app::LS2_All {} {
+    debug.cmd/app {}
+    set services [v2 service list 1]
+
+    debug.cmd/app {==> <[llength $services]>=($services)}
+    return $services
+}
+
+proc ::stackato::cmd::app::LS2_Active {services} {
+    debug.cmd/app {}
+    if {![llength $services]} { return $services }
+
+    # Drop inactive service types
+    set services [MatchTrue $services @active]
+
+    debug.cmd/app {==> <[llength $services]>=($services)}
+    return $services
+}
+
+proc ::stackato::cmd::app::LS2_Label {spec services} {
+    debug.cmd/app {}
+    if {![llength $services]} { return $services }
+
+    #checker -scope line exclude badOption
+    set label [dict get' $spec label \
+		   [dict get' $spec type \
+			[dict get' $spec vendor \
+			     {}]]]
+
+    debug.cmd/app {match ($label)}
+    set services [Match= $services @label $label]
+
+    debug.cmd/app {==> <[llength $services]>=($services)}
+    return $services
+}
+
+proc ::stackato::cmd::app::LS2_Version {spec services} {
+    debug.cmd/app {}
+    if {![llength $services]} { return $services }
+
+    # Not specified, ignore as filter.
+    if {![dict exists $spec version]} { return $services }
+
+    set version [dict get $spec version]
+
+    debug.cmd/app {match ($version)}
+    set services [Match= $services @version $version]
+
+    debug.cmd/app {==> <[llength $services]>=($services)}
+    return $services
+}
+
+proc ::stackato::cmd::app::LS2_Provider {spec services} {
+    debug.cmd/app {}
+    if {![llength $services]} { return $services }
+
+    # Specified ?
+    #   Match exactly that.
+    # Not specified ?
+    #   Match for 'core', then for empty string
+    #   The second is required because "provider"
+    #   essentially gone for V2 services.
+
+    if {![dict exists $spec provider]} {
+	foreach provider {core {}} {
+	    debug.cmd/app {match ($provider)}
+	    set sx [Match= $services @provider $provider]
+	    debug.cmd/app {matched [llength $sx]}
+	    if {[llength $sx]} break
+	}
+	set services $sx
+
+    } else {
+	set provider [dict get $spec provider]
+
+	debug.cmd/app {match ($provider)}
+	set services [Match= $services @provider $provider]
+    }
+
+    debug.cmd/app {==> <[llength $services]>=($services)}
+    return $services
+}
+
+proc ::stackato::cmd::app::LS2_ToPlans {services} {
+    debug.cmd/app {}
+    if {![llength $services]} { return {} }
+
+    foreach s $services {
+	lappend plans {*}[$s @service_plans]
+    }
+
+    debug.cmd/app {==> <[llength $plans]>=($plans)}
+    return $plans
+}
+
+proc ::stackato::cmd::app::LS2_Plan {spec plans} {
+    debug.cmd/app {}
+    if {![llength $plans]} { return $plans }
+
+    # Specified ?
+    #   Match exactly that.
+    # Not specified ?
+
+    #   Match for 'default', then for 'free', then for any singlet
+    #   plan. This is all restricted to free plans however, to avoid
+    #   costing the user money on a paid plan by accident.
+
+    if {![dict exists $spec plan]} {
+	set plans [MatchTrue $plans @free]
+
+	foreach plan {default free} {
+	    debug.cmd/app {match ($plan)}
+	    set px [Match= $plans @name $plan]
+	    debug.cmd/app {matched [llength $px]}
+	    if {[llength $px]} break
+	}
+	if {![llength $px]} {
+	    if {[llength $plans] == 1} {
+		debug.cmd/app {matched singlet, any name}
+		set px $plans
+	    }
+	}
+	set plans $px
+
+    } else {
+	set plan [dict get $spec plan]
+
+	debug.cmd/app {match ($plan)}
+	set plans [Match= $plans @name $plan]
+    }
+
+    debug.cmd/app {==> <[llength $plans]>=($plans)}
+    return $plans
+}
+
+proc ::stackato::cmd::app::Match= {objlist field pattern} {
+    debug.cmd/app {}
+    return [struct::list filter $objlist [lambda {field pattern obj} {
+	string equal $pattern [$obj $field]
+    } $field $pattern]]
+}
+
+proc ::stackato::cmd::app::MatchTrue {objlist field} {
+    debug.cmd/app {}
+    return [struct::list filter $objlist [lambda {field obj} {
+	$obj $field
+    } $field]]
 }
 
 proc ::stackato::cmd::app::GetCredentials {client theservice} {
@@ -5491,7 +5619,7 @@ proc ::stackato::cmd::app::CheckDeployDirectory {path} {
 	    # Note: glob finds . and ..
 	    err {Deployment path is an empty directory}
 	}
-    }
+    } ;# else: A file is acceptable. TODO: Check that it is a zip archive?!
 
     set path   [file nativename [file normalize $path]]
     set tmpdir [file nativename [file normalize [fileutil::tempdir]]]
@@ -6515,77 +6643,13 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	file delete -force $upload_file
 	file delete -force $explode_dir  # Make sure we didn't have anything left over..
 
-	set ignorepatterns [TranslateIgnorePatterns $ignorepatterns]
-
 	if {[file isfile $path]} {
-	    # (**) Application is single file ...
-	    if {[file extension $path] eq ".ear"} {
-		# It is an EAR file, we do not want to unpack it
-		file mkdir $explode_dir
-		file copy $path $explode_dir
-	    } elseif {[file extension $path] in {.war .zip}} {
-		# Its an archive, unpack to treat as app directory.
-		zipfile::decode::unzipfile $path $explode_dir
-	    } else {
-		# Plain file, just treat it as the single file in
-		# an otherwise regular application directory.
-		# We normalize the file to avoid accidentially
-		# copying a soft-link as is.
-
-		file mkdir                            $explode_dir
-		file copy [misc full-normalize $path] $explode_dir
-	    }
+	    FileToExplode $explode_dir $path
 	} else {
-	    # (xx) Application is specified through its directory
-	    # and files therein. If a .ear file is found we do not unpack
-	    # it as it is hard to pack. If a .war file is found treat
-	    # that as the app, and nothing else.  In case of
-	    # multiple .war/.ear files one is chosen semi-random.
-	    # Don't do something like that. Better specify it as
-	    # full file, to invoke the treatment at (**) above.
-	    
+	    set ignorepatterns [TranslateIgnorePatterns $ignorepatterns]
+
 	    cd::indir $path {
-		set warfiles [glob -nocomplain *.war]
-		set war_file [lindex $warfiles 0]
-		set earfiles [glob -nocomplain *.ear]
-		set ear_file [lindex $earfiles 0]
-
-		# Stage the app appropriately and do the appropriate
-		# fingerprinting, etc.
-		if {$ear_file ne {}} {
-		    # It is an EAR file, we do not want to unpack it
-		    file mkdir $explode_dir
-		    file copy $ear_file  $explode_dir
-		} elseif {$war_file ne {}} {
-		    # Its an archive, unpack to treat as app directory.
-		    if {[file isdirectory $war_file]} {
-			# Actually its a directory, plain copy is good enough.
-			cd::indir $war_file {
-			    MakeACopy $explode_dir [pwd] {}
-			}
-		    } else {
-			zipfile::decode::unzipfile $war_file $explode_dir
-		    }
-		} else {
-		    if {!$copyunsafe} {
-			set outside [GetUnreachableLinks [pwd] $ignorepatterns]
-
-			if {[llength $outside]} {
-			    set msg "Can't deploy application containing the "
-
-			    if {[llength $outside] == 1} {
-				append msg "link\n\t'[lindex $outside 0]'\nthat reaches "
-			    } else {
-				append msg "links\n\t'[join $outside '\n\t']'\nthat reach "
-			    }
-			    append msg "outside its root directory\n\t'[pwd]'\n"
-			    append msg "Use --copy-unsafe-links to force copying the above files or directories."
-			    err $msg
-			}
-		    }
-
-		    MakeACopy $explode_dir [pwd] $ignorepatterns
-		}
+		DirToExplode $config $explode_dir $copyunsafe $ignorepatterns
 	    }
 	}
 	
@@ -6633,7 +6697,7 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	    display "  Saving zip for inspection, at $keep ... "
 
 	    file mkdir [file dirname $keep]
-	    file copy $upload_file $keep
+	    file copy -force $upload_file $keep
 	}
 
 	set upload_str "  Uploading ($upload_size) ... "
@@ -6678,6 +6742,115 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	if {$explode_dir ne {}} { catch { file delete -force $explode_dir } }
     }
 
+    return
+}
+
+proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
+    debug.cmd/app {}
+
+    # (**) Application is single file ...
+    if {[file extension $path] eq ".ear"} {
+	# It is an EAR file, we do not want to unpack it
+	file mkdir $explode_dir
+	file copy $path $explode_dir
+
+    } elseif {[file extension $path] in {.war .zip}} {
+	# Its an archive, unpack to treat as app directory.
+	zipfile::decode::unzipfile $path $explode_dir
+
+    } else {
+	# Plain file, just treat it as the single file in an otherwise
+	# regular application directory.  We normalize the file to
+	# avoid accidentially copying a soft-link as is.
+
+	file mkdir                            $explode_dir
+	file copy [misc full-normalize $path] $explode_dir
+    }
+    return
+}
+
+proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepatterns} {
+    debug.cmd/app {}
+
+    # (xx) Application is specified through its directory and files
+    # therein. If a .ear file is found we do not unpack it as it is
+    # hard to pack. If a .war file is found treat that as the app, and
+    # nothing else.  In case of multiple .war/.ear files one is chosen
+    # semi-random.  Don't do something like that. Better specify it as
+    # full file, to invoke the treatment at (**) above.
+
+    # Stage the app appropriately and do the appropriate
+    # fingerprinting, etc.
+
+    set client [$config @client]
+
+    if {[$config @force-war-unpacking set?]} {
+	set special [$config @force-war-unpacking]
+    } elseif {[manifest force-war-unpacking] ne {}} {
+	set special [manifest force-war-unpacking]
+    } else {
+	set special [expr {![$client isv2]}]
+    }
+
+    debug.cmd/app {special ear/war - by option   = [expr {[$config @force-war-unpacking set?] ? [$config @force-war-unpacking] : "n/a" }]}
+    debug.cmd/app {special ear/war - by manifest = [expr {[manifest force-war-unpacking] ne {} ? [manifest force-war-unpacking] : "n/a" }]}
+    debug.cmd/app {special ear/war - by API v1   = [expr {![$client isv2]}]}
+
+    if {$special} {
+	debug.cmd/app {special ear/war handling}
+	# Special handling of ear/war files.
+
+	set warfiles [glob -nocomplain *.war]
+	set war_file [lindex $warfiles 0]
+	set earfiles [glob -nocomplain *.ear]
+	set ear_file [lindex $earfiles 0]
+
+	if {$ear_file ne {}} {
+	    debug.cmd/app {ear-file found = $ear_file}
+	    # It is an EAR file, we do not want to unpack it
+	    file mkdir $explode_dir
+	    file copy $ear_file  $explode_dir
+	    return
+	}
+
+	if {$war_file ne {}} {
+	    debug.cmd/app {war-file found = $war_file}
+	    # Its an archive, unpack to treat as app directory.
+	    if {[file isdirectory $war_file]} {
+		# Actually its a directory, plain copy is good enough.
+		cd::indir $war_file {
+		    MakeACopy $explode_dir [pwd] {}
+		}
+	    } else {
+		zipfile::decode::unzipfile $war_file $explode_dir
+	    }
+	    return
+	}
+
+	# No ear/war files, fall back to regular operation.
+    }
+
+    if {!$copyunsafe} {
+	debug.cmd/app {check for unsafe links}
+	set outside [GetUnreachableLinks [pwd] $ignorepatterns]
+
+	if {[llength $outside]} {
+	    debug.cmd/app {have unsafe links, bail}
+	    set msg "Can't deploy application containing the "
+
+	    if {[llength $outside] == 1} {
+		append msg "link\n\t'[lindex $outside 0]'\nthat reaches "
+	    } else {
+		append msg "links\n\t'[join $outside '\n\t']'\nthat reach "
+	    }
+	    append msg "outside its root directory\n\t'[pwd]'\n"
+	    append msg "Use --copy-unsafe-links to force copying the above files or directories."
+	    err $msg
+	}
+    }
+
+    debug.cmd/app {safe the app directory for processing}
+    MakeACopy $explode_dir [pwd] $ignorepatterns
     return
 }
 

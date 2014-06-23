@@ -28,8 +28,8 @@ test push-1.1.1 {push, empty application} -constraints cfv1 -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result \
-    {Error: The framework [standalone] needs a non-empty start command. Please add a "command" key to your stackato.yml}
+} -returnCodes error -match glob -result \
+    {Error: The framework \[standalone\] needs a non-empty start command.*Please add a "command" key to your stackato.yml}
 
 test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
     stage-open

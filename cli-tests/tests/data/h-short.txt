@@ -47,6 +47,10 @@ stackato apps [OPTIONS]
 stackato bind-service [OPTIONS] [<service>] [<application>]
     Bind the named service to the specified application.
 
+stackato buildpacks [OPTIONS]
+    Show all build-packs known to the target, in the order they are checked in
+    during auto-detection.
+
 stackato clone-services [OPTIONS] <source> <application>
     Copy the service bindings of the source application to the destination
     application.
@@ -59,6 +63,9 @@ stackato crashlogs [OPTIONS] [<application>]
 
 stackato create-app [OPTIONS] [<application>]
     Create an empty application with the specified configuration.
+
+stackato create-buildpack [OPTIONS] <name> <zip>
+    Add a build-pack to the target.
 
 stackato create-domain [OPTIONS] <name>
     Create a new domain. This is a Stackato 3.2+ specific command.
@@ -89,6 +96,9 @@ stackato dbshell [OPTIONS] [<application>] [<service>]
 
 stackato delete [OPTIONS] [<application>...]
     Delete the specified application(s).
+
+stackato delete-buildpack [OPTIONS] [<name>]
+    Remove the specified build-back from the target.
 
 stackato delete-domain [OPTIONS] <name>
     Delete the named domain. This is a Stackato 3.2+ specific command.
@@ -162,10 +172,14 @@ stackato exit [OPTIONS]
     Exit the shell. No-op if not in a shell.
 
 stackato file [OPTIONS] <application> [<path>]
-    Display directory listing or file.
+    Display directory listing or file. Relative paths are interpreted relative
+    to $STACKATO_APP_ROOT on the target. Without path it defaults to
+    $STACKATO_APP_ROOT on the target.
 
 stackato files [OPTIONS] <application> [<path>]
-    Display directory listing or file.
+    Display directory listing or file. Relative paths are interpreted relative
+    to $STACKATO_APP_ROOT on the target. Without path it defaults to
+    $STACKATO_APP_ROOT on the target.
 
 stackato frameworks [OPTIONS]
     List the supported frameworks of the target. This is a Stackato 2 specific
@@ -283,6 +297,10 @@ stackato map-domain [OPTIONS] <name>
     Add the named domain to an organization or space. This is a Stackato 3
     specific command. This command is not supported by Stackato 3.2 or higher.
 
+stackato marketplace [OPTIONS]
+    List the supported service plans of the target, for the current or
+    specified space. This is a Stackato 3.4+ specific command.
+
 stackato mem [OPTIONS] [<application>]
     Show the memory reservation for a deployed application.
 
@@ -300,6 +318,9 @@ stackato org [OPTIONS] [<name>]
     Show the named organization's information. This is a Stackato 3 specific
     command.
 
+stackato org-users [OPTIONS] [<org>]
+    Show the users for the organization, by role.
+
 stackato orgs [OPTIONS]
     List the available organizations. This is a Stackato 3 specific command.
 
@@ -314,6 +335,11 @@ stackato placement-zone [OPTIONS] [<zone>]
 stackato placement-zones [OPTIONS]
     Show the available placement zones. This is a Stackato 3.2+ specific
     command.
+
+stackato purge-service-offerings [OPTIONS] <service>
+    Purge all offerings of the service (type) from the system. Danger. Do this
+    only for services we know to have their brokers killed, leaving behind
+    orphans. This is a Stackato 3.4+ specific command.
 
 stackato push [OPTIONS] [<application>]
     Configure, create, push, map, and start a new application.
@@ -359,12 +385,19 @@ stackato register [OPTIONS] [<name>]
     requires administrator privileges, except if "allow_registration" is set
     server-side. This exception is specific to Stackato 2.
 
+stackato releases [OPTIONS] [<application>]
+    Show the list of versions for the specified application. This is a
+    Stackato 3.4 specific command.
+
 stackato remove-service-broker [OPTIONS] [<name>]
     Remove the named service broker from the target. This is a Stackato 3
     specific command.
 
 stackato rename [OPTIONS] [<application>] [<name>]
     Rename the specified application. This is a Stackato 3 specific command.
+
+stackato rename-buildpack [OPTIONS] [<name>] [<newname>]
+    Change the name of the specified build-pack.
 
 stackato rename-org [OPTIONS] [<name>] [<newname>]
     Rename the named organization. This is a Stackato 3 specific command.
@@ -378,6 +411,10 @@ stackato rename-space [OPTIONS] [<name>] [<newname>]
 
 stackato restart [OPTIONS] [<application>]
     Stop and restart a deployed application.
+
+stackato rollback [OPTIONS] [<application>] <version>
+    Switch to a different version of the application. This is a Stackato 3.4
+    specific command.
 
 stackato routes [OPTIONS]
     List all available routes. This is a Stackato 3 specific command.
@@ -432,8 +469,14 @@ stackato show-service-plan [OPTIONS] <name> [<organization>]
     Make the specified service-plan visible to the named organization. This is
     a Stackato 3 specific command.
 
+stackato show-token [OPTIONS]
+    Print the current target's token.
+
 stackato space [OPTIONS] [<name>]
     Show the named space's information. This is a Stackato 3 specific command.
+
+stackato space-users [OPTIONS] [<space>]
+    Show the users for the space, by role.
 
 stackato spaces [OPTIONS]
     List the available spaces in the specified organization. See
@@ -462,6 +505,10 @@ stackato switch-org [OPTIONS] [<name>]
 stackato switch-space [OPTIONS] [<name>]
     Switch from the current space to the named space. This may switch the
     organization as well. This is a Stackato 3 specific command.
+
+stackato switch-version [OPTIONS] [<application>] <version>
+    Switch to a different version of the application. This is a Stackato 3.4
+    specific command.
 
 stackato tail [OPTIONS] <application> <path>
     Monitor file for changes and stream them.
@@ -519,6 +566,9 @@ stackato unset-placement-zone [OPTIONS] [<application>]
     Remove the association between application and its current placement zone.
     This is a Stackato 3.2+ specific command.
 
+stackato update-buildpack [OPTIONS] [<name>]
+    Change the information known about the specified build-pack.
+
 stackato update-org [OPTIONS] [<name>]
     Change one or more attributes of an organization in a single call.
 
@@ -537,6 +587,10 @@ stackato update-service-plan [OPTIONS] [<name>] [<newname>]
 stackato update-space [OPTIONS] [<name>]
     Change one or more attributes of a space in a single call.
 
+stackato update-user-provided-service [OPTIONS] <service>
+    Update the credentials of a user provided service. This is a Stackato 3
+    specific command.
+
 stackato usage [OPTIONS] [<userOrGroup>]
     Show the current memory allocation and usage of the active or specified
     user/group (Stackato 2), or the specified or current space (Stackato 3).
@@ -554,3 +608,7 @@ stackato users [OPTIONS]
 
 stackato version [OPTIONS]
     Print the version number of the client.
+
+stackato versions [OPTIONS] [<application>]
+    Show the list of versions for the specified application. This is a
+    Stackato 3.4 specific command.

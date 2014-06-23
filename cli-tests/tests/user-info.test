@@ -63,7 +63,7 @@ test user-info-1.4 {user introspection, logged in, default target} -setup {
 	 @usr@ [adminuser] \
 	 @org@ [theorg]]
 
-test user-info-1.5 {user introspection, json, logged in, default target} -setup {
+test user-info-1.5.1 {user introspection, json, logged in, default target} -constraints cfv1 -setup {
     stage-open
     go-admin
 } -body {
@@ -71,9 +71,29 @@ test user-info-1.5 {user introspection, json, logged in, default target} -setup 
 } -cleanup {
     stage-close
 } -match glob -result \
-    [map [per-api \
-	      [viewFile data/uinfo151json.txt] \
-	      [viewFile data/uinfo152json.txt]] \
+    [map [viewFile data/uinfo151json.txt] \
+	 @usr@ [adminuser]]
+
+test user-info-1.5.2 {user introspection, json, logged in, default target} -constraints s32 -setup {
+    stage-open
+    go-admin
+} -body {
+    run user-info --json
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [map [viewFile data/uinfo152json.txt] \
+	 @usr@ [adminuser]]
+
+test user-info-1.5.3 {user introspection, json, logged in, default target} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run user-info --json
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [map [viewFile data/uinfo153json.txt] \
 	 @usr@ [adminuser]]
 
 test user-info-1.6 {user introspection, explicit user not possible for cfv1} -constraints cfv1 -setup {

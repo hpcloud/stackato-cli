@@ -24,11 +24,15 @@ test restart-1.1 {restart, empty application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run restart }
+    indir [appdir] { run restart -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application restart]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application restart]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

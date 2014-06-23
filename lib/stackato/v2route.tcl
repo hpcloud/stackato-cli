@@ -23,7 +23,7 @@ oo::class create ::stackato::v2::route {
     ## Life cycle
 
     constructor {{url {}}} {
-	my Attribute host   string  ;# TODO: proper host name validator required
+	my Attribute host   !string ;# TODO: proper host name validator required
 	my Attribute domain &domain ;# TODO: validates_presence_of
 	my Attribute space  &space  ;# TODO: validates_presence_of
 

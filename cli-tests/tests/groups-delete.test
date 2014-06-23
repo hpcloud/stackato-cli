@@ -47,7 +47,7 @@ test groups-delete-1.3 {groups delete, admin login required} -constraints cfv1 -
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Error 200: Operation not permitted}
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
 
 test groups-delete-1.4 {groups delete, bogus group} -constraints cfv1 -setup {
     stage-open
@@ -56,7 +56,7 @@ test groups-delete-1.4 {groups delete, bogus group} -constraints cfv1 -setup {
     run groups delete test-group
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error 100: Bad request}
+} -returnCodes error -result {Error 100: Bad request (400)}
 
 test groups-delete-1.5 {groups delete} -constraints cfv1 -setup {
     stage-open

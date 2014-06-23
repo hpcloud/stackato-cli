@@ -1,4 +1,4 @@
 No manifest
-Application Url:   *://test.@base@
-Creating Application \[TEST\] as \[@target@ -> @org@ -> @space@ -> TEST\] ... OK
-  Map *://test.@base@ ... OK
+Application Url:   *://@route@.@base@
+Creating Application \[@name@\] as \[@target@ -> @org@ -> @space@ -> @name@\] ... OK
+  Map *://@route@.@base@ ... OK

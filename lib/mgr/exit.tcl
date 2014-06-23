@@ -178,6 +178,7 @@ proc ::stackato::mgr::exit::attempt {script} {
       trap {CMDR VALIDATE}           {e o} - \
       trap {CMDR PARAMETER LOCKED}   {e o} - \
       trap {CMDR CONFIG BAD OPTION}  {e o} - \
+      trap {CMDR CONFIG AMBIGUOUS OPTION} {e o} - \
       trap {CMDR CONFIG COMMIT FAIL} {e o} {
 	debug.mgr/exit {A}
 	say! [color red $e]

@@ -67,6 +67,8 @@ mgr/tadjunct
 mgr/targets
 mgr/tclients
 mgr/tunnel
+mgr/ws
+mgr/ws/data
 misc
 rest
 tunnel
@@ -75,6 +77,7 @@ tunnel/http
 v2
 v2/app
 v2/app_event
+v2/app_version
 v2/base
 v2/base/summary
 v2/buildpack
@@ -99,6 +102,7 @@ validate/appname
 validate/appname-api
 validate/appname-dot
 validate/appname-lex
+validate/appversion
 validate/buildpack
 validate/common
 validate/envassign

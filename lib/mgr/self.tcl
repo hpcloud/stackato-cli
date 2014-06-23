@@ -52,6 +52,7 @@ proc ::stackato::mgr::self::packages {} {
 	    Trf
 	    autoproxy
 	    base64
+	    clock::iso8601
 	    cmdline
 	    cmdr
 	    cmdr::actor
@@ -59,8 +60,10 @@ proc ::stackato::mgr::self::packages {} {
 	    cmdr::help
 	    cmdr::help::json
 	    cmdr::officer
+	    cmdr::pager
 	    cmdr::parameter
 	    cmdr::private
+	    cmdr::tty
 	    cmdr::util
 	    cmdr::validate
 	    cmdr::validate::common

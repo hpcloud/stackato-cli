@@ -42,7 +42,7 @@ test unmap-1.2 {unmap, no application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to unmap.} \
-	 [unexpected input application application appdir " in space '[thespace]'"]]
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
 
 test unmap-1.3 {map, bogus url, not mapped} -setup {
     stage-open

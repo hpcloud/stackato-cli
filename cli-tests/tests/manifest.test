@@ -222,21 +222,27 @@ foreach {n label theapp expected} {
     5 {auto-scale instances type 1}
     as-err-maxi-noint1
     {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got "foo"}
+
     6 {auto-scale instances type 2}
     as-err-maxi-noint2
     {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got ""}
+
     7 {auto-scale instances range}
     as-err-maxi-range
     {Manifest error: Expected integer value >= 1 for key "autoscale:instances:max", got "0"}
+
     8  {auto-scale threshold type 1}
     as-err-maxt-nodbl1
     {Manifest error: Expected percentage for key "autoscale:cpu:max", got "foo"}
+
     9  {auto-scale threshold type 2}
     as-err-maxt-nodbl2
     {Manifest error: Expected percentage for key "autoscale:cpu:max", got ""}
+
     10 {auto-scale threshold range 1}
     as-err-maxt-range1
     {Manifest error: Expected percentage for key "autoscale:cpu:max", got "-1"}
+
     11 {auto-scale threshold range 2}
     as-err-maxt-range2
     {Manifest error: Expected percentage for key "autoscale:cpu:max", got "101"}
@@ -244,6 +250,18 @@ foreach {n label theapp expected} {
     12 {single-sign-on, bad type of value}
     sso_err
     {Manifest error: Expected boolean value for key "sso-enabled", got "notboolean"}
+
+    13 {legacy app implies force-war-unpacking, user in conflict}
+    legacy-war-err
+    {Manifest error: Legacy-based application needs force-war-unpacking, user-set value is in conflict.}
+
+    14 {force-war-unpacking, must be boolean, early check in legacy handling}
+    legacy-war-err2
+    {Manifest error: Expected boolean value for key "stackato:force-war-unpacking", got "not-a-boolean"}
+
+    15 {force-war-unpacking, must be boolean}
+    war-err
+    {Manifest error: Expected boolean value for key "force-war-unpacking", got "not-a-boolean"}
 } {
     set appdir [example $theapp]
 

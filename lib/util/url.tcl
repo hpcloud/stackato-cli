@@ -7,7 +7,7 @@ package require Tcl 8.5
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::url {
-    namespace export base canon domain
+    namespace export base canon domain ws
     namespace ensemble create
 }
 
@@ -28,6 +28,13 @@ proc ::url::canon {url} {
 	set url https://$url
     }
     return [string trimright $url /]
+}
+
+proc ::url::ws {url} {
+    #checker -scope local exclude warnArgWrite
+    regsub {^http:/}  $url {ws:/} url
+    regsub {^https:/} $url {wss:/} url
+    return $url
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -15,7 +15,7 @@ kt source support/common.tcl
 test help-1.0 {help, general categorized} -setup {
     stage-open
 } -body {
-    run help --width 79
+    run help --width 79 --no-pager
 } -cleanup {
     stage-close
 } -result [viewFile data/h-categorized.txt]
@@ -23,7 +23,7 @@ test help-1.0 {help, general categorized} -setup {
 test help-1.1 {help, toplevel list} -setup {
     stage-open
 } -body {
-    run help --width 79 --list
+    run help --width 79 --list --no-pager
     # Note: The 'run' command trims the output at the beginning,
     # removing the indentation of the first line. The expected result
     # is modified to match this.
@@ -34,7 +34,7 @@ test help-1.1 {help, toplevel list} -setup {
 test help-1.2 {help, toplevel list with descriptions} -setup {
     stage-open
 } -body {
-    run help --width 79 --short
+    run help --width 79 --short --no-pager
 } -cleanup {
     stage-close
 } -result [viewFile data/h-short.txt]

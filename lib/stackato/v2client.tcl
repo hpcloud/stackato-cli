@@ -29,6 +29,7 @@ package require url
 
 package require stackato::v2::app
 package require stackato::v2::app_event
+package require stackato::v2::app_version
 package require stackato::v2::buildpack
 package require stackato::v2::domain
 package require stackato::v2::organization
@@ -413,7 +414,7 @@ oo::class create ::stackato::v2::client {
     # Apps
     ######################################################
 
-    method upload-by-url {url zipfile {resource_manifest {}}} {
+    method upload-by-url {url zipfile {resource_manifest {}} {field application}} {
 	debug.v2/client {}
 	#@type zipfile = path
 
@@ -433,7 +434,7 @@ oo::class create ::stackato::v2::client {
 	form2 start   data
 	form2 field   data resources $resources
 	if {$zipfile ne {}} {
-	    form2 zipfile data application $zipfile
+	    form2 zipfile data $field $zipfile
 	}
 	lassign [form2 compose data] contenttype data dlength
 

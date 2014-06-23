@@ -1,20 +1,20 @@
 \[*{
     "entity"   : {
-        "app_events_url"        : "/v2/organizations/*/app_events",
+        "app_events_url"        : "/v2/organizations/*/app_events",*
         "auditors_url"          : "/v2/organizations/*/auditors",
-        "billing_enabled"       : false,
+        "billing_enabled"       : false,*
         "billing_managers_url"  : "/v2/organizations/*/billing_managers",
         "domains"               : \[*\],
         "domains_url"           : "/v2/organizations/*/domains",
-        "is_default"            : *,
+        "is_default"            : *,*
         "managers_url"          : "/v2/organizations/*/managers",
-        "name"                  : "@@@@",
-        "private_domains_url"   : "/v2/organizations/*/private_domains",
+        "name"                  : "@@@@",*
+        "private_domains_url"   : "/v2/organizations/*/private_domains",*
         "quota_definition_guid" : "*",
         "quota_definition_url"  : "/v2/quota_definitions/*",
         "spaces"                : \[*\],
         "spaces_url"            : "/v2/organizations/*/spaces",
-        "status"                : "active",
+        "status"                : "active",*
         "users_url"             : "/v2/organizations/*/users"
     },
     "metadata" : {

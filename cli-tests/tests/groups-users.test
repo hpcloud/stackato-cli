@@ -48,7 +48,7 @@ test groups-users-1.3 {groups users, admin login required} -constraints cfv1 -se
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Error 100: Bad request}
+} -returnCodes error -result {Error 100: Bad request (400)}
 
 test groups-users-1.4 {groups users, bogus group} -constraints cfv1 -setup {
     stage-open
@@ -57,7 +57,7 @@ test groups-users-1.4 {groups users, bogus group} -constraints cfv1 -setup {
     run groups users bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error 100: Bad request}
+} -returnCodes error -result {Error 100: Bad request (400)}
 
 test groups-users-1.5 {groups users, nothing} -constraints cfv1 -setup {
     stage-open

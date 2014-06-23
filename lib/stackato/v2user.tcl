@@ -30,7 +30,7 @@ oo::class create ::stackato::v2::user {
 	my Attribute admin         boolean
 	my Attribute active        boolean
 	my Attribute default_space &space
-	my Attribute username      string
+	my Attribute username      !string
 
 	my Many spaces
 	my Many managed_spaces                space

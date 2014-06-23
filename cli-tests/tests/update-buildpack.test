@@ -1,0 +1,147 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## update-buildpack
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test update-buildpack-1.0 {update-buildpack, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-buildpack -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result {Missing definition for argument 'name'}
+
+test update-buildpack-1.1 {update-buildpack, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-buildpack -n N X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+
+test update-buildpack-1.2.0 {update-buildpack, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-buildpack -n clitestbuildpack
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test update-buildpack-1.2.1 {update-buildpack, not allowed for S3.2 or less} -constraints s32le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-buildpack -n clitestbuildpack
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.3 or later.}
+
+test update-buildpack-1.3 {update-buildpack, login required} -constraints s34ge -setup {
+    stage-open
+    ref-target
+} -body {
+    run update-buildpack clitestbuildpack
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test update-buildpack-1.4 {update-buildpack, non-admin login} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+    go-non-admin
+} -body {
+    # Note: The command has to actually try something to be rejected.
+    run update-buildpack -n clitestbuildpack --lock
+} -cleanup {
+    be-admin
+    run delete-buildpack -n clitestbuildpack
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test update-buildpack-1.5 {update-buildpack, ok, nothing changed} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run update-buildpack -n clitestbuildpack
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -result [viewFile data/ub15.txt]
+
+test update-buildpack-1.6 {update-buildpack, unknown buildpacks} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run update-buildpack -n clitestbuildpack
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input name {A buildpack} clitestbuildpack]
+
+test update-buildpack-1.7 {update-buildpack --enable/--disable conflict} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run update-buildpack clitestbuildpack --disable --enable
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -returnCodes error -result {You cannot use "enable" together with "--disable".}
+
+test update-buildpack-1.8 {update-buildpack --lock/--unlock conflict} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run update-buildpack clitestbuildpack --lock --unlock
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -returnCodes error -result {You cannot use "unlock" together with "--lock".}
+
+foreach {n option} {
+    9  --lock
+    10 --unlock
+    11 --enable
+    12 --disable
+    13 --zip
+    14 {--position 1}
+} {
+    if {$option eq "--zip"} {
+	lappend option [tmp]/data/bp-empty.zip
+    }
+    test update-buildpack-1.$n "update-buildpack, ok, $option" -constraints s34ge -setup {
+	stage-open
+	go-admin
+	run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+    } -body {
+	run update-buildpack -n clitestbuildpack {*}$option
+    } -cleanup {
+	run delete-buildpack -n clitestbuildpack
+	stage-close
+    } -result [viewFile data/ub15$n.txt]
+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

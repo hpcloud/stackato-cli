@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::organization {
     constructor {{url {}}} {
 	debug.v2/organization {}
 
-	my Attribute name             string	  
+	my Attribute name             !string	  
 	my Attribute quota_definition &quota_definition
 	my Attribute billing_enabled  boolean	  
 

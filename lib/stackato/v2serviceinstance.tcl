@@ -79,7 +79,7 @@ oo::class create ::stackato::v2::service_instance {
     # # ## ### ##### ######## #############
 
     constructor {{url {}}} {
-	my Attribute name          string
+	my Attribute name          !string
 	my Attribute space         &space
 
 	my Many service_bindings

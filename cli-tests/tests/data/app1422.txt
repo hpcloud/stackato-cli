@@ -1,0 +1,46 @@
+{
+    "entity"   : {
+        "app_versions_url"     : "/v2/apps/*/app_versions",*
+        "autoscale_enabled"    : *,
+        "buildpack"            : null,
+        "command"              : "node app.js",
+        "console"              : *,
+        "debug"                : null,
+        "description"          : *,
+        "detected_buildpack"   : "Node.js",
+        "disk_quota"           : *,
+        "distribution_zone"    : "*",
+        "droplet_count"        : *,
+        "environment_json"     : {},*
+        "events_url"           : "/v2/apps/*/events",
+        "guid"                 : "*",
+        "health_check_timeout" : *,
+        "instances"            : 1,
+        "max_cpu_threshold"    : *,
+        "max_instances"        : *,
+        "memory"               : *,
+        "min_cpu_threshold"    : *,
+        "min_instances"        : *,
+        "name"                 : "node-env",
+        "package_state"        : *,
+        "production"           : *,
+        "restart_required"     : *,*
+        "routes_url"           : "/v2/apps/*/routes",*
+        "service_bindings_url" : "/v2/apps/*/service_bindings",*
+        "space_guid"           : "*",
+        "space_url"            : "/v2/spaces/*",
+        "sso_enabled"          : *,*
+        "stack_guid"           : "*",
+        "stack_url"            : "/v2/stacks/*",
+        "staging_task_id"      : "*",
+        "state"                : "STARTED",
+        "system_env_json"      : *
+        "version"              : "*"
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/apps/*"
+    }
+}

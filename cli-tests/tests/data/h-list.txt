@@ -12,10 +12,12 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato app [OPTIONS] [<application>]
     stackato apps [OPTIONS]
     stackato bind-service [OPTIONS] [<service>] [<application>]
+    stackato buildpacks [OPTIONS]
     stackato clone-services [OPTIONS] <source> <application>
     stackato crashes [OPTIONS] [<application>]
     stackato crashlogs [OPTIONS] [<application>]
     stackato create-app [OPTIONS] [<application>]
+    stackato create-buildpack [OPTIONS] <name> <zip>
     stackato create-domain [OPTIONS] <name>
     stackato create-org [OPTIONS] [<name>]
     stackato create-service [OPTIONS] [<vendor>] [<name>] [<application>]
@@ -25,6 +27,7 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato curl [OPTIONS] <operation> <path> [<header>...]
     stackato dbshell [OPTIONS] [<application>] [<service>]
     stackato delete [OPTIONS] [<application>...]
+    stackato delete-buildpack [OPTIONS] [<name>]
     stackato delete-domain [OPTIONS] <name>
     stackato delete-org [OPTIONS] [<name>]
     stackato delete-route [OPTIONS] <name>
@@ -80,14 +83,17 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato logs [OPTIONS] [<application>]
     stackato map [OPTIONS] [<application>] <url>
     stackato map-domain [OPTIONS] <name>
+    stackato marketplace [OPTIONS]
     stackato mem [OPTIONS] [<application>]
     stackato named-entities [OPTIONS]
     stackato open [OPTIONS] [<application>]
     stackato org [OPTIONS] [<name>]
+    stackato org-users [OPTIONS] [<org>]
     stackato orgs [OPTIONS]
     stackato passwd [OPTIONS]
     stackato placement-zone [OPTIONS] [<zone>]
     stackato placement-zones [OPTIONS]
+    stackato purge-service-offerings [OPTIONS] <service>
     stackato push [OPTIONS] [<application>]
     stackato quota configure [OPTIONS] [<name>]
     stackato quota create [OPTIONS] [<name>]
@@ -100,12 +106,15 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato quota-org [OPTIONS] [<name>] <quota>
     stackato quotas [OPTIONS]
     stackato register [OPTIONS] [<name>]
+    stackato releases [OPTIONS] [<application>]
     stackato remove-service-broker [OPTIONS] [<name>]
     stackato rename [OPTIONS] [<application>] [<name>]
+    stackato rename-buildpack [OPTIONS] [<name>] [<newname>]
     stackato rename-org [OPTIONS] [<name>] [<newname>]
     stackato rename-service [OPTIONS] <service> [<name>]
     stackato rename-space [OPTIONS] [<name>] [<newname>]
     stackato restart [OPTIONS] [<application>]
+    stackato rollback [OPTIONS] [<application>] <version>
     stackato routes [OPTIONS]
     stackato run [OPTIONS] <command>...
     stackato runtimes [OPTIONS]
@@ -120,7 +129,9 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato set-env [OPTIONS] [<application>] <varname> <value>
     stackato set-placement-zone [OPTIONS] [<application>] <zone>
     stackato show-service-plan [OPTIONS] <name> [<organization>]
+    stackato show-token [OPTIONS]
     stackato space [OPTIONS] [<name>]
+    stackato space-users [OPTIONS] [<space>]
     stackato spaces [OPTIONS]
     stackato ssh [OPTIONS] [<command>...]
     stackato stacks [OPTIONS]
@@ -129,6 +140,7 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato stop [OPTIONS] [<application>]
     stackato switch-org [OPTIONS] [<name>]
     stackato switch-space [OPTIONS] [<name>]
+    stackato switch-version [OPTIONS] [<application>] <version>
     stackato tail [OPTIONS] <application> <path>
     stackato target [OPTIONS] [<url>]
     stackato targets [OPTIONS]
@@ -145,13 +157,16 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato unregister [OPTIONS] <email>
     stackato unset-env [OPTIONS] [<application>] <varname>
     stackato unset-placement-zone [OPTIONS] [<application>]
+    stackato update-buildpack [OPTIONS] [<name>]
     stackato update-org [OPTIONS] [<name>]
     stackato update-service-auth-token [OPTIONS] [<label>]
     stackato update-service-broker [OPTIONS] [<name>] [<newname>]
     stackato update-service-plan [OPTIONS] [<name>] [<newname>]
     stackato update-space [OPTIONS] [<name>]
+    stackato update-user-provided-service [OPTIONS] <service>
     stackato usage [OPTIONS] [<userOrGroup>]
     stackato user [OPTIONS]
     stackato user-info [OPTIONS] [<name>]
     stackato users [OPTIONS]
     stackato version [OPTIONS]
+    stackato versions [OPTIONS] [<application>]

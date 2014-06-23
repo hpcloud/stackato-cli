@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::service_plan {
     constructor {{url {}}} {
 	debug.v2/service_plan {}
 
-	my Attribute name        string
+	my Attribute name        !string
 	my Attribute description string
 	my Attribute extra       string
 	my Attribute service     &service

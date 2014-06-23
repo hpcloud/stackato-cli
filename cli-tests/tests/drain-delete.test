@@ -39,7 +39,11 @@ test drain-delete-1.2 {drain delete, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application {drain delete}]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application {drain delete}]
 
 test drain-delete-1.3 {drain delete, non-admin login is ok} -setup {
     stage-open

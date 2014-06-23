@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::zone {
     constructor {{url {}}} {
 	debug.v2/zone {}
 
-	my Attribute name string
+	my Attribute name !string
 
 	# special: array of string (but not true reference)
 	my Attribute deas list-string

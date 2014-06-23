@@ -101,13 +101,13 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
 
     # Get available services, with associated plans.
     set services [v2 service list 1]
-    debug.validate/servicetype {retrieved      = $services}
+    debug.validate/servicetype {retrieved            = $services}
 
     # Drop inactive service types
     set services [struct::list filter $services [lambda {s} {
 	$s @active
     }]]
-    debug.validate/servicetype {active         = $services}
+    debug.validate/servicetype {active-match         = $services}
 
     # config @vendor   - service @label
     # config @provider - service @provider
@@ -116,19 +116,23 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
     # Filter by provider
     if {[$p config @provider set?]} {
 	set pattern [$p config @provider]
+	debug.validate/servicetype {provider-pattern = $pattern}
+
 	set services [struct::list filter $services [lambda {p s} {
 	    string equal $p [$s @provider]
 	} $pattern]]
-	debug.validate/servicetype {provider-match = $services}
+	debug.validate/servicetype {provider-match   = $services}
     }
 
     # Filter by version
     if {[$p config @version set?]} {
 	set pattern [$p config @version]
+	debug.validate/servicetype {version-pattern  = $pattern}
+
 	set services [struct::list filter $services [lambda {p s} {
 	    string equal $p [$s @version]
 	} $pattern]]
-	debug.validate/servicetype {version-match  = $services}
+	debug.validate/servicetype {version-match    = $services}
     }
 
     debug.validate/servicetype {==> $services}

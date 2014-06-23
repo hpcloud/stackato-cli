@@ -51,7 +51,7 @@ test map-1.3.1 {map, bogus url, CFv1} -constraints cfv1 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -returnCodes error -result {Error 700: Invalid URI: 'bogus'}
+} -returnCodes error -result {Error 700: Invalid URI: 'bogus' (400)}
 
 test map-1.3.2.1 {map, bogus url, CFv2, S3.0} -constraints s30le -setup {
     stage-open

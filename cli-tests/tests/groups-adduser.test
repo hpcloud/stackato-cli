@@ -55,7 +55,7 @@ test groups-add-user-1.4 {groups add-user, admin login required} -constraints cf
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result {Error 200: Operation not permitted}
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
 
 test groups-add-user-1.5 {groups add-user, bogus group} -constraints cfv1 -setup {
     stage-open
@@ -64,7 +64,7 @@ test groups-add-user-1.5 {groups add-user, bogus group} -constraints cfv1 -setup
     run groups add-user test-group grouper@test
 } -cleanup {
     stage-close
-} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist}
+} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist (400)}
 
 test groups-add-user-1.6 {groups add-user, bogus user} -constraints cfv1 -setup {
     stage-open
@@ -75,7 +75,7 @@ test groups-add-user-1.6 {groups add-user, bogus user} -constraints cfv1 -setup 
 } -cleanup {
     run groups delete test-group
     stage-close
-} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist}
+} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist (400)}
 
 test groups-add-user-1.7 {groups add-user} -constraints cfv1 -setup {
     stage-open

@@ -7,4 +7,5 @@ applications:
   name: node-env
   path: .
   stackato:
+    force-war-unpacking: yes
     sso-enabled: yes

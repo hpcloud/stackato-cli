@@ -16,10 +16,14 @@ test scp-1.0 {scp, no app} -setup {
     stage-open
     go-admin
 } -body {
-    run scp X
+    run scp -n X
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [no-application-q scp]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected option --application application tests] \
+	 [unexpected option --application application tests " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application-q scp]
 
 test scp-1.1 {scp, empty application} -setup {
     stage-open

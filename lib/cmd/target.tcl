@@ -29,7 +29,7 @@ namespace eval ::stackato::cmd {
     namespace ensemble create
 }
 namespace eval ::stackato::cmd::target {
-    namespace export list getorset
+    namespace export list getorset show-token
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -50,6 +50,21 @@ namespace eval ::stackato::cmd::target {
 }
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::target::show-token {config} {
+    debug.cmd/target {}
+
+    set ct [ctarget get]
+    set td [targets known]
+
+    if {![dict exists $td $ct]} {
+	err "Not logged into targewt $ct, no token known"
+    }
+
+    puts [dict get $td $ct]
+    return
+}
+
 
 proc ::stackato::cmd::target::list {config} {
     # (cmdr::)config -- (--token-file), (--json)

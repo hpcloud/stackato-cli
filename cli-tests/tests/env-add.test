@@ -39,7 +39,11 @@ test env-add-1.2 {env-add, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application env-add]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application env-add]
 
 test env-add-1.3 {env-add, non-admin login is ok} -setup {
     stage-open
@@ -97,8 +101,8 @@ test env-add-1.6 {env-add, running app, restart} -setup {
     remove-appdir
     stage-close
 } -match glob -result {Adding Environment Variable \[VAR=VAL\] ... 
-Stopping Application \[node-env\] ... *OK
-Starting Application \[node-env\] ... *OK
+*Stopping Application \[node-env\] ... *OK
+*Starting Application \[node-env\] ... *OK
 *//node-env.* deployed}
 
 test env-add-1.7 {env-add, deployed stopped app, no restart} -setup {

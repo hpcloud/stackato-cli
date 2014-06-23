@@ -16,20 +16,28 @@ test ssh-1.0 {ssh, no app} -setup {
     stage-open
     go-admin
 } -body {
-    run ssh X
+    run ssh -n X
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [no-application-q ssh]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected option --application application tests] \
+	 [unexpected option --application application tests]]
+# -match glob -result [no-application-q ssh]
 
 test ssh-1.1 {ssh, empty application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run ssh }
+    indir [appdir] { run ssh -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application-q ssh]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected option --application application appdir] \
+	 [unexpected option --application application appdir]]
+# -match glob -result [no-application-q ssh]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

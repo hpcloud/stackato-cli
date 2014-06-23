@@ -25,11 +25,15 @@ test drain-list-1.1 {drain list, no application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run drain list }
+    indir [appdir] { run drain list -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application {drain list}]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application {drain list}]
 
 test drain-list-1.2 {drain list, non-admin login is ok} -setup {
     stage-open

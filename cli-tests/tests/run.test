@@ -16,10 +16,14 @@ test run-1.0 {run, no app} -setup {
     stage-open
     go-admin
 } -body {
-    run run X
+    run run -n X
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [no-application-q run]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected option --application application tests] \
+	 [unexpected option --application application tests " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application-q run]
 
 test run-1.1 {run, empty application} -setup {
     stage-open

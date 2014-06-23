@@ -40,7 +40,7 @@ namespace eval ::stackato::mgr::client {
 	get-ssh-key description min-version \
 	hasdrains chasdrains is-stackato \
 	is-stackato-opt close-restlog license-status \
-	max-version-opt min-version-opt
+	max-version-opt min-version-opt rawc
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -125,11 +125,23 @@ proc ::stackato::mgr::client::RestLog {} {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::mgr::client::rawc {p} {
+    debug.mgr/client {}
+    $p config @motd
+
+    return [restlog [client new [ctarget get] [auth get]]]
+    # No target redirection.
+    # No login check.
+    # No determination of API version and switching classes.
+}
+
 proc ::stackato::mgr::client::plainc {p} {
+    debug.mgr/client {}
     $p config @motd
     plain
 }
 proc ::stackato::mgr::client::authenticatedc {p} {
+    debug.mgr/client {}
     $p config @motd
     authenticated
 }
@@ -141,7 +153,13 @@ proc ::stackato::mgr::client::plain {} {
     variable plain
 
     if {![info exists plain]} {
-	set plain [Make]
+	variable auth
+	if {[info exists auth]} {
+	    set id [$auth info]
+	} else {
+	    set id {}
+	}
+	set plain [Make $id]
     }
 
     # Note: While a token may be present login is not checked. This is
@@ -157,7 +175,14 @@ proc ::stackato::mgr::client::authenticated {} {
     variable auth
 
     if {![info exists auth]} {
-	set auth [Make]
+	variable plain
+	if {[info exists plain]} {
+	    set id [$plain info]
+	} else {
+	    set id {}
+	}
+
+	set auth [Make $id]
     }
 
     check-login $auth
@@ -200,10 +225,12 @@ proc ::stackato::mgr::client::authenticated-reset {} {
     return
 }
 
-proc ::stackato::mgr::client::Make {} {
+proc ::stackato::mgr::client::Make {{infodata {}}} {
     debug.mgr/client {create}
     set aclient [restlog [client new [ctarget get] [auth get]]]
     debug.mgr/client {= $aclient}
+
+    if {$infodata ne {}} { $aclient info= $infodata }
 
     variable group
 
@@ -483,7 +510,7 @@ proc ::stackato::mgr::client::chasdrains {client} {
     } else {
 	# v1 API, S2 target version.
 	# Drain supported started with 2.6
-	return [package vsatisfies [$client server-version] 2.5]
+	return [MinCheck $client 2.5]
     }
     return
 }
@@ -492,16 +519,8 @@ proc ::stackato::mgr::client::max-version {version p} {
     debug.mgr/client {}
     $p config @motd
 
-    set  precision [llength [split $version .]]
-    debug.mgr/client {precision = $precision}
-    
-    set found [[$p config @client] server-version]
-    debug.mgr/client {found/* = $found}
-
-    set found [join [lrange [split $found .] 0 [incr precision -1]] .]
-    debug.mgr/client {found/[incr precision] = $found <= $version}
-
-    if {[package vcompare $found $version] <= 0} return
+    set client [$p config @client]
+    if {[MaxCheck $client $version]} return
     err "This command requires a target with version $version or earlier."
     return
 }
@@ -509,7 +528,9 @@ proc ::stackato::mgr::client::max-version {version p} {
 proc ::stackato::mgr::client::min-version {version p} {
     debug.mgr/client {}
     $p config @motd
-    if {[package vsatisfies [[$p config @client] server-version] $version]} return
+
+    set client [$p config @client]
+    if {[MinCheck $client $version]} return
     err "This command requires a target with version $version or later."
     return
 }
@@ -518,16 +539,8 @@ proc ::stackato::mgr::client::max-version-opt {version p args} {
     debug.mgr/client {}
     $p config @motd
 
-    set  precision [llength [split $version .]]
-    debug.mgr/client {precision = $precision}
-    
-    set found [[$p config @client] server-version]
-    debug.mgr/client {found/* = $found}
-
-    set found [join [lrange [split $found .] 0 [incr precision -1]] .]
-    debug.mgr/client {found/[incr precision] = $found <= $version}
-
-    if {[package vcompare $found $version] <= 0} return
+    set client [$p config @client]
+    if {[MaxCheck $client $version]} return
     err "The option [$p flag] requires a target with version $version or earlier."
     return
 }
@@ -535,9 +548,51 @@ proc ::stackato::mgr::client::max-version-opt {version p args} {
 proc ::stackato::mgr::client::min-version-opt {version p args} {
     debug.mgr/client {}
     $p config @motd
-    if {[package vsatisfies [[$p config @client] server-version] $version]} return
+
+    set client [$p config @client]
+    if {[MinCheck $client $version]} return
     err "The option [$p flag] requires a target with version $version or later."
     return
+}
+
+proc ::stackato::mgr::client::MaxCheck {client version} {
+    debug.mgr/client {}
+
+    set  precision [llength [split $version .]]
+    debug.mgr/client {precision = $precision}
+    
+    set found [$client server-version]
+    debug.mgr/client {found/* = $found}
+
+    set found [join [lrange [split $found .] 0 [incr precision -1]] .]
+    debug.mgr/client {found/[incr precision] = $found <= $version}
+
+    if {[catch {
+	set ok [expr {[package vcompare $found $version] <= 0}]
+    } msg o]} {
+	if {[string match {expected version *} $msg]} {
+	    err "Bad version number \"$found\" reported by [$client target]"
+	}
+	return {*}$o $msg
+    }
+    return $ok
+}
+
+proc ::stackato::mgr::client::MinCheck {client version} {
+    debug.mgr/client {}
+
+    set tversion [$client server-version]
+    debug.mgr/client {server = $tversion}
+
+    if {[catch {
+	set ok [package vsatisfies $tversion $version]
+    } msg o]} {
+	if {[string match {expected version *} $msg]} {
+	    err "Bad version number \"$tversion\" reported by [$client target]"
+	}
+	return {*}$o $msg
+    }
+    return $ok
 }
 
 proc ::stackato::mgr::client::is-stackato {p} {

@@ -8,4 +8,5 @@
 | Trial Database Allowed      | 1 *|
 | Allow use of 'sudo' by Apps | 1 *|
 | Max Number of Routes        | * |
+| Max Number of Droplets      | * |
 +-*-+-*-+

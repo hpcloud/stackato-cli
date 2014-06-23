@@ -1,20 +1,20 @@
 {
     "env"              : \[\],*
-    "instances"        : "1",
+    "instances"        : 1,
     "meta"             : {
         "console" : "null",
-        "created" : "*",
+        "created" : *,
         "debug"   : "null",
-        "version" : "*"
+        "version" : *
     },
     "name"             : "node-env",
     "resources"        : {
-        "disk"   : "*",
-        "fds"    : "*",
-        "memory" : "*",
-        "sudo"   : "*"
+        "disk"   : *,
+        "fds"    : *,
+        "memory" : *,
+        "sudo"   : *
     },
-    "runningInstances" : "1",
+    "runningInstances" : 1,
     "services"         : \[\],
     "staging"          : {
         "model" : "*",

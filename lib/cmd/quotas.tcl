@@ -37,13 +37,17 @@ namespace eval ::stackato::cmd::quotas {
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
 
+    # name required definition
+    # required is only for creation. The marked attributes must be
+    # present in the new quota. The others get defaults from the CC.
     variable map {
-	non_basic_services_allowed {ID paid-services-allowed}
-	total_services             {ID services}
-	memory_limit               {MEM mem}
-	trial_db_allowed           {ID trial-db-allowed}
-	allow_sudo                 {ID allow-sudo}
-	total_routes               {ID routes}
+	non_basic_services_allowed 1 {ID paid-services-allowed}
+	total_services             1 {ID services}
+	memory_limit               1 {MEM mem}
+	trial_db_allowed           0 {ID trial-db-allowed}
+	allow_sudo                 0 {ID allow-sudo}
+	total_routes               1 {ID routes}
+	total_droplets             0 {ID droplets}
     }
 }
 
@@ -67,8 +71,9 @@ proc ::stackato::cmd::quotas::create {config} {
     display "Creating new quota definition $name ... "
     $qd @name set $name
 
-    foreach {a def} $map {
+    foreach {a required def} $map {
 	lassign $def convert k
+	if {![$config @$k set?] && !$required} continue
 	$qd @$a set [$config @$k]
 	display "  [$qd @$a label]: [$convert [$qd @$a]]"
     }
@@ -89,7 +94,7 @@ proc ::stackato::cmd::quotas::configure {config} {
 
     # Map config to entity.
     # Might be a useful utility procedure.
-    foreach {a def} $map {
+    foreach {a __ def} $map {
 	lassign $def __ k
 	if {![$config @$k set?]} continue
 	$qd @$a set [$config @$k]
@@ -176,15 +181,32 @@ proc ::stackato::cmd::quotas::list {config} {
 	return
     }
 
-    [table::do t {Name Paid? Services Memory {Trial DB?} Sudo?} {
+    [table::do t {Name Paid? Services Memory {Trial DB?} Sudo? Routes Droplets} {
 	# TODO: Might be generalizable via attr listing + labeling
 	foreach qd $thequotas {
 	    lappend values [$qd @name]
 	    lappend values [$qd @non_basic_services_allowed]
 	    lappend values [$qd @total_services]
 	    lappend values [psz [MB [$qd @memory_limit]]]
-	    lappend values [$qd @trial_db_allowed]
+
+	    if {[$qd @trial_db_allowed defined?]} {
+		lappend values [$qd @trial_db_allowed]
+	    } {
+		lappend values N/A
+	    }
+
 	    lappend values [$qd @allow_sudo]
+
+	    if {[$qd @total_routes defined?]} {
+		lappend values [$qd @total_routes]
+	    } {
+		lappend values N/A
+	    }
+	    if {[$qd @total_droplets defined?]} {
+		lappend values [$qd @total_droplets]
+	    } {
+		lappend values N/A
+	    }
 	    $t add {*}$values
 	    unset values
 	}
@@ -206,7 +228,7 @@ proc ::stackato::cmd::quotas::show {config} {
 
     display "[ctarget get] - [$qd @name]"
     [table::do t {Key Value} {
-	foreach {a def} $map {
+	foreach {a __ def} $map {
 	    set label [string trim [$qd @$a label]]
 	    if {[$qd @$a defined?]} {
 		lassign $def convert k
@@ -253,14 +275,14 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
     }
 
     foreach o $choices {
-	dict set map [$o @name] $o
+	dict set objmap [$o @name] $o
     }
-    ::set choices [lsort -dict [dict keys $map]]
+    ::set choices [lsort -dict [dict keys $objmap]]
     ::set name [term ask/menu "" \
 		    "Which quota definition to $what ? " \
 		    $choices]
 
-    return [dict get $map $name]
+    return [dict get $objmap $name]
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -77,15 +77,23 @@ proc ::stackato::validate::username-space::validate {p x} {
     }
 
     # Last attempt, try the global information
-    if {![catch {
+    try {
 	set x [v2 user find-by-name $x]
-    } e o]} {
+    } trap {STACKATO CLIENT V2 AUTHERROR}   {e o} - \
+      trap {STACKATO CLIENT V2 TARGETERROR} {e o} {
+	debug.validate/username-space {FAIL, permission denied}
+	# rethrow
+	return {*}$o $e
+    } on ok {e o} {
 	debug.validate/username-space {OK/canon/global = $x}
 	return $x
+    } on error {e o} {
+	# capture and pass
     }
 
     debug.validate/username-space {FAIL}
-    fail-unknown-thing $p USERNAME "A user" $x " in space '[$thespace @name]'"
+    fail-unknown-thing $p USERNAME "A user" $x \
+	" in space '[$thespace full-name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

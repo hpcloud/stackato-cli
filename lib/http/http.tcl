@@ -98,6 +98,47 @@ proc http::Log      {args} {}
 proc http::LogToken {args} {}
 proc http::LogData  {args} {}
 
+proc http::Now {} { clock clicks -milliseconds }
+
+proc http::Hexl {prefix data} {
+    set r {}
+
+    # Convert the data to hex and to characters.
+    binary scan $data H*@0a* hexa asciia
+    # Replace non-printing characters in the data.
+    regsub -all -- {[^[:graph:] ]} $asciia {.} asciia
+
+    # pad with spaces to full block of 32/16.
+    set n [expr {[string length $hexa] % 32}]
+    if {$n < 32} { append hexa   [string repeat { } [expr {32-$n}]] }
+    #puts "pad H [expr {32-$n}]"
+
+    set n [expr {[string length $asciia] % 32}]
+    if {$n < 16} { append asciia [string repeat { } [expr {16-$n}]] }
+    #puts "pad A [expr {32-$n}]"
+
+    # Reassemble formatted, in groups of 16 bytes.
+    # Hex part is chunks of 32 nibbles.
+    set addr 0
+    while {[string length $hexa]} {
+	# Get front group of 16 bytes each.
+	set hex    [string range $hexa   0 31]
+	set ascii  [string range $asciia 0 15]
+	# Prep for next iteration
+	set hexa   [string range $hexa   32 end]  
+	set asciia [string range $asciia 16 end]
+
+	# Convert the hex to pairs of hex digits
+	regsub -all -- {..} $hex {& } hex
+
+	# Put the hex and Latin-1 data to the result
+	append r $prefix [format %04x $addr] { | } $hex { |} $ascii |\n
+	incr addr 16
+    }
+
+    return $r
+}
+
 proc http::Parray {a {pattern *}} {
     upvar 1 $a array
     if {![array exists array]} {
@@ -505,6 +546,7 @@ proc http::geturl {url args} {
 
     # Phase one: parse
     if {![regexp -- $URLmatcher $url -> proto user host port srvurl]} {
+	Log Unsupported url
 	unset $token
 	return -code error \
 	    -errorcode {HTTP URL INVALID SYNTAX} \
@@ -512,6 +554,7 @@ proc http::geturl {url args} {
     }
     # Phase two: validate
     if {$host eq ""} {
+	Log Missing host
 	# Caller has to provide a host name; we do not have a "default host"
 	# that would enable us to handle relative URLs.
 	unset $token
@@ -522,6 +565,7 @@ proc http::geturl {url args} {
 	# invalid, we'll simply fail to resolve it later on.
     }
     if {$port ne "" && $port > 65535} {
+	Log Invalid port $port
 	unset $token
 	return -code error \
 	    -errorcode [list HTTP URL INVALID PORT $port] \
@@ -537,6 +581,7 @@ proc http::geturl {url args} {
 	    $
 	}
 	if {$state(-strict) && ![regexp -- $validityRE $user]} {
+	    Log Illegal encoding in user
 	    unset $token
 	    # Provide a better error message in this error case
 	    if {[regexp {(?i)%(?![0-9a-f][0-9a-f]).?.?} $user bad]} {
@@ -544,6 +589,7 @@ proc http::geturl {url args} {
 		    -errorcode {HTTP URL INVALID USER ENCODING} \
 		    "Illegal encoding character usage \"$bad\" in URL user"
 	    }
+	    Log Illegal characters in user
 	    return -code error -errorcode {HTTP URL INVALID USER CHAR} \
 		"Illegal characters in URL user"
 	}
@@ -568,10 +614,12 @@ proc http::geturl {url args} {
 	    unset $token
 	    # Provide a better error message in this error case
 	    if {[regexp {(?i)%(?![0-9a-f][0-9a-f])..} $srvurl bad]} {
+	    Log Illegal encoding in path
 		return -code error \
 		    -errorcode {HTTP URL INVALID PATH ENCODING} \
 		    "Illegal encoding character usage \"$bad\" in URL path"
 	    }
+	    Log Illegal characters in path
 	    return -code error  -errorcode {HTTP URL INVALID PATH CHAR} \
 		"Illegal characters in URL path"
 	}
@@ -583,6 +631,7 @@ proc http::geturl {url args} {
     }
     set lower [string tolower $proto]
     if {![info exists urlTypes($lower)]} {
+	Log Illegal url type $proto
 	unset $token
 	return -code error \
 	    -errorcode [list HTTP URL INVALID PROTOCOL $proto] \
@@ -1141,6 +1190,20 @@ proc http::Event {sock token} {
 	    # STACKATO -- 'connection: close'.
 	    if {$state(totalsize) == 0} {
 		Log "no body, stop"
+		Eof $token
+		return
+	    }
+
+	    #parray state
+
+	    # STACKATO -- WEBSOCKET --
+	    if {($state(totalsize) == "") && 
+		$state(-keepalive)
+	    } {
+		# Seen for web socket connections, initial request.
+		# Returns the WS information in response headers.
+		# Does not set the content length. Is a keep-alive.
+		Log "keep-alive, no body, stop"
 		Eof $token
 		return
 	    }

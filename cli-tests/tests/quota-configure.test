@@ -70,7 +70,7 @@ test quota-configure-1.5 {quota configure, unknown quota} -constraints cfv2 -set
     stage-close
 } -returnCodes error -result [unexpected input name {quota definition} testquota]
 
-test quota-configure-1.6 {quota configure} -constraints cfv2 -setup {
+test quota-configure-1.6.0 {quota configure, 3.2-} -constraints s32le -setup {
     stage-open
     go-admin
     run quota create testquota
@@ -87,7 +87,23 @@ test quota-configure-1.6 {quota configure} -constraints cfv2 -setup {
     stage-close
 } -match glob -result [viewFile data/qc16conf.txt]
 
-test quota-configure-1.7 {quota configure, persists} -constraints cfv2 -setup {
+test quota-configure-1.6.1 {quota configure, 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [viewFile data/qc161conf.txt]
+
+test quota-configure-1.7.0 {quota configure, persists, 3.2-} -constraints s32le -setup {
     stage-open
     go-admin
     run quota create testquota
@@ -105,6 +121,37 @@ test quota-configure-1.7 {quota configure, persists} -constraints cfv2 -setup {
     stage-close
 } -match glob -result [map [viewFile data/qc17.txt] \
 			   @target@ [thetarget]]
+
+test quota-configure-1.7.1 {quota configure, persists, 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+    run quota show testquota
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [map [viewFile data/qc171.txt] \
+			   @target@ [thetarget]]
+
+
+test quota-configure-1.8 {quota configure --trial-db-allowed, disallowed for 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota --trial-db-allowed
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -returnCodes error \
+    -result {Error: The option --trial-db-allowed requires a target with version 3.2 or earlier.}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

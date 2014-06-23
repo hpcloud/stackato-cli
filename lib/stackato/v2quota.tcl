@@ -23,7 +23,7 @@ oo::class create ::stackato::v2::quota_definition {
     ## Life cycle
 
     constructor {{url {}}} {
-	my Attribute name                       string
+	my Attribute name                       !string
 	my Attribute non_basic_services_allowed boolean label {Paid Services Allowed      }
 	my Attribute total_services             integer label {Max Number Of Services     }
 	my Attribute memory_limit               integer label {Memory Limit               }
@@ -33,8 +33,10 @@ oo::class create ::stackato::v2::quota_definition {
 	# v3.2+
 	my Attribute total_routes               integer label {Max Number of Routes       }
 
-	#my SearchableOn name
+	# v3.4+
+	my Attribute total_droplets             integer label {Max Number of Droplets     }
 
+	#my SearchableOn name
 	next $url
     }
 

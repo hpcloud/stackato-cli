@@ -65,7 +65,7 @@ test link-user-space-1.4 {link-user-space, non-admin login is not ok (often)} -c
     run delete-space -n [thespace]-2
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input user {A user} [theuser] " in space '[thespace]-2'"]
+} -returnCodes error -result {You are not permitted to access this resource. (403)}
 
 test link-user-space-1.5 {link-user-space, persists} -constraints cfv2 -setup {
     stage-open

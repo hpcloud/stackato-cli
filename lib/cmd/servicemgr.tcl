@@ -13,6 +13,7 @@ package require stackato::cmd::app
 package require stackato::color
 package require stackato::jmap
 package require stackato::log
+package require stackato::mgr::context
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
 package require stackato::mgr::logstream
@@ -40,12 +41,12 @@ namespace eval ::stackato::cmd::servicemgr {
     ::rename tunnel tunnelmgr
 
     namespace export \
-	list-instances list-plans show tunnel \
+	list-instances list-plans market show tunnel \
 	bind unbind clone create delete rename \
 	select-for-create select-for-delete \
 	select-for-change select-plan-for-create \
 	update-plan link-plan-org unlink-plan-org \
-	show-plan
+	show-plan purge-service-type update-upsi
     namespace ensemble create
 
     namespace import ::stackato::cmd::app
@@ -53,6 +54,7 @@ namespace eval ::stackato::cmd::servicemgr {
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::logstream
@@ -72,6 +74,20 @@ namespace eval ::stackato::cmd::servicemgr {
 	@public       @public        {public     } 0
 	@free         @free          {free       } 0
     }
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::purge-service-type {config} {
+    debug.cmd/servicemgr {}
+
+    set theservice [$config @service]
+    set name       [$theservice @name]
+
+    display "Purging service type $name and all its offerings ... " false
+    $theservice purge!
+    display [color green OK]
+    return
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -106,8 +122,13 @@ proc ::stackato::cmd::servicemgr::show-plan {config} {
 	if {$v ne {}} { $t add Version  $v }
 
 	$t add "Description" [$theplan @description]
-	$t add "Free"        [$theplan @free]
-	$t add "Public"      [$theplan @public]
+
+	if {[$theplan @free defined?]} {
+	    $t add "Free" [$theplan @free]
+	}
+	if {[$theplan @public defined?]} {
+	    $t add "Public" [$theplan @public]
+	}
 	$t add {Visible In}  [join $orgs \n]
 
     }] show display
@@ -258,6 +279,24 @@ proc ::stackato::cmd::servicemgr::list-plans {config} {
     return
 }
 
+proc ::stackato::cmd::servicemgr::market {config} {
+    debug.cmd/servicemgr {}
+
+    set theplans [struct::list flatten \
+		      [struct::list map \
+			   [[cspace get] @services get* {depth 1 include-relations service_plan}] \
+			   [lambda s {
+			       $s @service_plans
+			   }]]]
+
+    # chosen depth delivers plans, services, and service instances.
+    # include-relations drops the unwanted latter.
+
+    display [context format-short]
+    DisplayServicePlans $config $theplans no
+    return
+}
+
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::servicemgr::list-instances {config} {
@@ -355,9 +394,14 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
 	if {![$service @active]} continue
 
 	# Permission bits (free, public).
-	set    bits {}
-	append bits [expr {[$plan @free]   ? "F" : "-"}]
-	append bits [expr {[$plan @public] ? "P" : "-"}]
+	set bits {}
+	foreach {a l} {
+	    @free   F
+	    @public P
+	} {
+	    if {![$plan $a defined?]} continue
+	    append bits [expr {[$plan $a] ? "$l" : "-"}]
+	}
 
 	set p [$service @provider]
 	set v [$service @version]
@@ -666,28 +710,7 @@ proc ::stackato::cmd::servicemgr::CreateV2 {config client} {
 	# Ask user for the credential keys, then the credentials,
 	# and save these directly.
 
-	if {![cmdr interactive?] && ![$config @credentials set?]} {
-	    err "Need --credentials"
-	}
-
-	if {![$config @credentials set?]} {
-	    # Go interactive
-
-	    set keys [term ask/string "Which credentials to use for connections \[hostname, port, password\]: "]
-	    if {$keys eq {}} {
-		set keys {hostname port password}
-	    } else {
-		set keys [struct::list map [split $keys ,] {string trim}]
-	    }
-	    foreach k $keys {
-		dict set creds $k [term ask/string "$k: "]
-	    }
-	} else {
-	    # Take from option - Treat input as Tcl dictionary.
-	    foreach kv [$config @credentials] {
-		dict set creds {*}$kv
-	    }
-	}
+	set creds [CollectCredentials $config]
 
 	set service [service create-udef-with-banner $client $creds $name $picked]
     } else {
@@ -729,6 +752,50 @@ proc ::stackato::cmd::servicemgr::CreateV1 {config client} {
 
     debug.cmd/servicemgr {/done}
     return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicemgr::update-upsi {config} {
+    debug.cmd/servicemgr {}
+
+    set theservice [$config @service]
+    if {[namespace tail [info object class $theservice]] ne "user_provided_service_instance"} {
+	err "Service instance \"[$theservice @name]\" is not user provided."
+    }
+
+    set creds [CollectCredentials $config]
+
+    display "Updating user-provided service [$theservice @name] ... "
+    display "From ..."
+    ShowCreds $theservice
+    display "To ..."
+    $theservice @credentials set $creds
+    ShowCreds $theservice
+    display "Committing ..." false
+    $theservice commit
+    display [color green OK]
+
+    debug.cmd/servicemgr {/done}
+    return
+}
+
+proc ::stackato::cmd::servicemgr::ShowCreds {theservice} {
+    set creds [$theservice @credentials]
+    [table::do t {Key Value} {
+	foreach k [lsort -dict [dict keys $creds]] {
+	    set vx [dict get $creds $k]
+	    if {$k in {created updated}} {
+		set vx [clock format $vx]
+	    }
+	    $t add $k $vx
+	}
+    }] show {::stackato::cmd::servicemgr::ShowI {    }}
+}
+
+proc ::stackato::cmd::servicemgr::ShowI {prefix text} {
+    lappend map \n \n$prefix
+    display $prefix[string map $map $text]
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -871,9 +938,13 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 
 	    $t add Plan            [$plan @name]
 	    $t add "- Description" [$plan @description]
-	    $t add "- Free"        [$plan @free]
-	    $t add "- Public"      [$plan @public]
-	    $t add Dashboard    [$service @dashboard_url]
+	    if {[$plan @free defined?]} {
+		$t add "- Free" [$plan @free]
+	    }
+	    if {[$plan @public defined?]} {
+		$t add "- Public" [$plan @public]
+	    }
+	    $t add Dashboard [$service @dashboard_url]
 	}
 
 	$t add Space [$service @space full-name]
@@ -1739,6 +1810,35 @@ proc ::stackato::cmd::servicemgr::ProcessClient {tclient servicename vendor} {
 proc ::stackato::cmd::servicemgr::GetClientsFor {vendor} {
     debug.cmd/servicemgr {}
     return [dict get' [tclients get] $vendor {}]
+}
+
+proc ::stackato::cmd::servicemgr::CollectCredentials {config} {
+    debug.cmd/servicemgr {}
+
+    if {![cmdr interactive?] && ![$config @credentials set?]} {
+	err "Need --credentials"
+    }
+
+    if {![$config @credentials set?]} {
+	# Go interactive
+
+	set keys [term ask/string "Which credentials to use for connections \[hostname, port, password\]: "]
+	if {$keys eq {}} {
+	    set keys {hostname port password}
+	} else {
+	    set keys [struct::list map [split $keys ,] {string trim}]
+	}
+	foreach k $keys {
+	    dict set creds $k [term ask/string "$k: "]
+	}
+    } else {
+	# Take from option - Treat input as Tcl dictionary.
+	foreach kv [$config @credentials] {
+	    dict set creds {*}$kv
+	}
+    }
+
+    return $creds
 }
 
 # # ## ### ##### ######## ############# #####################

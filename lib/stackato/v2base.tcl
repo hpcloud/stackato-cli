@@ -147,7 +147,8 @@ oo::class create ::stackato::v2::base {
     variable \
 	myjson mydata mydiff mylog mydefault mydelete mymap myfullmap \
 	myattr myone mymany myexcluded mysumaction mynote mydelargs \
-	mylabel mypp myheaders myjname
+	mylabel mypp myheaders myjname \
+	myfake
 
     # # ## ### ##### ######## #############
     ## Life cycle
@@ -177,6 +178,7 @@ oo::class create ::stackato::v2::base {
 	if {![info exists myattr]}      { set myattr {} }
 	if {![info exists myone ]}      { set myone  {} }
 	if {![info exists mymany]}      { set mymany {} }
+	if {![info exists myfake]}      { set myfake {} }
 	if {![info exists myjname]}     { set myjname {} }
 	if {![info exists mysumaction]} { set mysumaction {} }
 
@@ -636,6 +638,13 @@ oo::class create ::stackato::v2::base {
 	}
 	debug.v2/base {==> $id}
 	return $id
+    }
+
+    method meta {field} {
+	debug.v2/base {}
+	set r [dict get $myjson metadata $field]
+	debug.v2/base {==> $r}
+	return $r
     }
 
     method created {} {
@@ -1438,6 +1447,14 @@ oo::class create ::stackato::v2::base {
 
 		set urllist [[authenticated] list-by-url $url $config]
 		set objlist [deref* $urllist]
+	    } elseif {[dict exists $myfake $name]} {
+
+		set url [my url]/$name
+		dict set myjson entity ${jname}_url $url
+
+		set urllist [[authenticated] list-by-url $url $config]
+		set objlist [deref* $urllist]
+
 	    } else {
 		# else: defaults - none
 		my Undefined "attribute $name" ATTRIBUTE $name
@@ -1788,7 +1805,7 @@ oo::class create ::stackato::v2::base {
 
 	    # Object reference attribute.
 	    # In cf v2 known as a ToOne relationship.
-	    # Create the acessor methods.
+	    # Create the accessor methods.
 	    #
 	    # @x            : get value of attribute (obj)
 	    # @x set v      : set value of attribute (obj)
@@ -1808,7 +1825,7 @@ oo::class create ::stackato::v2::base {
 	    dict set mymap $jsonname        1ref
 
 	} else {
-	    # Regular attribute. Create the acessor methods
+	    # Regular attribute. Create the accessor methods
 	    #
 	    # @x            : get value of attribute
 	    # @x set v      : set value of attribute
@@ -1832,7 +1849,11 @@ oo::class create ::stackato::v2::base {
 		    set type dict
 		}
 		list-string { set hint {array string} }
-		default     { set hint nstring }
+		!string {
+		    set hint string
+		    set type string
+		}
+		default { set hint nstring }
 	    }
 
 	    debug.v2/base {nullable  = ($nullable)}
@@ -1897,6 +1918,11 @@ oo::class create ::stackato::v2::base {
 
 	oo::objdefine [self] forward @$name my AccessN $name $xname $name $type
 	oo::objdefine [self] export  @$name
+	return
+    }
+
+    method Fake {name} {
+	dict set myfake $name .
 	return
     }
 

@@ -10,6 +10,7 @@ package require Tcl 8.5
 package require stackato::color
 package require stackato::jmap
 package require stackato::log
+package require stackato::mgr::auth
 package require stackato::mgr::cgroup
 package require stackato::mgr::client
 package require stackato::mgr::context
@@ -19,6 +20,7 @@ package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
 package require stackato::mgr::manifest
 package require stackato::mgr::self
+package require stackato::mgr::ws
 package require stackato::misc
 package require stackato::v2
 package require stackato::validate::spacename
@@ -44,7 +46,7 @@ namespace eval ::stackato::cmd::query {
 	frameworks general runtimes services usage \
 	applications manifest appinfo context stacks \
 	target-version trace map-named-entity \
-	named-entities raw-rest list-packages
+	named-entities raw-rest list-packages app-versions
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -52,6 +54,12 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::log::psz
+
+    namespace import ::stackato::log::epoch-of
+    namespace import ::stackato::log::since
+    namespace import ::stackato::log::pretty-since
+
+    namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cfile
@@ -59,6 +67,7 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::self
+    namespace import ::stackato::mgr::ws
     namespace import ::stackato::misc
     namespace import ::stackato::v2
     namespace import ::stackato::validate::spacename
@@ -90,14 +99,66 @@ proc ::stackato::cmd::query::raw-rest {config} {
 
     set client  [$config @client]
     set op      [$config @operation]
+    set ws      [$config @web-socket]
     set url     [$config @path]
     set headers [$config @header]
     set verbose [$config @show-extended]
+    set port    [$config @port]
 
     # Prepend a missing leading /
     # Should possibly go into validation type.
     if {![string match /* $url]} {
 	set url /$url
+    }
+
+    set form {}
+    foreach item [$config @form] {
+	dict set form {*}$item
+    }
+    if {[dict size $form]} {
+	append url ?[http::formatQuery {*}$form]
+    }
+
+    if {$ws && ($op ne "GET")} {
+	# Reject web-socket operation for anything but GET.
+	err "Operation $op does not support --web-socket mode."
+    }
+
+    if {$ws} {
+	set target [ctarget get]
+	#puts 1|$target|
+
+	set target [url ws [url canon $target]]
+	regsub {^wss:} $target {ws:} target ;# Force non-SSL connection.
+	#puts 2|$target|
+
+	if {$port ne {}} {
+	    append target :$port
+	}
+
+	debug.cmd/query {target = $target}
+	debug.cmd/query {url    = $url}
+
+	dict set a text    [namespace code rr-ws-text]
+	dict set a binary  [namespace code rr-ws-binary]
+	dict set a connect [namespace code rr-ws-connect]
+	if {[$config @reconnect]} {
+	    dict set a close [namespace code [list rr-ws-keep $target $url]]
+	}
+
+	ws open $target $url $a
+	ws wait
+	return
+
+	set continue yes
+	while {$continue} {
+	    set continue [$config @reconnect]
+	    websocket::open $url [namespace code WSHandler] {*}$options
+	    #puts 4|WAITING
+	    vwait ::forever
+	}
+	debug.cmd/query {/done}
+	return {*}$::forever
     }
 
     set old [$client cget -headers]
@@ -157,6 +218,77 @@ proc ::stackato::cmd::query::raw-rest {config} {
 
     debug.cmd/query {/done}
     return
+}
+
+proc ::stackato::cmd::query::rr-ws-connect {} {
+    puts [color blue "connected (press Ctrl-C to abort)"]
+}
+
+proc ::stackato::cmd::query::rr-ws-text {msg} {
+    puts "TEXT: $msg"
+    flush stdout
+}
+
+proc ::stackato::cmd::query::rr-ws-binary {msg} {
+    puts [http::Hexl {DATA: } $msg]
+    flush stdout
+}
+
+proc ::stackato::cmd::query::rr-ws-keep {target url } {
+    dict set a text    [namespace code rr-ws-text]
+    dict set a binary  [namespace code rr-ws-binary]
+    dict set a connect [namespace code rr-ws-connect]
+    dict set a close   [namespace code [list rr-ws-keep $target $url]]
+    ws open $target $url $a
+}
+
+proc ::stackato::cmd::query::WSHandler {sock type msg} {
+
+    # type in
+    # * binary     - data binary
+    # * close      - connection close pending
+    # * connect    - connection is open
+    # * disconnect - connection closed by remote
+    # * error      - general error
+    # * ping       - liveness
+    # * text       - data, text
+
+    switch -exact -- $type {
+	error {
+	    # Abort the event loop in 'raw-rest'.
+	    set ::forever [list -code error \
+			       -errorcode {STACKATO CLIENT CLI CLI-EXIT} \
+			       "Error: $msg"]
+	    return
+	}
+	connect {
+	    puts [color blue "connected (press Ctrl-C to abort)"]
+	}
+	disconnect {}
+	close {
+	    puts [color blue "Note: $msg"]
+	    # Abort event loop in raw-rest, regular return
+	    set ::forever [list -code ok {}]
+	}
+	binary {
+	    # Binary frame
+	    puts [http::Hexl {DATA: } $msg]
+	    flush stdout
+	}
+	text {
+	    # Text frame
+	    puts "TEXT: $msg"
+	    flush stdout
+	}
+	ping {}
+	default {
+	    # ping
+
+	    puts S=$sock
+	    puts T=$type
+	    puts M=($msg)
+	}
+    }
 }
 
 proc ::stackato::cmd::query::MaxLen {list} {
@@ -301,6 +433,47 @@ proc ::stackato::cmd::query::trace {config} {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::query::app-versions {config} {
+    debug.cmd/query {}
+    manifestmgr user_1app each $config ::stackato::cmd::query::AppVersions
+    return
+}
+
+proc ::stackato::cmd::query::AppVersions {config theapp} {
+    debug.cmd/query {}
+
+    set theapp [$config @application]
+
+    if {![$theapp @app_versions defined?]} {
+	err "The chosen target does not support application versioning"
+    }
+
+    set versions [$theapp @app_versions]
+
+    if {[$config @json]} {
+	display [json::write array \
+		     {*}[struct::list map $versions \
+			     [lambda v { $v as-json }]]]
+	return
+    }
+
+    [table::do t {Version Created Description} {
+	#  Instances Memory - currently internal
+	foreach v [v2 sort @version_count $versions -integer -decreasing] {
+	    set n [$v name]
+	    set c [pretty-since [since [epoch-of [$v created]]]]
+	    set d [$v @description]
+	    #set i [$v @instances]
+	    #set m [$v @memory]
+
+	    $t add $n $c $d ;# $i $m
+	}
+    }] show display
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::query::appinfo {config} {
     debug.cmd/query {}
     manifestmgr user_1app each $config ::stackato::cmd::query::Appinfo
@@ -428,6 +601,23 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	$t add {- Max Instances} $maxi
 	$t add {- Min CPU}       $mint
 	$t add {- Max CPU}       $maxt
+
+	if {![$theapp @app_versions defined?]} {
+	    $t add Versioning "N/A (not supported by target)"
+	} else {
+	    # Show abbreviated version information.
+	    $t add Versioning {}
+	    set versions [$theapp @app_versions]
+	    foreach v [v2 sort @version_count $versions -integer -decreasing] {
+		set n [$v name]
+		set c [pretty-since [since [epoch-of [$v created]]]]
+		set d [$v @description]
+		set i [$v @instances]
+		set m [$v @memory]
+
+		$t add "- $n" "$c '$d'" ;#internal, no show: " \#$i ${m}M"
+	    }
+	}
     }] show display
     return
 }

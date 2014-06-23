@@ -47,7 +47,8 @@ namespace eval ::stackato::cmd::usermgr {
     namespace export \
 	add delete list login logout password who info \
 	link-org link-space unlink-org unlink-space \
-	token decode-token login-fields delete-by-uuid
+	token decode-token login-fields delete-by-uuid \
+	org-list space-list
     namespace ensemble create
 
     namespace import ::stackato::cmd::admin
@@ -61,6 +62,11 @@ namespace eval ::stackato::cmd::usermgr {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say
+
+    namespace import ::stackato::log::epoch-of
+    namespace import ::stackato::log::since
+    namespace import ::stackato::log::pretty-since
+
     namespace import ::stackato::mgr::app
     namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cgroup
@@ -110,6 +116,8 @@ proc ::stackato::cmd::usermgr::link-org {config} {
     return
 }
 
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::usermgr::link-space {config} {
     debug.cmd/usermgr {}
 
@@ -129,6 +137,8 @@ proc ::stackato::cmd::usermgr::link-space {config} {
     }
     return
 }
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::unlink-org {config} {
     debug.cmd/usermgr {}
@@ -170,6 +180,8 @@ proc ::stackato::cmd::usermgr::unlink-space {config} {
     }
     return
 }
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::SetRolesForUnlink {config} {
     set roles {@manager @billing @auditor}
@@ -337,6 +349,8 @@ proc ::stackato::cmd::usermgr::add {config} {
     return
 }
 
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::usermgr::delete-by-uuid {config} {
     set client [$config @client]
     set uuid   [$config @uuid]
@@ -361,6 +375,8 @@ proc ::stackato::cmd::usermgr::delete-by-uuid {config} {
 
     return
 }
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::delete {config} {
     debug.cmd/usermgr {}
@@ -435,6 +451,41 @@ proc ::stackato::cmd::usermgr::DeleteV1 {config client} {
     display [color green OK]
     return
 }
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::usermgr::org-list {config} {
+    debug.cmd/usermgr {}
+
+    set theorg [corg get]
+
+    set mgr [join [lsort -dict [$theorg @managers         the_name]] \n]
+    set bil [join [lsort -dict [$theorg @billing_managers the_name]] \n]
+    set aud [join [lsort -dict [$theorg @auditors         the_name]] \n]
+
+    display "Organization [$theorg @name] ..."
+    [table::do t {Manager {Billing Manager} Auditor} {
+	$t add $mgr $bil $aud
+    }] show display
+    return
+}
+
+proc ::stackato::cmd::usermgr::space-list {config} {
+    debug.cmd/usermgr {}
+
+    set thespace [cspace get]
+
+    set dev [join [lsort -dict [$thespace @developers the_name]] \n]
+    set mgr [join [lsort -dict [$thespace @managers   the_name]] \n]
+    set aud [join [lsort -dict [$thespace @auditors   the_name]] \n]
+
+    display "Space [$thespace full-name] ..."
+    [table::do t {Developer Manager Auditor} {
+	$t add $dev $mgr $aud
+    }] show display
+}
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::list {config} {
     debug.cmd/usermgr {}
@@ -604,7 +655,7 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
     #    1       0   x     x      x     x
     #    1       1   x     x      x     x
     # ---- ------- ----- ------ ----- -------------
-    set headings {{} Name}
+    set headings {{} Name {Last Login}}
     if {$ngf} { lappend headings Given Family }
     lappend headings Email
     if {$osa} { lappend headings Organizations Spaces Applications }
@@ -621,8 +672,13 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	    set admin [expr {[$u @admin] ? "A" : " "}]
 	    set mark  [expr {($cu ne {}) && ($cu eq $email) ? "x" : " "}]
 
+	    if {[catch {
+		set ll [$u meta logged_in_at]
+		set ll [pretty-since [since [epoch-of $ll]]]
+	    }]} { set ll {not available} }
+
 	    # Standard fields.
-	    lappend row $mark$admin [$u the_name]
+	    lappend row $mark$admin [$u the_name] $ll
 
 	    if {$ngf} {
 		lappend row [$u given_name] [$u family_name]
@@ -780,6 +836,8 @@ proc ::stackato::cmd::usermgr::UserLinkedOrgs {u} {
     return $tmp
 }
 
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::usermgr::token {config} {
     debug.cmd/usermgr {}
 
@@ -815,6 +873,8 @@ proc ::stackato::cmd::usermgr::token {config} {
     return
 }
 
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::usermgr::login-fields {config} {
     debug.cmd/usermgr {}
 
@@ -834,6 +894,8 @@ proc ::stackato::cmd::usermgr::login-fields {config} {
     }] show display
     return
 }
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::login {config} {
     debug.cmd/usermgr {}
@@ -1131,6 +1193,8 @@ proc ::stackato::cmd::usermgr::PostLoginV2 {client config} {
     return
 }
 
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::cmd::usermgr::logout {config} {
     debug.cmd/usermgr {}
 
@@ -1161,6 +1225,8 @@ proc ::stackato::cmd::usermgr::logout {config} {
     say [color green "Successfully logged out of \[$target\]"]
     return
 }
+
+# # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::usermgr::password {config} {
     debug.cmd/usermgr {}
@@ -1390,9 +1456,11 @@ proc ::stackato::cmd::usermgr::decode-token {config} {
     # v2 only.
 
     set token [$config @token]
+    debug.cmd/usermgr {token/0 = ($token)}
 
     # Trim non-coding prefix.
     regsub {^bearer } $token {} token
+    debug.cmd/usermgr {token/1 = ($token)}
 
     set parts [split $token .]
 

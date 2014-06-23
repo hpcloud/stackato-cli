@@ -44,7 +44,7 @@ oo::class create ::stackato::v2::app {
 	# here). When changing attribute names make sure to not
 	# collide with these.
 
-	my Attribute name              string
+	my Attribute name              !string
 	my Attribute space             &space
 	my Attribute environment_json  dict    label {Environment} default {}
 	my Attribute memory            integer label {Memory       } default 256            ;# integer0 is better
@@ -57,6 +57,10 @@ oo::class create ::stackato::v2::app {
 	my Attribute stack             &stack  label {Stack        } default {}
 	my Attribute debug             string  label {Debug        } default {}
 	my Attribute production        boolean label {Production   } default off
+
+	my Many service_bindings
+	my Many	routes
+	my Many	events app_event
 
 	# -- Stackato 3.2 ---
 	# NOTE! While the attribute is the guid (<==> name) of the
@@ -80,9 +84,9 @@ oo::class create ::stackato::v2::app {
 
 	my Attribute health_check_timeout null|integer label {Health Check Timeout}
 
-	my Many service_bindings
-	my Many	routes
-	my Many	events app_event
+	# --- Stackato 3.4 --- Versioning support.
+	my Many      app_versions
+	my Attribute droplet_count integer
 
 	#my SearchableOn name
 	#my SearchableOn space

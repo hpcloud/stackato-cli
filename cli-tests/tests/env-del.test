@@ -39,7 +39,11 @@ test env-del-1.2 {env-del, no application} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application env-del]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application env-del]
 
 test env-del-1.3 {env-del, non-admin login is ok} -setup {
     stage-open
@@ -108,9 +112,8 @@ test env-del-1.7 {env-del, running app, restart} -setup {
     remove-appdir
     stage-close
 } -match glob -result {Deleting Environment Variable \[VAR\] ... 
-Stopping Application \[node-env\] ... OK
-Starting Application \[node-env\] ... *
-OK
+*Stopping Application \[node-env\] ... OK
+*Starting Application \[node-env\] ... *
 *//node-env.* deployed*}
 
 test env-del-1.8 {env-del, deployed stopped app, no restart} -setup {

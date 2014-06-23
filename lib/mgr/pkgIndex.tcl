@@ -31,3 +31,4 @@ package ifneeded stackato::mgr::tadjunct              0 [list source [file join 
 package ifneeded stackato::mgr::targets               0 [list source [file join $dir targets.tcl]]
 package ifneeded stackato::mgr::tclients              0 [list source [file join $dir tclients.tcl]]
 package ifneeded stackato::mgr::tunnel                0 [list source [file join $dir tunnel.tcl]]
+package ifneeded stackato::mgr::ws                    0 [list source [file join $dir ws.tcl]]

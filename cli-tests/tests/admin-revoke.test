@@ -49,8 +49,8 @@ test admin-revoke-1.3 {admin revoke, admin login required} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 {Error 200: Operation not permitted} \
-	 [unexpected input email {A user} E]]
+	 {Error 200: Operation not permitted (403)} \
+	 {You are not permitted to access this resource. (403)}]
 
 test admin-revoke-1.4 {admin revoke, bogus user} -setup {
     stage-open

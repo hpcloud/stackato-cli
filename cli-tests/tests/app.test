@@ -95,7 +95,7 @@ test app-1.4.2.0 {app, json} -constraints s30le -setup {
     stage-close
 } -match glob -result [viewFile data/app1420.txt]
 
-test app-1.4.2.1 {app, json} -constraints s32ge -setup {
+test app-1.4.2.1 {app, json} -constraints s32 -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -108,6 +108,20 @@ test app-1.4.2.1 {app, json} -constraints s32ge -setup {
     remove-test-app node-env
     stage-close
 } -match glob -result [viewFile data/app1421.txt]
+
+test app-1.4.2.2 {app, json} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+    after 40000 ; # wait some for push to settle
+} -body {
+    indir $appdir { run app -n --json }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/app1422.txt]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

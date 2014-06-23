@@ -74,7 +74,7 @@ test users-1.4.2.0 {users, json} -constraints s30le -setup {
     stage-close
 } -match glob -result [viewFile data/usr1420.txt]
 
-test users-1.4.2.1 {users, json} -constraints s32ge -setup {
+test users-1.4.2.1 {users, json} -constraints s32 -setup {
     stage-open
     go-admin
 } -body {
@@ -82,6 +82,15 @@ test users-1.4.2.1 {users, json} -constraints s32ge -setup {
 } -cleanup {
     stage-close
 } -match glob -result [viewFile data/usr1421.txt]
+
+test users-1.4.2.2 {users, json} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run users --json
+} -cleanup {
+    stage-close
+} -match glob -result [viewFile data/usr1422.txt]
 
 test users-1.5 {users, related view, S3 only} -constraints cfv2 -setup {
     stage-open

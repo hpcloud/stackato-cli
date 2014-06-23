@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::domain {
     constructor {{url {}}} {
 	debug.v2/domain {}
 
-	my Attribute name                string
+	my Attribute name                !string
 	my Attribute wildcard            boolean
 	my Attribute owning_organization &organization default {}
 

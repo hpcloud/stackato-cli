@@ -83,7 +83,8 @@ proc ::stackato::validate::serviceinstance::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/serviceinstance {FAIL}
-    fail-unknown-thing $p SERVICEINSTANCE "service instance" $x " in space '[$thespace @name]'"
+    fail-unknown-thing $p SERVICEINSTANCE "service instance" $x \
+	" in space '[$thespace full-name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -13,7 +13,6 @@ package require lambda
 package require dictutil
 package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
-package require stackato::mgr::corg
 package require stackato::mgr::manifest
 package require stackato::validate::common
 package require stackato::validate::integer0
@@ -35,7 +34,6 @@ namespace eval ::stackato::validate::instance {
 
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::cmdr::validate::common::fail-unknown-thing
-    namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client

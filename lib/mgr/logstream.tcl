@@ -14,13 +14,15 @@ package require stackato::mgr::client
 package require stackato::mgr::ctarget
 package require stackato::mgr::self
 package require stackato::mgr::ssh
-
-package require stackato::mgr::client
+package require stackato::mgr::ws
 
 namespace eval ::stackato::mgr {
     namespace export logstream
     namespace ensemble create
 }
+
+# app: logs -> LogsStream -> tail, show1
+# app: general -> start, stop
 
 namespace eval ::stackato::mgr::logstream {
     namespace export start stop stop-m active \
@@ -38,6 +40,7 @@ namespace eval ::stackato::mgr::logstream {
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::ssh
+    namespace import ::stackato::mgr::ws
 }
 
 debug level  mgr/logstream
@@ -91,6 +94,8 @@ proc ::stackato::mgr::logstream::start {config theapp {mode fast}} {
 
 	set newer [GetLast $client $theapp]
 
+	# See also ::stackato::cmd::app::LogsStream (consolidate)
+	dict set mconfig _config   $config
 	dict set mconfig client    $client
 	dict set mconfig json      0
 	dict set mconfig nosts     1
@@ -102,8 +107,14 @@ proc ::stackato::mgr::logstream::start {config theapp {mode fast}} {
 	dict set mconfig max       100
 	dict set mconfig appname   $theapp ;# name or entity, per CF version
 
-	Tail $mconfig ;# pid handling implied.
-	debug.mgr/logstream {self pid /async in process}
+	if {[isws $mconfig]} {
+	    dict set mconfig max 0
+	    set pid [tail-ws $mconfig 0]
+	    # Started the tailing, no waiting, using the main event loop.
+	} else {
+	    Tail $mconfig ;# pid handling implied.
+	    debug.mgr/logstream {self pid /async in process}
+	}
     } else {
 	# Stackato pre 2.3: Launch an ssh sub-process going through
 	# stackato-ssh with special arguments.
@@ -147,7 +158,11 @@ proc ::stackato::mgr::logstream::stop {config {mode any}} {
 	# pid = handle of the currently running async log request.
 	#  or | handle of the timer delaying the next log request.
 	# Either must be canceled
-	if {[string match after* $pid]} {
+
+	if {[string match sock* $pid]} {
+	    # websocket tail
+	    ws close
+	} elseif {[string match after* $pid]} {
 	    catch { after cancel $pid }
 	} else {
 	    catch { $client logs_cancel $pid }
@@ -210,27 +225,28 @@ proc ::stackato::mgr::logstream::After {delay} {
 }
 
 proc ::stackato::mgr::logstream::active {} {
-    debug.mgr/logstream {}
     variable active
+    debug.mgr/logstream {==> $active}
     return  $active
 }
 
 proc ::stackato::mgr::logstream::new-entries {} {
-    debug.mgr/logstream {}
     # query if the logstream saw new entries since the last check, and
     # reset the counter
     variable hasnew
     set result $hasnew
     set hasnew 0
+    debug.mgr/logstream {==> $result}
     return $result
 }
 
 proc ::stackato::mgr::logstream::no-new-entries {} {
-    debug.mgr/logstream {}
     # query if the logstream saw no new entries since the last check.
     # leave the counter intact, this is sampling in-between main checks.
     variable hasnew
-    return [expr {!$hasnew}]
+    set result [expr {!$hasnew}]
+    debug.mgr/logstream {==> $result}
+    return $result
 }
 
 proc ::stackato::mgr::logstream::needfast {p x} {
@@ -409,12 +425,44 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
 }
 
 
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::mgr::logstream::isws {config} {
+    # Web-socket API can be disabled by the user.
+    if {[[dict get $config _config] @no-ws]} { return 0 }
+
+    set client [dict get $config client]
+    set ci [$client info]
+    return [dict exists $ci applog_endpoint]
+}
+
+proc ::stackato::mgr::logstream::getws {config} {
+    set client [dict get $config client]
+    set ci [$client info]
+    return [dict get $ci applog_endpoint]
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::mgr::logstream::tail {config} {
+    debug.mgr/logstream {}
+    # config = dict
+
+    if {[isws $config]} {
+	tail-ws $config
+	return
+    }
+
+    tail-poll $config
+    return
+}
+
+proc ::stackato::mgr::logstream::tail-poll {config} {
     debug.mgr/logstream {}
 
     dict set config follow 1 ;# configure filtering in show1
-    variable previous {} ;# nothing seen yet
-    variable hasnew   0  ;# initialize indicator
+    variable previous {}     ;# nothing seen yet
+    variable hasnew   0      ;# initialize indicator
 
     while {1} {
 	show1 $config
@@ -423,7 +471,59 @@ proc ::stackato::mgr::logstream::tail {config} {
     return
 }
 
+proc ::stackato::mgr::logstream::tail-ws {config {wait 1}} {
+    debug.mgr/logstream {}
+    set theapp [dict get $config appname]
+
+    set target [getws $config]
+    set url    [$theapp url]/tail
+
+    debug.mgr/logstream {target = $target}
+    debug.mgr/logstream {url    = $url}
+
+    set num [dict get $config max]
+    set urlb $url
+    if {$num > 0} { append urlb ?num=$num }
+
+    set sock [ws open $target $urlb \
+		  [dict create \
+		       text  [namespace code [list tail-ws-text      $config]] \
+		       close [namespace code [list tail-ws-reconnect $config $target $url]]]]
+
+    if {!$wait} { return $sock }
+    ws wait
+    return
+}
+
+proc ::stackato::mgr::logstream::tail-ws-text {config msg} {
+    variable hasnew 1
+    ShowLine1 $config $msg
+}
+
+proc ::stackato::mgr::logstream::tail-ws-reconnect {config target url} {
+    debug.mgr/logstream {}
+    ws open $target $url \
+	[dict create \
+	     text  [namespace code [list tail-ws-text      $config]] \
+	     close [namespace code [list tail-ws-reconnect $config $target $url]]]
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::mgr::logstream::show1 {config} {
+    debug.mgr/logstream {}
+
+    if {[isws $config]} {
+	show1-ws $config
+	return
+    }
+
+    show1-poll $config
+    return
+}
+
+proc ::stackato::mgr::logstream::show1-poll {config} {
     debug.mgr/logstream {}
 
     # Main config(uration information) provided as dict. We cannot
@@ -464,6 +564,25 @@ proc ::stackato::mgr::logstream::show1 {config} {
     return
 }
 
+proc ::stackato::mgr::logstream::show1-ws {config} {
+    debug.mgr/logstream {}
+    set theapp [dict get $config appname]
+
+    set target [getws $config]
+    set url    [$theapp url]/recent
+
+    debug.mgr/logstream {target = $target}
+    debug.mgr/logstream {url    = $url}
+
+    ws open $target $url?num=[dict get $config max] \
+	[dict create \
+	     text [namespace code [list ShowLine1 $config]]]
+    ws wait
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
 proc ::stackato::mgr::logstream::ShowLines {config lines} {
     dict with config {} ;# --> follow, client, json, nosts, p*, max, appname
 
@@ -473,64 +592,96 @@ proc ::stackato::mgr::logstream::ShowLines {config lines} {
     }
 
     foreach line $lines {
-	# Ignore empty lines (should not happen).
-	if {[string trim $line] eq {}} continue
-
-	debug.mgr/logstream/data {LINE $line}
-
-	# Parse the json, and filter...
-
-	if {[catch {
-	    set record [json::json2dict $line]
-	} emsg]} {
-	    # Parse error, or other issue.
-	    # Show the raw JSON as it came from the server, plus the error message we got.
-	    # Note that this disables all filters also.
-	    display "(($line)) ([color red $emsg])"
-	    continue
-	}
-
-	if {[Filter $record]} continue
-
-	# Format for display, and print.
-
-	if {$json} {
-	    # Raw JSON as it came from the server.
-	    display $line
-	} else {
-	    dict with record {} ;# => instance, source, text, ...
-
-	    set original_source $source
-	    
-	    # Append instance index to the app log filename, in a manner similar
-	    # to how stackato* sources have instance index suffixed.
-	    if {$filename ne "" && $original_source ne "staging"} { 
-		if {$instance >= 0} { append filename .$instance }
-		append source \[$filename\] 
-	    }
-
-	    # The color of stackato.* (source) messages differ from
-	    # app messages.
-	    # colors: red green yellow white blue cyan bold
-	    if {[string match "stackato*" $source]} {
-		set linecolor yellow
-	    } else {
-		set linecolor cyanfg
-	    }
-	    
-	    if {$nosts} {
-		# --no-timestamps
-		set date ""
-	    } else {
-		set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
-	    }
-	    set date     [color $linecolor $date]
-	    set source   [color $linecolor $source]
-	    #set instance [color blue   $instance]
-	    display "$date$source: $text"
-	}
+	ShowLine1 $config $line
     }
     return
+}
+
+proc ::stackato::mgr::logstream::ShowLine1 {config line} {
+    # Ignore empty lines (should not happen).
+    if {[string trim $line] eq {}} return
+
+    debug.mgr/logstream/data {LINE $line}
+
+    # Parse the json, and filter...
+    set record [Peel $line]
+
+    # New-style record is has keys "error" and "value". Latter's value is a string,
+    # contains serialized json. 2nd parsing pass required for it.
+
+    # Check for and show server error information first.
+    if {[dict exists $record error]} {
+	set m [dict get $record error]
+	if {$m ne {}} {
+	    display [color red $m]
+	    return
+	}
+    }
+    if {[dict exists $record value]} {
+	# Peel the onion
+	set record [Peel [dict get $record value]]
+
+	# Recreate the missing old-style fields needed for filtering,
+	# from the equivalent new-style fields.
+	dict set record timestamp [dict get $record unix_time     ]
+	dict set record instance  [dict get $record instance_index]
+	dict set record nodeid    [dict get $record node_id       ]
+    }
+
+    dict with config {} ;# --> follow, client, json, nosts, p*, max, appname
+
+    if {[Filter $record]} return
+
+    # Format for display, and print.
+
+    if {$json} {
+	# Raw JSON as it came from the server.
+	display $line
+    } else {
+	dict with record {} ;# => instance, source, text, ...
+
+	set original_source $source
+	
+	# Append instance index to the app log filename, in a manner similar
+	# to how stackato* sources have instance index suffixed.
+	if {$filename ne "" && $original_source ne "staging"} { 
+	    if {$instance >= 0} { append filename .$instance }
+	    append source \[$filename\] 
+	}
+
+	# The color of stackato.* (source) messages differ from
+	# app messages.
+	# colors: red green yellow white blue cyan bold
+	if {[string match "stackato*" $source]} {
+	    set linecolor yellow
+	} else {
+	    set linecolor cyanfg
+	}
+	
+	if {$nosts} {
+	    # --no-timestamps
+	    set date ""
+	} else {
+	    set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
+	}
+	set date     [color $linecolor $date]
+	set source   [color $linecolor $source]
+	#set instance [color blue   $instance]
+	display "$date$source: $text"
+    }
+}
+
+proc ::stackato::mgr::logstream::Peel {line} {
+    if {[catch {
+	set record [json::json2dict $line]
+    } emsg]} {
+	# Parse error, or other issue.
+	# Show the raw JSON as it came from the server, plus the error message we got.
+	# Note that this disables all filters also.
+	display "(($line)) ([color red $emsg])"
+	return -code return ;# Stop not only self, but caller as well.
+    }
+    return $record
 }
 
 proc ::stackato::mgr::logstream::Skip {lines} {
@@ -600,7 +751,6 @@ proc ::stackato::mgr::logstream::Skip {lines} {
     if {$previous eq $lines} {
 	# Same as last time.
 	debug.mgr/logstream/data {SKIP ALL (same as previous)}
-
 	return {}
     }
 

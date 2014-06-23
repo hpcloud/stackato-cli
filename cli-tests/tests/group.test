@@ -72,8 +72,8 @@ test group-1.5 {group, set group, non-admin must be member} -constraints cfv1 -s
     run groups delete test-group
     remove-non-admin
     stage-close
-} -returnCodes error -result \
-    {Error: You are not a member of group 'test-group'. Groups available to you:}
+} -returnCodes error -match glob -result \
+    {Error: You are not a member of group 'test-group'.*Groups available to you:}
 
 test group-1.6 {group, set group, non-admin is member} -constraints cfv1 -setup {
     stage-open

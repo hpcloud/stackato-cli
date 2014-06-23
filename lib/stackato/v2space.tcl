@@ -25,7 +25,7 @@ oo::class create ::stackato::v2::space {
     constructor {{url {}}} {
 	debug.v2/space {}
 
-	my Attribute name         string		 
+	my Attribute name         !string		 
 	my Attribute organization &organization
 
 	# Stackato v3.2 attribute
@@ -38,6 +38,11 @@ oo::class create ::stackato::v2::space {
 	my Many domains
 	my Many service_instances
 	my Many app_events
+
+	# NOTE: This relation is currently not properly served as such
+	# by the target.
+	my Many services
+	my Fake services
 
 	my Summary \
 	    services [mymethod S.services]

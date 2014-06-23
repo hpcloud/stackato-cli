@@ -90,7 +90,7 @@ test rename-app-1.6 {rename (app), unknown source app} -constraints cfv2 -setup 
     run rename -n testapp testapp2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input application application testapp " in space '[thespace]'"]
+} -returnCodes error -result [unexpected input application application testapp " in space '[theorg]::[thespace]'"]
 
 test rename-app-1.7 {rename (app), duplicate destination app} -constraints cfv2 -setup {
     stage-open

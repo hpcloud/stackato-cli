@@ -25,11 +25,15 @@ test env-1.1 {env, no application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run env }
+    indir [appdir] { run env -n }
 } -cleanup {
     remove-appdir
    stage-close
-} -returnCodes error -match glob -result [no-application env]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application env]
 
 test env-1.2 {env, non-admin login is ok} -setup {
     stage-open

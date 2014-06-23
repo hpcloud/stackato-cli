@@ -166,6 +166,12 @@ oo::class create ::stackato::client {
 	return $myclientinfo
     }
 
+    method info= {dict} {
+	debug.client {}
+	variable myclientinfo $dict
+	return
+    }
+
     method info_reset {} {
 	debug.client {}
 	set myclientinfo {}

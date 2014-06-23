@@ -119,7 +119,7 @@ proc ::stackato::validate::appname::validate {p x} {
 
     fail-unknown-thing $p APPNAME "application" $x \
 	[expr {[$c isv2]
-	       ? " in space '[[cspace get] @name]'"
+	       ? " in space '[[cspace get] full-name]'"
 	       : ""}]
 
 }

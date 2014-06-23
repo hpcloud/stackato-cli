@@ -30,6 +30,7 @@ package ifneeded stackato::v2::client                  0 [list source [file join
 #------
 package ifneeded stackato::v2::app                     0 [list source [file join $dir v2app.tcl]]
 package ifneeded stackato::v2::app_event               0 [list source [file join $dir v2appevent.tcl]]
+package ifneeded stackato::v2::app_version             0 [list source [file join $dir v2appversion.tcl]]
 package ifneeded stackato::v2::buildpack               0 [list source [file join $dir v2buildpack.tcl]]
 package ifneeded stackato::v2::domain                  0 [list source [file join $dir v2domain.tcl]]
 package ifneeded stackato::v2::organization            0 [list source [file join $dir v2org.tcl]]

@@ -8,4 +8,5 @@ applications:
     name: node-env
     path: @APPDIR@
     stackato:
+      force-war-unpacking: yes
       sso-enabled: yes

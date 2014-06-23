@@ -25,9 +25,11 @@ oo::class create ::stackato::v2::buildpack {
     constructor {{url {}}} {
 	debug.v2/buildpack {}
 
-	my Attribute name     string
+	my Attribute name     !string
 	my Attribute position integer
 	my Attribute enabled  boolean
+	my Attribute locked   boolean
+	my Attribute filename string
 
 	next $url
 	debug.v2/buildpack {/done}
@@ -35,7 +37,7 @@ oo::class create ::stackato::v2::buildpack {
 
     method upload! {zip} {
 	debug.v2/buildpack {}
-	[authenticated] upload-by-url-zip [my url]/bits $zip
+	[authenticated] upload-by-url [my url]/bits $zip {} buildpack
 	return
     }
 

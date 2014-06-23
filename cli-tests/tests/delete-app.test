@@ -80,7 +80,7 @@ test delete-app-1.3 {delete-app, unknown app} -setup {
     stage-close
 } -returnCodes error -result \
     [unexpected input application application bogus \
-	 [per-api {} " in space '[thespace]'"]]
+	 [per-api {} " in space '[theorg]::[thespace]'"]]
 
 test delete-app-1.4.1 {delete-app, all apps} -constraints cfv1 -setup {
     stage-open

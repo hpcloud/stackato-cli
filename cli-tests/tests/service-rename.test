@@ -83,7 +83,7 @@ test service-rename-1.6 {service rename, unknown source service} -constraints cf
     run rename-service -n testservice testservice2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input service {service instance} testservice " in space '[thespace]'"]
+} -returnCodes error -result [unexpected input service {service instance} testservice " in space '[theorg]::[thespace]'"]
 
 test service-rename-1.7 {service rename, duplicate destination service} -constraints cfv2 -setup {
     stage-open

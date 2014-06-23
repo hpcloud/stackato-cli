@@ -467,16 +467,22 @@ nokeep
 
 apply {{spec} {
     # The variables are used in other parts of common code.
-    global isv1 isv2 post30 pre32
+    global isv1 isv2 post30 pre32 post32 pre34
 
     set isv1   [expr {[dict get $spec API] <  2}]
     set isv2   [expr {[dict get $spec API] >= 2}]
     set post30 [expr {[package vcompare [dict get $spec Version] 3.1] >= 0}]
     set pre32  [expr {[package vcompare [dict get $spec Version] 3.1] < 0}]
 
+    set post32 [expr {[package vcompare [dict get $spec Version] 3.3] >= 0}]
+    set pre34  [expr {[package vcompare [dict get $spec Version] 3.3] < 0}]
+
     tcltest::testConstraint cfv1    $isv1 ;# target is v1
     tcltest::testConstraint cfv2    $isv2 ;# target is v2
+    tcltest::testConstraint s34ge   [expr {$isv2 && $post32}]
     tcltest::testConstraint s32ge   [expr {$isv2 && $post30}]
+    tcltest::testConstraint s32     [expr {$isv2 && $post30 && $pre34}]
+    tcltest::testConstraint s32le   [expr {$isv2 && $pre34}]
     tcltest::testConstraint s30le   [expr {$isv2 && $pre32}]
 
 }} [run debug-target --target [thetarget]]
@@ -488,6 +494,9 @@ NOTE "cfv1  = [tcltest::testConstraint cfv1]"
 NOTE "cfv2  = [tcltest::testConstraint cfv2]"
 NOTE "s30le = [tcltest::testConstraint s30le]"
 NOTE "s32ge = [tcltest::testConstraint s32ge]"
+NOTE "s32le = [tcltest::testConstraint s32le]"
+NOTE "s32   = [tcltest::testConstraint s32]"
+NOTE "s34ge = [tcltest::testConstraint s34ge]"
 
 # # ## ### ##### ######## ############# #####################
 return

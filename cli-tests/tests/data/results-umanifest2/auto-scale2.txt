@@ -9,3 +9,4 @@ applications:
   stackato:
     autoscale:
       enabled: yes
+    force-war-unpacking: yes

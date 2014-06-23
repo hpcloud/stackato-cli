@@ -7,12 +7,16 @@ Getting Started
                                   or report the current target
 
 Applications
-    stackato app [<application>]    Show the information of the specified
-                                    application
-    stackato apps                   List the applications deployed to the
-                                    target
-    stackato list                   List the applications deployed to the
-                                    target
+    stackato app [<application>]         Show the information of the specified
+                                         application
+    stackato apps                        List the applications deployed to the
+                                         target
+    stackato list                        List the applications deployed to the
+                                         target
+    stackato releases [<application>]    Show the list of versions for the
+                                         specified application
+    stackato versions [<application>]    Show the list of versions for the
+                                         specified application
 
     Information
         stackato crashes [<application>]         List recent application
@@ -97,6 +101,10 @@ Applications
         stackato restart [<application>]                      Stop and restart
                                                               a deployed
                                                               application
+        stackato rollback [<application>] <version>           Switch to a
+                                                              different version
+                                                              of the
+                                                              application
         stackato run <command>...                             Run an arbitrary
                                                               command on a
                                                               running instance
@@ -126,6 +134,10 @@ Applications
         stackato start [<application>]                        Start a deployed
                                                               application
         stackato stop [<application>]                         Stop a deployed
+                                                              application
+        stackato switch-version [<application>] <version>     Switch to a
+                                                              different version
+                                                              of the
                                                               application
         stackato unmap [<application>] <url>                  Unregister the
                                                               application from
@@ -163,9 +175,17 @@ Introspection
         stackato history list [<n>]     Show the saved history of commands
 
 Services
-    stackato service <name>    Show the information about the named service
-    stackato services          List the supported and provisioned services of
-                               the target
+    stackato marketplace                          List the supported service
+                                                  plans of the target, for the
+                                                  current or specified space
+    stackato purge-service-offerings <service>    Purge all offerings of the
+                                                  service (type) from the
+                                                  system
+    stackato service <name>                       Show the information about
+                                                  the named service
+    stackato services                             List the supported and
+                                                  provisioned services of the
+                                                  target
 
     Authentication Tokens
         stackato create-service-auth-token [<label>] [<provider>]    Create a
@@ -274,7 +294,13 @@ Services
 
                                                                        applicati
                                                                        on
-
+        stackato update-user-provided-service <service>                Update
+                                                                       the
+                                                                       credentia
+                                                                       ls of a
+                                                                       user
+                                                                       provided
+                                                                       service
     Plans
         stackato hide-service-plan <name> [<organization>]    Hide the
                                                               specified
@@ -308,6 +334,8 @@ Organizations
                                                 roles
     stackato org [<name>]                       Show the named organization's
                                                 information
+    stackato org-users [<org>]                  Show the users for the
+                                                organization, by role
     stackato orgs                               List the available
                                                 organizations
     stackato quota-org [<name>] <quota>         Set the quotas for the current
@@ -331,6 +359,8 @@ Spaces
     stackato rename-space [<name>] [<newname>]     Rename the named space
     stackato space [<name>]                        Show the named space's
                                                    information
+    stackato space-users [<space>]                 Show the users for the
+                                                   space, by role
     stackato spaces                                List the available spaces in
                                                    the specified organization
     stackato switch-space [<name>]                 Switch from the current
@@ -357,86 +387,102 @@ Domains
                                      organization or space
 
 Administration
-    stackato admin grant <email>                  Grant the named user
-                                                  administrator privileges for
-                                                  the current or specified
-                                                  target
-    stackato admin list                           Show a list of the
-                                                  administrators for the
-                                                  current or specified target
-    stackato admin patch <patch>                  Apply a patch to the current
-                                                  or specified target
-    stackato admin report [<destination>]         Retrieve a report containing
-                                                  the logs of the current or
-                                                  specified target
-    stackato admin revoke <email>                 Revoke administrator
-                                                  privileges for the named user
-                                                  at the current or specified
-                                                  target
-    stackato frameworks                           List the supported frameworks
-                                                  of the target
-    stackato info                                 Show the basic system and
-                                                  account information
-    stackato runtimes                             List the supported runtimes
-                                                  of the target
-    stackato stacks                               List the supported stacks of
-                                                  the target
-    stackato targets                              List the available targets,
-                                                  and their authorization
-                                                  tokens, if any
-    stackato tokens                               List the available targets,
-                                                  and their authorization
-                                                  tokens, if any
-    stackato usage [<userOrGroup>]                Show the current memory
-                                                  allocation and usage of the
-                                                  active or specified
-                                                  user/group (Stackato 2), or
-                                                  the specified or current
-                                                  space (Stackato 3)
-    stackato user                                 Show the name of the current
-                                                  user in the current or
-                                                  specified target
-    stackato user-info [<name>]                   Shows the information of a
-                                                  user in the current or
-                                                  specified target
-    stackato version                              Print the version number of
-                                                  the client
+    stackato admin grant <email>             Grant the named user administrator
+                                             privileges for the current or
+                                             specified target
+    stackato admin list                      Show a list of the administrators
+                                             for the current or specified
+                                             target
+    stackato admin patch <patch>             Apply a patch to the current or
+                                             specified target
+    stackato admin report [<destination>]    Retrieve a report containing the
+                                             logs of the current or specified
+                                             target
+    stackato admin revoke <email>            Revoke administrator privileges
+                                             for the named user at the current
+                                             or specified target
+    stackato frameworks                      List the supported frameworks of
+                                             the target
+    stackato info                            Show the basic system and account
+                                             information
+    stackato runtimes                        List the supported runtimes of the
+                                             target
+    stackato show-token                      Print the current target's token
+    stackato stacks                          List the supported stacks of the
+                                             target
+    stackato targets                         List the available targets, and
+                                             their authorization tokens, if any
+    stackato tokens                          List the available targets, and
+                                             their authorization tokens, if any
+    stackato usage [<userOrGroup>]           Show the current memory allocation
+                                             and usage of the active or
+                                             specified user/group (Stackato 2),
+                                             or the specified or current space
+                                             (Stackato 3)
+    stackato user                            Show the name of the current user
+                                             in the current or specified target
+    stackato user-info [<name>]              Shows the information of a user in
+                                             the current or specified target
+    stackato version                         Print the version number of the
+                                             client
+
+    Buildpacks
+        stackato buildpacks                               Show all build-packs
+                                                          known to the target,
+                                                          in the order they are
+                                                          checked in during
+                                                          auto-detection
+        stackato create-buildpack <name> <zip>            Add a build-pack to
+                                                          the target
+        stackato delete-buildpack [<name>]                Remove the specified
+                                                          build-back from the
+                                                          target
+        stackato rename-buildpack [<name>] [<newname>]    Change the name of
+                                                          the specified
+                                                          build-pack
+        stackato update-buildpack [<name>]                Change the
+                                                          information known
+                                                          about the specified
+                                                          build-pack
 
     Groups (Stackato 2)
-      stackato group [<name>]                     Report the current group, or
-                                                  (un)set it
-      stackato groups add-user <group> <user>     Add the named user to the
-                                                  specified group
-      stackato groups create <name>               Create a new group with the
-                                                  specified name
-      stackato groups delete <name>               Delete the named group
-      stackato groups delete-user <group> <user>  Remove the named user from
-                                                  the specified group
-      stackato groups limits [<group>]            Show and/or modify the limits
-                                                  applying to applications in
-                                                  the named group
-      stackato groups show                        Show the list of groups known
-                                                  to the target
-      stackato groups users [<group>]             Show the list of users in the
-                                                  named group
-      stackato limits [<group>]                   Show and/or modify the limits
-                                                  applying to applications in
-                                                  the named group
+        stackato group [<name>]                       Report the current group,
+                                                      or (un)set it
+        stackato groups add-user <group> <user>       Add the named user to the
+                                                      specified group
+        stackato groups create <name>                 Create a new group with
+                                                      the specified name
+        stackato groups delete <name>                 Delete the named group
+        stackato groups delete-user <group> <user>    Remove the named user
+                                                      from the specified group
+        stackato groups limits [<group>]              Show and/or modify the
+                                                      limits applying to
+                                                      applications in the named
+                                                      group
+        stackato groups show                          Show the list of groups
+                                                      known to the target
+        stackato groups users [<group>]               Show the list of users in
+                                                      the named group
+        stackato limits [<group>]                     Show and/or modify the
+                                                      limits applying to
+                                                      applications in the named
+                                                      group
 
     Quotas
-      stackato quota configure [<name>]           Reconfigure the named quota
-                                                  definition
-      stackato quota create [<name>]              Create a new quota definition
-      stackato quota delete [<name>]              Delete the named quota
-                                                  definition
-      stackato quota list                         List the available quota
-                                                  definitions
-      stackato quota rename [<name>] <newname>    Rename the named quota
-                                                  definition
-      stackato quota show [<name>]                Show the details of the named
-                                                  quota definition
-      stackato quotas                             List the available quota
-                                                  definitions
+        stackato quota configure [<name>]           Reconfigure the named quota
+                                                    definition
+        stackato quota create [<name>]              Create a new quota
+                                                    definition
+        stackato quota delete [<name>]              Delete the named quota
+                                                    definition
+        stackato quota list                         List the available quota
+                                                    definitions
+        stackato quota rename [<name>] <newname>    Rename the named quota
+                                                    definition
+        stackato quota show [<name>]                Show the details of the
+                                                    named quota definition
+        stackato quotas                             List the available quota
+                                                    definitions
 
     User Management
         stackato add-user [<name>]      Register a new user in the current or

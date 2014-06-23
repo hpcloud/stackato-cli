@@ -12,6 +12,7 @@ package ifneeded stackato::validate::appname-api         0 [list source [file jo
 package ifneeded stackato::validate::appname-dot         0 [list source [file join $dir appname-dot.tcl]]
 package ifneeded stackato::validate::appname-lex         0 [list source [file join $dir appname-lex.tcl]]
 package ifneeded stackato::validate::approute            0 [list source [file join $dir approute.tcl]]
+package ifneeded stackato::validate::appversion          0 [list source [file join $dir appversion.tcl]]
 package ifneeded stackato::validate::buildpack           0 [list source [file join $dir buildpack.tcl]]
 package ifneeded stackato::validate::debug               0 [list source [file join $dir debug.tcl]]
 package ifneeded stackato::validate::entity              0 [list source [file join $dir entities.tcl]]

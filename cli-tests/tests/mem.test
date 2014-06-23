@@ -25,11 +25,15 @@ test mem-1.1 {mem, no application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run mem }
+    indir [appdir] { run mem -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application mem]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application mem]
 
 test mem-1.3 {mem, bogus app} -setup {
     stage-open
@@ -42,7 +46,7 @@ test mem-1.3 {mem, bogus app} -setup {
 } -returnCodes error \
     -result [per-api \
 		 [unexpected input application application A] \
-		 [unexpected input application application A " in space '[thespace]'"]]
+		 [unexpected input application application A " in space '[theorg]::[thespace]'"]]
 
 test mem-1.5 {mem, non-admin login is ok, query} -setup {
     stage-open

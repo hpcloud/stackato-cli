@@ -52,13 +52,16 @@ oo::class create ::REST {
 		# Option defaults first, then the user's configuration.
 		array set myoptions {
 			-progress            {}
+			-rprogress           {}
 			-blocksize           {}
+			-rblocksize          {}
 			-follow-redirections 0
 			-max-redirections    5
 			-headers             {}
 			-trace               0
 			-trace-fd            stdout
 			-accept-no-location  0
+			-channel             {}
 		}
 		my configure {*}$args
 		return
@@ -261,7 +264,7 @@ oo::class create ::REST {
 			debug.rest {redirection - follow}
 
 			incr trials
-			my AsyncRun $handle $url $max $trials $cmd $cookie $request
+			my AsyncRun $handle $method $url $max $trials $cmd $cookie $request
 			return
 		}
 
@@ -363,7 +366,12 @@ oo::class create ::REST {
 		if {[llength $myoptions(-progress)]} {
 			lappend request -queryprogress $myoptions(-progress)
 		}
-
+		if {[llength $myoptions(-rprogress)]} {
+			lappend request -progress $myoptions(-rprogress)
+		}
+		if {$myoptions(-rblocksize) ne {}} {
+			lappend request -blocksize $myoptions(-rblocksize)
+		}
 		if {$myoptions(-blocksize) ne {}} {
 			lappend request -queryblocksize $myoptions(-blocksize)
 		}
@@ -387,6 +395,9 @@ oo::class create ::REST {
 			if {$type eq "application/octet-stream"} {
 				debug.rest {Forced binary by type $type}
 				lappend request -binary 1
+			}
+			if {$myoptions(-channel) ne {}} {
+				lappend request -channel $myoptions(-channel)
 			}
 		}
 
@@ -680,6 +691,7 @@ oo::class create ::REST {
 		set fmt %-${n}s
 
 		dict for {k v} $dict {
+			if {[string equal -nocase authorization $k]} { set v <REDACTED> }
 			puts $fd "$prefix [format $fmt $k] = ($v)"
 		}
 		return

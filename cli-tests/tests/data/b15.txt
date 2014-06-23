@@ -1,0 +1,15 @@
+\[*{
+    "entity"   : {
+        "enabled"  : true,
+        "filename" : "bp-empty.zip",
+        "locked"   : false,
+        "name"     : "clitestbuildpack",
+        "position" : *
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : "*",
+        "url"        : "/v2/buildpacks/*"
+    }
+}*\]

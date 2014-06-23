@@ -62,7 +62,7 @@ test quota-create-1.4 {quota create, non-admin login} -constraints cfv2 -setup {
     stage-close
 } -returnCodes error -result [not-authorized]
 
-test quota-create-1.5 {quota create, defaults} -constraints cfv2 -setup {
+test quota-create-1.5.0 {quota create, defaults} -constraints s32le -setup {
     stage-open
     go-admin
 } -body {
@@ -71,6 +71,16 @@ test quota-create-1.5 {quota create, defaults} -constraints cfv2 -setup {
     run quota delete -n testquota
     stage-close
 } -result [viewFile data/qc15.txt]
+
+test quota-create-1.5.1 {quota create, defaults} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota create testquota
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -result [viewFile data/qc150.txt]
 
 test quota-create-1.6 {quota create, persists} -constraints cfv2 -setup {
     stage-open
@@ -84,7 +94,7 @@ test quota-create-1.6 {quota create, persists} -constraints cfv2 -setup {
 } -match glob -result [map [viewFile data/qc16.txt] \
 			   @target@ [thetarget]]
 
-test quota-create-1.7 {quota create, non-standard configuration} -constraints cfv2 -setup {
+test quota-create-1.7.0 {quota create, non-standard configuration, 3.2-} -constraints s32le -setup {
     stage-open
     go-admin
 } -body {
@@ -101,6 +111,33 @@ test quota-create-1.7 {quota create, non-standard configuration} -constraints cf
     stage-close
 } -match glob -result [map [viewFile data/qc17.txt] \
 			   @target@ [thetarget]]
+
+test quota-create-1.7.1 {quota create, non-standard configuration, 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota create testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+    run quota show testquota
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [map [viewFile data/qc171.txt] \
+			   @target@ [thetarget]]
+
+test quota-configure-1.8 {quota create --trial-db-allowed, disallowed for 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota create testquota --trial-db-allowed
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result {Error: The option --trial-db-allowed requires a target with version 3.2 or earlier.}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

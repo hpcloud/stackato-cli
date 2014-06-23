@@ -1,0 +1,6 @@
+Creating new quota definition testquota ... 
+  Paid Services Allowed      : 0
+  Max Number Of Services     : 0
+  Memory Limit               : 0B
+  Max Number of Routes       : 0
+Committing ... OK

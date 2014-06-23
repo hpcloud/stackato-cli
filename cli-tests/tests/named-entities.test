@@ -26,7 +26,7 @@ test named-entities-1.1 {client named-entities} -setup {
     run named-entities
 } -cleanup {
     stage-close
-} -result {app domain organization quota_definition route service service_auth_token service_broker service_instance service_plan space stack user zone}
+} -result {app buildpack domain organization quota_definition route service service_auth_token service_broker service_instance service_plan space stack user zone}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

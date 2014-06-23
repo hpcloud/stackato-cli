@@ -52,7 +52,7 @@ test clone-services-1.3 {clone-services, no application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 [unexpected input source application S] \
-	 [unexpected input source application S " in space '[thespace]'"]]
+	 [unexpected input source application S " in space '[theorg]::[thespace]'"]]
 
 test clone-services-1.4.1 {clone-services, non-admin login is ok} -constraints cfv1 -setup {
     stage-open

@@ -25,11 +25,15 @@ test stats-1.1 {stats, empty application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run stats }
+    indir [appdir] { run stats -n }
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -match glob -result [no-application stats]
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir] \
+	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application stats]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
@@ -51,16 +55,16 @@ test stats-1.2 {stats, auto-select app} -setup {
     -result [per-api {Using manifest file "stackato.yml"
 node-env
 +-*-+-*-+-*-+-*-+-*-+
-| Instance | CPU (Cores) | Memory (limit) | Disk (limit) | Uptime       |
+| Instance *| CPU (Cores) *| Memory (limit) *| Disk (limit) *| Uptime *|
 +-*-+-*-+-*-+-*-+-*-+
-| 0        | *% (*) *| * (256M) *| * (*) *| 0d:0h:0m:*s |
+| 0 *| *% (*) *| * (256M) *| * (*) *| 0d:0h:0m:*s |
 +-*-+-*-+-*-+-*-+-*-+} \
     "Using manifest file \"stackato.yml\"
 [thetarget] -> [theorg] -> [thespace] -> node-env
 +-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| Instance | CPU (Cores) | Memory (limit) | Disk (limit) | Started                   | Crashed | Uptime       |
+| Instance *| CPU (Cores) *| Memory (limit) *| Disk (limit) *| Started *| Crashed *| Uptime *|
 +-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| 0        | RUNNING     | * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
+| 0 *| RUNNING *| * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
 +-*-+-*-+-*-+-*-+-*-+-*-+-*-+"]
 
 test stats-1.3 {stats, explicit app} -setup {

@@ -50,7 +50,7 @@ test service-1.3 {service (info), bogus service} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Service [bogus] is not a valid service choice} \
-	 [unexpected input name {service instance} bogus " in space '[thespace]'"]]
+	 [unexpected input name {service instance} bogus " in space '[theorg]::[thespace]'"]]
 
 TODO service info - get the data for all types of services
 TODO service info - service querying in groups

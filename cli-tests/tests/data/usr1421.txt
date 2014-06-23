@@ -15,7 +15,7 @@
     },
     "metadata" : {
         "created_at" : "*",
-        "guid"       : "*",
+        "guid"       : "*",*
         "updated_at" : "*",
         "url"        : "/v2/users/*"
     }

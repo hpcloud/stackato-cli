@@ -6,4 +6,6 @@ applications:
       name: standalone
     memory: 256M
     name: node-env
+    stackato:
+      force-war-unpacking: yes
     urls: []
