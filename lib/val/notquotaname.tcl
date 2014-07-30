@@ -1,6 +1,6 @@
 ## -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
-## Stackato - Validation Type - Quota definition names, NOT
+## Stackato - Validation Type - Quota plan names, NOT
 ## Dependency: config @client
 
 # # ## ### ##### ######## ############# #####################
@@ -53,7 +53,7 @@ proc ::stackato::validate::notquotaname::validate {p x} {
     }
 
     debug.validate/notquotaname {FAIL}
-    fail-known-thing $p NOTQUOTANAME "quota definition" $x
+    fail-known-thing $p NOTQUOTANAME "quota plan" $x
 }
 
 # # ## ### ##### ######## ############# #####################

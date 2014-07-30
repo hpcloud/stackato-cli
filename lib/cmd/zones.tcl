@@ -1,7 +1,7 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Command implementations. Management of quota definitions.
+## Command implementations. Management of quota plans.
 
 # # ## ### ##### ######## ############# #####################
 ## Requisites

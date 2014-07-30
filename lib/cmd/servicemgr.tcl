@@ -393,26 +393,30 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
 	# Do not show plans depending on inactive services.
 	if {![$service @active]} continue
 
+	set p [$service @provider]
+	set v [$service @version]
+
+	#lappend details $bits
+	lappend details [$service @label]
+	lappend details [$plan    @name]
+	lappend details [$service @description]
+	lappend details [$plan    @description]
+
 	# Permission bits (free, public).
-	set bits {}
 	foreach {a l} {
 	    @free   F
 	    @public P
 	} {
-	    if {![$plan $a defined?]} continue
-	    append bits [expr {[$plan $a] ? "$l" : "-"}]
+	    if {![$plan $a defined?]} {
+		lappend details n/a
+	    } {
+		#append bits [expr {[$plan $a] ? "$l" : "-"}]
+		lappend details [expr {[$plan $a] ? "yes" : "no"}]
+	    }
 	}
 
-	set p [$service @provider]
-	set v [$service @version]
-
-	lappend details $bits
-	lappend details [$service @label]
-	lappend details [$service @description]
 	lappend details $p
 	lappend details $v
-	lappend details [$plan    @name]
-	lappend details [$plan    @description]
 	lappend details [join [dict get' $vis $plan {}] \n]
 
 	lappend plans $details
@@ -420,7 +424,7 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
     }
 
     # Now format and display the table
-    [table::do t {{} Name Description Provider Version Plan Details Orgs} {
+    [table::do t {Vendor Plan Description Details Free Public Provider Version Orgs} {
 	foreach plan [lsort -dict -index 1 [lsort -dict $plans]] {
 	    $t add {*}$plan
 	}

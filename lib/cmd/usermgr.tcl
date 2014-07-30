@@ -204,7 +204,7 @@ proc ::stackato::cmd::usermgr::SetRolesForUnlink {config} {
 
 proc ::stackato::cmd::usermgr::OrgRoles {config} {
     return [Roles $config {
-	@developer {@organizations                 @users            Developer}
+	@developer {@organizations                 @users            User}
 	@manager   {@managed_organizations         @managers         Manager}
 	@billing   {@billing_managed_organizations @billing_managers Billing-Manager}
 	@auditor   {@audited_organizations         @auditors         Auditor}
@@ -310,11 +310,19 @@ proc ::stackato::cmd::usermgr::add {config} {
     if {[$client isv2]} {
 	set org [$config @organization]
 
-	display "Adding new user to [$org @name] ... " false
+	display "Adding new user to [$org @name] ..."
 
+	display "  as user ..."
 	$theuser @organizations         add $org
-	$theuser @managed_organizations add $org
-	$theuser @audited_organizations add $org
+
+	if {[$config @manager]} {
+	    display "  as manager ..."
+	    $theuser @managed_organizations add $org
+	}
+	if {[$config @auditor]} {
+	    display "  as auditor ..."
+	    $theuser @audited_organizations add $org
+	}
 
 	display [color green OK]
     }
@@ -459,13 +467,14 @@ proc ::stackato::cmd::usermgr::org-list {config} {
 
     set theorg [corg get]
 
+    set usr [join [lsort -dict [$theorg @users            the_name]] \n]
     set mgr [join [lsort -dict [$theorg @managers         the_name]] \n]
     set bil [join [lsort -dict [$theorg @billing_managers the_name]] \n]
     set aud [join [lsort -dict [$theorg @auditors         the_name]] \n]
 
     display "Organization [$theorg @name] ..."
-    [table::do t {Manager {Billing Manager} Auditor} {
-	$t add $mgr $bil $aud
+    [table::do t {User Manager {Billing Manager} Auditor} {
+	$t add $usr $mgr $bil $aud
     }] show display
     return
 }

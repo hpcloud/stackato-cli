@@ -472,6 +472,8 @@ oo::class create ::stackato::v2::client {
 		    } else {
 			my http_put $dst $data $contenttype
 		    }
+		} trap {REST LOCATION MISSING} {e o} {
+		    # ignore broken redirections
 		} trap {REST HTTP REFUSED} {e o} - \
 		  trap {REST HTTP BROKEN} {e o} {
 		      if {!$tries} {
@@ -482,7 +484,7 @@ oo::class create ::stackato::v2::client {
 		      say "Retrying in a second... (trials left: $tries)"
 		      after 1000
 		      continue
-		  }
+		}
 		break
 	    }
 	} finally {
@@ -549,6 +551,8 @@ oo::class create ::stackato::v2::client {
 		    } else {
 			my http_put $dst $data $contenttype
 		    }
+		} trap {REST LOCATION MISSING} {e o} {
+		    # ignore broken redirections
 		} trap {REST HTTP REFUSED} {e o} - \
 		  trap {REST HTTP BROKEN} {e o} {
 		      if {!$tries} {

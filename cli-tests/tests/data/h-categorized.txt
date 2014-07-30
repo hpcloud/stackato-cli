@@ -480,7 +480,7 @@ Administration
         stackato quota rename [<name>] <newname>    Rename the named quota
                                                     definition
         stackato quota show [<name>]                Show the details of the
-                                                    named quota definition
+                                                    named quota plan
         stackato quotas                             List the available quota
                                                     definitions
 

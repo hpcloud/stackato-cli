@@ -68,7 +68,7 @@ test quota-configure-1.5 {quota configure, unknown quota} -constraints cfv2 -set
     run quota configure -n testquota
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {quota definition} testquota]
+} -returnCodes error -result [unexpected input name {quota plan} testquota]
 
 test quota-configure-1.6.0 {quota configure, 3.2-} -constraints s32le -setup {
     stage-open

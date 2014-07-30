@@ -1,7 +1,7 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Command implementations. Management of quota definitions.
+## Command implementations. Management of quota plans.
 
 # # ## ### ##### ######## ############# #####################
 ## Requisites
@@ -63,12 +63,12 @@ proc ::stackato::cmd::quotas::create {config} {
 	$config @name undefined!
     }
     if {$name eq {}} {
-	err "An empty quota definition name is not allowed"
+	err "An empty quota plan name is not allowed"
     }
 
     set qd [v2 quota_definition new]
 
-    display "Creating new quota definition $name ... "
+    display "Creating new quota plan $name ... "
     $qd @name set $name
 
     foreach {a required def} $map {
@@ -100,7 +100,7 @@ proc ::stackato::cmd::quotas::configure {config} {
 	$qd @$a set [$config @$k]
     }
 
-    display "Changing quota definition [$qd @name] ... "
+    display "Changing quota plan [$qd @name] ... "
 
     set changes [dict sort [$qd journal]]
     if {[dict size $changes]} {
@@ -140,7 +140,7 @@ proc ::stackato::cmd::quotas::delete {config} {
 
     $qd delete
 
-    display "Deleting quota definition [$qd @name] ... " false
+    display "Deleting quota plan [$qd @name] ... " false
     $qd commit
     display [color green OK]
     return
@@ -156,7 +156,7 @@ proc ::stackato::cmd::quotas::rename {config} {
 
     $qd @name set $new
 
-    display "Renaming quota definition to [$qd @name] ... " false
+    display "Renaming quota plan to [$qd @name] ... " false
     $qd commit
     display [color green OK]
     return
@@ -271,7 +271,7 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
     }
 
     if {![llength $choices]} {
-	err "No quota definitions available to $what"
+	err "No quota plans available to $what"
     }
 
     foreach o $choices {
@@ -279,7 +279,7 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
     }
     ::set choices [lsort -dict [dict keys $objmap]]
     ::set name [term ask/menu "" \
-		    "Which quota definition to $what ? " \
+		    "Which quota plan to $what ? " \
 		    $choices]
 
     return [dict get $objmap $name]

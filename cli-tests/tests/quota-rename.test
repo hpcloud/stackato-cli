@@ -81,7 +81,7 @@ test quota-rename-1.6 {quota rename, unknown source quota} -constraints cfv2 -se
     run quota rename -n testquota testquota2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {quota definition} testquota]
+} -returnCodes error -result [unexpected input name {quota plan} testquota]
 
 test quota-rename-1.7 {quota rename, duplicate destination quota} -constraints cfv2 -setup {
     stage-open
@@ -94,7 +94,7 @@ test quota-rename-1.7 {quota rename, duplicate destination quota} -constraints c
     run quota delete -n testquota2
     run quota delete -n testquota
     stage-close
-} -returnCodes error -result [already input newname {quota definition} testquota2]
+} -returnCodes error -result [already input newname {quota plan} testquota2]
 
 test quota-rename-1.8 {quota rename} -constraints cfv2 -setup {
     stage-open
@@ -105,7 +105,7 @@ test quota-rename-1.8 {quota rename} -constraints cfv2 -setup {
 } -cleanup {
     run quota delete -n testquota2
     stage-close
-} -result {Renaming quota definition to testquota2 ... OK}
+} -result {Renaming quota plan to testquota2 ... OK}
 
 test quota-rename-1.9 {quota rename, persists} -constraints cfv2 -setup {
     stage-open

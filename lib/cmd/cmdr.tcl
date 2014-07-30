@@ -1483,6 +1483,17 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		validate [call@vtype orgname]
 		generate [call@mgr corg get-auto]
 	    }
+
+	    option manager {
+		Add the new user to the organization, as manager.
+		By request
+	    } { default no }
+
+	    option auditor {
+		Add the new user to the organization, as auditor.
+		By request.
+	    } { default no }
+
 	    # ====================================================
 	    input name {
 		The name of the user to create.
@@ -2041,7 +2052,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    private purge {
 		section Services
 		description {
-		    Purge all offerings of the service (type) from the system.
+		    Purge all offerings of the service type from the system.
 		    Danger. Do this only for services we know to have their
 		    brokers killed, leaving behind orphans.
 		    This is a Stackato 3.4+ specific command.
@@ -2065,7 +2076,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		use .v2
 		use .type-filter
 		option vendor {
-		    Name of the service (type) the plan to update belongs to.
+		    Name of the service type the specified plan belongs to.
 		} {
 		    validate [call@vtype servicetype]
 		    interact
@@ -2098,7 +2109,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		use .plan-filter
 		use .json
 		input name {
-		    Name of the service-plan to show
+		    Name of the service-plan to show the details of.
 		} {
 		    validate [call@vtype serviceplan]
 		}
@@ -4248,7 +4259,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .login
 	    use .v2
 	    option quota {
-		Name of the quota definition to use in the organization.
+		Name of the quota plan to use in the organization.
 	    } {
 		validate [call@vtype quotaname]
 	    }
@@ -4290,7 +4301,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		generate [call@mgr corg select-for {link to the quota}]
 	    }
 	    input quota {
-		Name of the quota definition to use in the organization.
+		Name of the quota plan to use in the organization.
 	    } {
 		validate [call@vtype quotaname]
 	    }
@@ -4838,11 +4849,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     alias domains       = domainmgr list
 
     # # ## ### ##### ######## ############# #####################
-    ## CF v2 commands V: Quota definitions
+    ## CF v2 commands V: Quota plans
 
     officer quota {
 	description {
-	    Management of quota definitions.
+	    Management of quota plans.
 	}
 
 	# General quota options.
@@ -4850,7 +4861,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	common .qd {
 	    option paid-services-allowed {
 		Applications can use non-free services.
-	    } ;# boolean
+	    } { default true } ;# boolean
 
 	    option trial-db-allowed {
 		Applications can use trial databases.
@@ -4862,16 +4873,25 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	    option services {
 		Limit for the number of services in the quota.
-	    } { validate [call@vtype integer0] }
+	    } {
+		default 100
+		validate [call@vtype integer0]
+	    }
 
 	    option routes {
 		Limit for the number of routes in the quota.
 		This is a Stackato 3.2+ specific setting.
-	    } { validate [call@vtype integer0] }
+	    } {
+		default 1000
+		validate [call@vtype integer0]
+	    }
 
 	    option mem {
 		Amount of memory applications can use.
-	    } { validate [call@vtype memspec] }
+	    } {
+		default 2048
+		validate [call@vtype memspec]
+	    }
 
 	    option allow-sudo {
 		Applications can use sudo in their container.
@@ -4889,7 +4909,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private create {
 	    section Administration Quotas
 	    description {
-		Create a new quota definition.
+		Create a new quota plan.
 		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
@@ -4897,7 +4917,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .v2
 	    use .qd
 	    input name {
-		Name of the quota definition to create.
+		Name of the quota plan to create.
 		If not specified it will be asked for interactively.
 	    } {
 		optional
@@ -4909,7 +4929,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private configure {
 	    section Administration Quotas
 	    description {
-		Reconfigure the named quota definition.
+		Reconfigure the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
@@ -4917,7 +4937,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .v2
 	    use .qd
 	    input name {
-		Name of the quota definition to configure.
+		Name of the quota plan to configure.
 		If not specified it will be asked for interactively (menu).
 	    } {
 		optional
@@ -4931,14 +4951,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private delete {
 	    section Administration Quotas
 	    description {
-		Delete the named quota definition.
+		Delete the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
-		Name of the quota definition to delete.
+		Name of the quota plan to delete.
 		If not specified it will be asked for interactively (menu).
 	    } {
 		# int.rep = v2quota_definition entity
@@ -4953,7 +4973,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private list {
 	    section Administration Quotas
 	    description {
-		List the available quota definitions.
+		List the available quota plans.
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
@@ -4964,14 +4984,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private rename {
 	    section Administration Quotas
 	    description {
-		Rename the named quota definition.
+		Rename the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
 	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
-		Name of the quota definition to rename.
+		Name of the quota plan to rename.
 		If not specified it will be asked for interactively (menu).
 	    } {
 		# int.rep = v2quota_definition entity
@@ -4982,7 +5002,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		# enough for menu.
 	    }
 	    input newname {
-		The new name to give to the quota definition.
+		The new name to give to the quota plan.
 	    } {
 		#optional
 		validate [call@vtype notquotaname]
@@ -4993,7 +5013,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private show {
 	    section Administration Quotas
 	    description {
-		Show the details of the named quota definition.
+		Show the details of the named quota plan.
 		If not specified it will be asked for interactively (menu).
 		This is a Stackato 3 specific command.
 	    }
@@ -5002,7 +5022,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .login
 	    use .v2
 	    input name {
-		Name of the quota definition to display.
+		Name of the quota plan to display.
 	    } {
 		# int.rep = v2quota_definition entity
 		optional
@@ -5097,8 +5117,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    }
 	    input zip {
 		Path or url of the zip file containing the implementation of the buildpack.
+		Accepts the path to a local directory as well, which will become the zip file to upload.
 	    } {
-		#validate [call@vtype path rfile]
+		label zip|url|dir
+		#validate [call@vtype path rfile];# validation in backend.
 	    }
 	} [jump@cmd buildpacks create]
 
@@ -5313,4 +5335,4 @@ proc combine {args} {
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.1
+package provide stackato::cmdr 3.1.1

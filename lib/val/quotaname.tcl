@@ -1,6 +1,6 @@
 ## -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
-## Stackato - Validation Type - Quota definition names
+## Stackato - Validation Type - Quota plan names
 ## Dependency: config @client
 
 # # ## ### ##### ######## ############# #####################
@@ -55,7 +55,7 @@ proc ::stackato::validate::quotaname::validate {p x} {
 	return $x
     }
     debug.validate/quotaname {FAIL}
-    fail-unknown-thing $p QUOTANAME "quota definition" $x
+    fail-unknown-thing $p QUOTANAME "quota plan" $x
 }
 
 # # ## ### ##### ######## ############# #####################

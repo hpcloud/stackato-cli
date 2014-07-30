@@ -71,7 +71,7 @@ test quota-delete-1.5 {quota delete, unknown quota} -constraints cfv2 -setup {
     run quota delete -n testquota
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {quota definition} testquota]
+} -returnCodes error -result [unexpected input name {quota plan} testquota]
 
 test quota-delete-1.6 {quota delete} -constraints cfv2 -setup {
     stage-open
@@ -81,7 +81,7 @@ test quota-delete-1.6 {quota delete} -constraints cfv2 -setup {
     run quota delete -n testquota
 } -cleanup {
     stage-close
-} -result {Deleting quota definition testquota ... OK}
+} -result {Deleting quota plan testquota ... OK}
 
 test quota-delete-1.7 {quota delete, persists} -constraints cfv2 -setup {
     stage-open
@@ -92,7 +92,7 @@ test quota-delete-1.7 {quota delete, persists} -constraints cfv2 -setup {
     run quota show testquota
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {quota definition} testquota]
+} -returnCodes error -result [unexpected input name {quota plan} testquota]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

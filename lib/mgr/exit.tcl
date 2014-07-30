@@ -384,7 +384,27 @@ proc ::stackato::mgr::exit::ProcessInternalError {msg code trace} {
 
     set trace "TRACE:\t[join [split $trace \n] \nTRACE:\t]"
 
-    set    out ERROR:\t$msg\nECODE:\t$code\n
+    set    out {}
+    append out CLIENT:\t[package present stackato::cmdr]
+    append out \ ([self plain-revision])\n
+
+    if {[client has-plain]} {
+	set client [client plain]
+    }  elseif {[client has-authenticated]} {
+	set client [client authenticated]
+    } else {
+	set client {}
+    }
+    if {$client ne {}} {
+	append out TARGET:\t[$client target]\n
+	append out TARGET:\t[expr {[$client is-stackato]
+				   ? "Stackato"
+				   : "CloudFoundry"}]
+	append out \ [$client full-server-version]
+	append out \ (API\ [$client api-version])\n
+    }
+
+    append out ERROR:\t$msg\nECODE:\t$code\n
     append out TRACE:___________________________________________\n
     append out $trace\n
     if {[client close-restlog]} {

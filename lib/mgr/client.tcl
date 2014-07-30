@@ -40,7 +40,8 @@ namespace eval ::stackato::mgr::client {
 	get-ssh-key description min-version \
 	hasdrains chasdrains is-stackato \
 	is-stackato-opt close-restlog license-status \
-	max-version-opt min-version-opt rawc
+	max-version-opt min-version-opt rawc has-plain \
+	has-authenticated
     namespace ensemble create
 
     namespace import ::stackato::color
@@ -144,6 +145,20 @@ proc ::stackato::mgr::client::authenticatedc {p} {
     debug.mgr/client {}
     $p config @motd
     authenticated
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::mgr::client::has-plain {} {
+    debug.mgr/client {}
+    variable plain
+    return [info exists plain]
+}
+
+proc ::stackato::mgr::client::has-authenticated {} {
+    debug.mgr/client {}
+    variable auth
+    return [info exists auth]
 }
 
 # # ## ### ##### ######## ############# #####################

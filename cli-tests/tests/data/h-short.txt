@@ -345,14 +345,14 @@ stackato push [OPTIONS] [<application>]
     Configure, create, push, map, and start a new application.
 
 stackato quota configure [OPTIONS] [<name>]
-    Reconfigure the named quota definition. This is a Stackato 3 specific
+    Reconfigure the named quota plan. This is a Stackato 3 specific
     command.
 
 stackato quota create [OPTIONS] [<name>]
-    Create a new quota definition. This is a Stackato 3 specific command.
+    Create a new quota plan. This is a Stackato 3 specific command.
 
 stackato quota delete [OPTIONS] [<name>]
-    Delete the named quota definition. This is a Stackato 3 specific command.
+    Delete the named quota plan. This is a Stackato 3 specific command.
 
 stackato quota exit [OPTIONS]
     Exit the shell. No-op if not in a shell.
@@ -362,14 +362,14 @@ stackato quota help [OPTIONS] [<cmdname>...]
     commands is given. The default format is --full.
 
 stackato quota list [OPTIONS]
-    List the available quota definitions. This is a Stackato 3 specific
+    List the available quota plans. This is a Stackato 3 specific
     command.
 
 stackato quota rename [OPTIONS] [<name>] <newname>
-    Rename the named quota definition. This is a Stackato 3 specific command.
+    Rename the named quota plan. This is a Stackato 3 specific command.
 
 stackato quota show [OPTIONS] [<name>]
-    Show the details of the named quota definition. If not specified it will
+    Show the details of the named quota plan. If not specified it will
     be asked for interactively (menu). This is a Stackato 3 specific command.
 
 stackato quota-org [OPTIONS] [<name>] <quota>
@@ -377,7 +377,7 @@ stackato quota-org [OPTIONS] [<name>] <quota>
     specific command.
 
 stackato quotas [OPTIONS]
-    List the available quota definitions. This is a Stackato 3 specific
+    List the available quota plans. This is a Stackato 3 specific
     command.
 
 stackato register [OPTIONS] [<name>]

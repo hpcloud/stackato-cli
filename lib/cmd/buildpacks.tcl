@@ -12,6 +12,8 @@ package require stackato::log
 package require stackato::mgr::client
 package require stackato::term
 package require stackato::v2
+package require zipfile::encode
+package require fileutil
 package require table
 
 debug level  cmd/buildpacks
@@ -48,6 +50,21 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	if {[file isfile $zip] && ![zipfile::decode::iszip $zip]} {
 	    err "Input \"zip\" expected a zip archive, got \"$zip\""
 	}
+	if {[file isdirectory $zip]} {
+	    # A directory is converted into the zip file to upload.
+	    try {
+		set zip [Pack $zip]
+		set transient 1
+	    } on error {e o} {
+		err $e
+	    }
+	}
+
+	set client [$config @client]
+	lassign    [GetArchive $client $transient $zip] transient zip
+	if {![zipfile::decode::iszip $zip]} {
+	    err "Input \"zip\" expected a zip archive, got \"$zip\""
+	}
 
 	set buildpack [v2 buildpack new]
 
@@ -64,12 +81,6 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	$buildpack commit
 	display [color green OK]
 
-	set client [$config @client]
-	lassign    [GetArchive $client $zip] transient zip
-	if {![zipfile::decode::iszip $zip]} {
-	    err "Input \"zip\" expected a zip archive, got \"$zip\""
-	}
-
 	display "Uploading buildpack bits ... " false
 	$buildpack upload! $zip
 	display [color green OK]
@@ -83,14 +94,52 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	    display [color green OK]
 	}
     } finally {
-	if {$transient} { file delete $zip }
+	if {$transient} {
+	    debug.cmd/buildpacks {deleting $zip}
+	    file delete $zip
+	}
     }
     debug.cmd/buildpacks {buildpack = $buildpack ([$buildpack @name])}
     return
 }
 
+proc ::stackato::cmd::buildpacks::Pack {path} {
+    debug.cmd/buildpacks {}
 
-proc ::stackato::cmd::buildpacks::GetArchive {client path} {
+    # todo: color 'name' for path.
+    display "Packing directory \"$path\" ... " false
+
+    set z [zipfile::encode Z]
+    foreach f [GetFilesToPack $path] {
+	again+ $f
+
+	debug.cmd/buildpacks {++ $f}
+	$z file: $f 0 $f
+    }
+
+    set zipfile [BPTmp]
+    debug.cmd/buildpacks {Tmp = $zipfile}
+
+    debug.cmd/buildpacks {write zip...}
+    $z write $zipfile
+    $z destroy
+
+    again+ {}
+    display [color green OK]
+    clearlast
+
+    debug.cmd/buildpacks {...done}
+    return $zipfile
+}
+
+proc ::stackato::cmd::buildpacks::GetFilesToPack {path} {
+    debug.cmd/buildpacks {}
+    return [struct::list map [fileutil::find $path {file exists}] [lambda {p x} {
+	fileutil::stripPath $p $x
+    } $path]]
+}
+
+proc ::stackato::cmd::buildpacks::GetArchive {client transient path} {
     debug.cmd/buildpacks {}
 
     if {[regexp {^https?://} $path]} {
@@ -107,17 +156,23 @@ proc ::stackato::cmd::buildpacks::GetArchive {client path} {
 	err "Path $path is not a file."
     }
 
-    return [::list 0 $path]
+    return [::list $transient $path]
 }
 
-proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
+proc ::stackato::cmd::buildpacks::BPTmp {} {
     # Note: We add the .zip extension to the file because the
     # receiving code of the CF target validates a archive by its
     # extension, not by its magic. No .zip => fail.
+
     set tmp [fileutil::tempfile stackato-buildpack-]
     file delete $tmp
     append tmp .zip
 
+    return $tmp
+}
+
+proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
+    set tmp [BPTmp]
     debug.cmd/buildpacks {Tmp = $tmp}
 
     display "Downloading $url"
