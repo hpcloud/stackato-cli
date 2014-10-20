@@ -1,5 +1,7 @@
-stackato add-service-broker [OPTIONS] [<name>]
+stackato
+    stackato add-service-broker [OPTIONS] [<name>]
     stackato add-user [OPTIONS] [<name>]
+    stackato admin
     stackato admin exit [OPTIONS]
     stackato admin grant [OPTIONS] <email>
     stackato admin help [OPTIONS] [<cmdname>...]
@@ -14,10 +16,18 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato bind-service [OPTIONS] [<service>] [<application>]
     stackato buildpacks [OPTIONS]
     stackato clone-services [OPTIONS] <source> <application>
+    stackato color
+    stackato color exit [OPTIONS]
+    stackato color help [OPTIONS] [<cmdname>...]
+    stackato color list [OPTIONS]
+    stackato color set [OPTIONS] <color> <specification>
+    stackato color test [OPTIONS] <specification> [<string>]
+    stackato color unset [OPTIONS] <color>...
+    stackato colors [OPTIONS]
     stackato crashes [OPTIONS] [<application>]
     stackato crashlogs [OPTIONS] [<application>]
     stackato create-app [OPTIONS] [<application>]
-    stackato create-buildpack [OPTIONS] <name> <zip>
+    stackato create-buildpack [OPTIONS] <name> <zip|url|dir>
     stackato create-domain [OPTIONS] <name>
     stackato create-org [OPTIONS] [<name>]
     stackato create-service [OPTIONS] [<vendor>] [<name>] [<application>]
@@ -38,6 +48,7 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato delete-user [OPTIONS] <email>
     stackato disk [OPTIONS] [<application>]
     stackato domains [OPTIONS]
+    stackato drain
     stackato drain add [OPTIONS] [<application>] <drain> <uri>
     stackato drain delete [OPTIONS] [<application>] <drain>
     stackato drain exit [OPTIONS]
@@ -66,6 +77,7 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato health [OPTIONS] [<application>...]
     stackato help [OPTIONS] [<cmdname>...]
     stackato hide-service-plan [OPTIONS] <name> [<organization>]
+    stackato history
     stackato history clear [OPTIONS]
     stackato history exit [OPTIONS]
     stackato history help [OPTIONS] [<cmdname>...]
@@ -95,6 +107,7 @@ stackato add-service-broker [OPTIONS] [<name>]
     stackato placement-zones [OPTIONS]
     stackato purge-service-offerings [OPTIONS] <service>
     stackato push [OPTIONS] [<application>]
+    stackato quota
     stackato quota configure [OPTIONS] [<name>]
     stackato quota create [OPTIONS] [<name>]
     stackato quota delete [OPTIONS] [<name>]

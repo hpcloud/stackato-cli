@@ -136,7 +136,7 @@ test create-buildpack-1.10 {create-buildpack --enable/--disable conflict} -const
     run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --disable --enable
 } -cleanup {
     stage-close
-} -returnCodes error -result {You cannot use "enable" together with "--disable".}
+} -returnCodes error -result {You cannot use "--enable" together with "--disable".}
 
 test create-buildpack-1.11 {create-buildpack --lock/--unlock conflict} -constraints s34ge -setup {
     stage-open
@@ -145,7 +145,7 @@ test create-buildpack-1.11 {create-buildpack --lock/--unlock conflict} -constrai
     run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --lock --unlock
 } -cleanup {
     stage-close
-} -returnCodes error -result {You cannot use "unlock" together with "--lock".}
+} -returnCodes error -result {You cannot use "--unlock" together with "--lock".}
 
 test create-buildpack-1.12 {create-buildpack --position, persists} -constraints s34ge -setup {
     stage-open

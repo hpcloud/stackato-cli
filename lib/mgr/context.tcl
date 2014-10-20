@@ -8,7 +8,7 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
@@ -24,7 +24,7 @@ namespace eval ::stackato::mgr::context {
 	get-name 2org
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
@@ -44,7 +44,7 @@ proc ::stackato::mgr::context::2org {config theorg} {
     display "Switching to organization [$theorg @name] ... " false
     corg set $theorg
     corg save
-    display [color green OK]
+    display [color good OK]
 
     # Update current space ...
     # Make the user choose a space if none is defined.
@@ -62,7 +62,7 @@ proc ::stackato::mgr::context::2org {config theorg} {
 	cspace get-auto [$config @space self]
     }
 
-    display [color green OK]
+    display [color good OK]
 
     debug.mgr/context {/done}
     return
@@ -76,7 +76,7 @@ proc ::stackato::mgr::context::format-org {{suffix {}}} {
     set o [GetOrg]
 
     debug.mgr/context {/done ==> "$t -> $o$suffix"}
-    return "$t -> $o$suffix"
+    return "[color name $t] -> $o$suffix"
 }
 
 proc ::stackato::mgr::context::format-short {{suffix {}}} {
@@ -91,7 +91,7 @@ proc ::stackato::mgr::context::format-large {} {
     set o [GetOrg]
     set s [GetSpace]
 
-    lappend lines "Target:       $t"
+    lappend lines "Target:       [color name $t]"
     lappend lines "Organization: $o"
     lappend lines "Space:        $s"
 
@@ -107,18 +107,18 @@ proc ::stackato::mgr::context::GetOrg {} {
 	set o [corg get]
 	if {$o eq {}} {
 	    debug.mgr/context {==> NONE}
-	    return <none>
+	    return [color note <none>]
 	}
 
-	set on [$o @name]
+	set on [color name [$o @name]]
     } trap {STACKATO CLIENT AUTHERROR} {e options} - \
       trap {STACKATO CLIENT V2 AUTHERROR} {e options} {
-	set lsuffix [color red "(not resolved: $e)"]
-	set on "[corg get-id] $lsuffix"
+	set lsuffix [color bad "(not resolved: $e)"]
+	  set on "[color name [corg get-id]] $lsuffix"
     } trap {STACKATO CLIENT V2 NOTFOUND} {e options} {
 	# cannot happen anymore. corg discarded data, returned <none>
-	set lsuffix [color red "(not resolved: not found)"]
-	set on "[$o id] $lsuffix"
+	set lsuffix [color bad "(not resolved: not found)"]
+	set on "[color name [$o id]] $lsuffix"
     }
 
     debug.mgr/context {==> $on}
@@ -133,17 +133,17 @@ proc ::stackato::mgr::context::GetSpace {} {
 	set s [cspace get]
 	if {$s eq {}} {
 	    debug.mgr/context {==> NONE}
-	    return <none>
+	    return [color note <none>]
 	}
-	set sn [$s @name]
+	set sn [color name [$s @name]]
     } trap {STACKATO CLIENT AUTHERROR} {e options} - \
       trap {STACKATO CLIENT V2 AUTHERROR} {e options} {
-	set lsuffix [color red "(not resolved: $e)"]
-	set sn "[cspace get-id] $lsuffix"
+	set lsuffix [color bad "(not resolved: $e)"]
+	  set sn "[color name [cspace get-id]] $lsuffix"
     } trap {STACKATO CLIENT V2 NOTFOUND} {e options} {
 	# cannot happen anymore. cspace discarded data, returned <none>
-	set lsuffix [color red "(not resolved: not found)"]
-	set sn "[$s id] $lsuffix"
+	set lsuffix [color bad "(not resolved: not found)"]
+	set sn "[color name [$s id]] $lsuffix"
     }
 
     debug.mgr/context {==> $sn}

@@ -5,11 +5,11 @@
 package require Tcl 8.5
 package require table
 package require url
+package require cmdr::ask
+package require cmdr::color
 package require stackato::client
-package require stackato::color
 package require stackato::jmap
 package require stackato::log
-package require stackato::term
 package require stackato::client
 package require stackato::mgr::client
 package require stackato::mgr::context
@@ -32,7 +32,8 @@ namespace eval ::stackato::cmd::target {
     namespace export list getorset show-token
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say
@@ -44,7 +45,6 @@ namespace eval ::stackato::cmd::target {
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::exit
     namespace import ::stackato::mgr::targets
-    namespace import ::stackato::term
     namespace import ::stackato::validate::orgname
     namespace import ::stackato::validate::spacename
 }
@@ -58,7 +58,7 @@ proc ::stackato::cmd::target::show-token {config} {
     set td [targets known]
 
     if {![dict exists $td $ct]} {
-	err "Not logged into targewt $ct, no token known"
+	err "Not logged into target $ct, no token known"
     }
 
     puts [dict get $td $ct]
@@ -154,17 +154,17 @@ proc ::stackato::cmd::target::Set {config} {
     switch -exact -- $valid {
 	0 {
 	    # Fail. Report.
-	    puts [color red $emessage]
+	    puts [color bad $emessage]
 
 	    if {![regexp {^https?://api\.} $target]} {
 		set guess [GuessUrl $target]
-		puts [color yellow \
+		puts [color warning \
 			  "Maybe try to target \[$guess\] instead."]
 	    }
 
 	    if {[$config @verbose] ||
 		([cmdr interactive?] &&
-		 [term ask/yn "Would you like to see the response returned by '$target' ? " no])} {
+		 [ask yn "Would you like to see the response returned by '[color name $target]' ? " no])} {
 		ShowRawTargetResponse $client
 	    }
 	    exit fail
@@ -173,7 +173,7 @@ proc ::stackato::cmd::target::Set {config} {
 	    # Ok. Save.
 	    ctarget set $target
 	    ctarget save
-	    say [color green "Successfully targeted to \[$target\]"]
+	    say [color good "Successfully targeted to \[$target\]"]
 
 	    if {[[client plain] isv2]} {
 		Switch $config
@@ -183,7 +183,7 @@ proc ::stackato::cmd::target::Set {config} {
 	}
 	2 {
 	    # Redirection. Recurse to new target.
-	    puts [color blue "Host redirects to: '$newtarget'"]
+	    puts [color note "Host redirects to: '$newtarget'"]
 	    $config @url set $newtarget
 	    Set $config
 	}
@@ -203,7 +203,7 @@ proc ::stackato::cmd::target::Show {config} {
     } trap {STACKATO CLIENT BADTARGET} {e o} {
 	if {![$config @json]} {
 	    set e [string map [::list "'$target' " {}] $e]
-	    display "\n\[$target\] ([color red "Note: $e"])"
+	    display "\n\[$target\] ([color bad "Note: $e"])"
 	    return
 	}
 	set client {}
@@ -300,7 +300,7 @@ proc ::stackato::cmd::target::Switch {config} {
 	    display "Switching to space [$space @name] ... " false
 	    cspace set $space
 	    cspace save
-	    display [color green OK]
+	    display [color good OK]
 	}
 	yes/no - 1/0 {
 	    debug.cmd/target {set org, auto-select space}
@@ -319,14 +319,14 @@ proc ::stackato::cmd::target::Switch {config} {
 	    display "Switching to organization [$org @name] ... " false
 	    corg set $org
 	    corg save
-	    display [color green OK]
+	    display [color good OK]
 
 	    set space [spacename validate [$config @space self] [$config @space]]
 
 	    display "Switching to space [$space @name] ... " false
 	    cspace set $space
 	    cspace save
-	    display [color green OK]
+	    display [color good OK]
 	}
     }
 

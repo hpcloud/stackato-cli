@@ -8,7 +8,7 @@
 
 package require Tcl 8.5
 package require dictutil
-package require stackato::color
+package require cmdr::color
 package require stackato::client
 package require stackato::v2::client
 package require stackato::jmap
@@ -44,7 +44,7 @@ namespace eval ::stackato::mgr::client {
 	has-authenticated
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::mgr::cfile
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::ctarget
@@ -269,7 +269,7 @@ proc ::stackato::mgr::client::Make {{infodata {}}} {
 		# Redirection, follow.
 		$aclient retarget $newtarget
 		if {$warn} {
-		    puts [color blue "Note: Target '[$aclient target]' redirected to: '$newtarget'"]
+		    puts [color note "Note: Target '[$aclient target]' redirected to: '$newtarget'"]
 		}
 	    }
 	}
@@ -396,7 +396,7 @@ proc ::stackato::mgr::client::get-ssh-key {client {show 1}} {
       trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} - \
       trap {STACKATO CLIENT V2 NOTFOUND} {e o} {
 	if {$show} {
-	    display [color yellow "No ssh key available"]
+	    display [color warning "No ssh key available"]
 	}
 	set sshkey {}
     }

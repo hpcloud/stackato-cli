@@ -7,10 +7,11 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::auth
+package require stackato::mgr::app
 package require stackato::mgr::cgroup
 package require stackato::mgr::client
 package require stackato::mgr::context
@@ -49,7 +50,7 @@ namespace eval ::stackato::cmd::query {
 	named-entities raw-rest list-packages app-versions
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -60,6 +61,7 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::log::pretty-since
 
     namespace import ::stackato::mgr::auth
+    namespace import ::stackato::mgr::app
     namespace import ::stackato::mgr::cgroup
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cfile
@@ -207,11 +209,8 @@ proc ::stackato::cmd::query::raw-rest {config} {
 	    dict for {k v} $headers {
 		display "$prefix [format $fmt $k] = ($v)"
 	    }
-
-	    display "Response Body:    $response"
-	} else {
-	    display $response
 	}
+	ShowResponse $config $verbose $response
     } finally {
 	$client configure -headers $old
     }
@@ -220,8 +219,29 @@ proc ::stackato::cmd::query::raw-rest {config} {
     return
 }
 
+proc ::stackato::cmd::query::ShowResponse {config verbose response} {
+    set out [$config @output]
+    if {$out in {- stdout}} {
+	if {$verbose} {
+	    display "Response Body:    $response"
+	} else {
+	    display $response
+	}
+	return
+    }
+
+    set chan [open $out w]
+    fconfigure $chan -translation binary -encoding binary
+    puts -nonewline $chan $response
+
+    if {$verbose} {
+	display "Response Body:    See $out"
+    }
+    return
+}
+
 proc ::stackato::cmd::query::rr-ws-connect {} {
-    puts [color blue "connected (press Ctrl-C to abort)"]
+    puts [color note "connected (press Ctrl-C to abort)"]
 }
 
 proc ::stackato::cmd::query::rr-ws-text {msg} {
@@ -262,11 +282,11 @@ proc ::stackato::cmd::query::WSHandler {sock type msg} {
 	    return
 	}
 	connect {
-	    puts [color blue "connected (press Ctrl-C to abort)"]
+	    puts [color note "connected (press Ctrl-C to abort)"]
 	}
 	disconnect {}
 	close {
-	    puts [color blue "Note: $msg"]
+	    puts [color note "Note: $msg"]
 	    # Abort event loop in raw-rest, regular return
 	    set ::forever [list -code ok {}]
 	}
@@ -325,8 +345,8 @@ proc ::stackato::cmd::query::list-packages {config} {
     [table::do t {Package Version} {
 	foreach {p v} $info {
 	    if {0 && ![dict get $ok $p]} {
-		set p [color red $p]
-		set v [color red $v]
+		set p [color bad $p]
+		set v [color bad $v]
 	    }
 	    $t add $p $v
 	}
@@ -423,10 +443,20 @@ proc ::stackato::cmd::query::trace {config} {
 
     debug.cmd/query {input'  = $in = [fconfigure $in -encoding] [fconfigure $in -translation] :: [cfile get rest]}
     debug.cmd/query {output' = stdout = [fconfigure stdout -encoding] [fconfigure stdout -translation]}
+    debug.cmd/query {short=[$config @short]}
 
-    fcopy $in stdout
+    if {[$config @short]} {
+	# Show only the actual requests, without details.
+	while {![eof $in]} {
+	    gets $in line
+	    if {![regexp {(GET)|(PUT)|(POST)|(DELETE)} $line]} continue
+	    puts stdout $line
+	}
+    } else {
+	fcopy $in stdout
+    }
+
     close $in
-
     debug.cmd/query {/done}
     return
 }
@@ -503,8 +533,8 @@ proc ::stackato::cmd::query::AppinfoV1 {config client} {
     display [$config @application]
     [table::do t {Key Value} {
 	$t add Uris         [join [Uprefix [lsort -dict [dict get $app uris]]] \n]
-	$t add State        [dict get $app state]
-	$t add Health       [misc health $app]
+	$t add State        [app state-color [dict get $app state]]
+	$t add Health       [app health-color [misc health $app]]
 	$t add Instances    [dict get $app instances]
 	$t add Memory       [psz [MB [dict get $app resources memory]]]
 	$t add {Disk Quota} [psz [MB [dict get $app resources disk]]]
@@ -536,13 +566,13 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 
     try {
 	set htitle Health
-	set health [$theapp health]
+	set health [app health-color [$theapp health]]
     }  trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
-	set htitle {** Health}
-	set health "** Staging not completed"
+	set htitle [color warning {** Health}]
+	set health [color warning "** Staging not completed"]
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
-	set htitle {** Health}
-	set health "** Failed to stage"
+	set htitle [color bad {** Health}]
+	set health [color bad "** Failed to stage"]
     }
 
     display [ctx format-short " -> [$theapp @name]"]
@@ -579,8 +609,8 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	$t add {Placement Zone} $z
 	$t add {SSO Enabled}    $ssoe
 
-	$t add State              [$theapp @state]
-	$t add {Restart required} $rere
+	$t add State              [app state-color [$theapp @state]]
+	$t add {Restart required} [expr {$rere ? "[color note yes]" : "no"}]
 	$t add $htitle            $health
 	$t add {- Check Timeout}  $htim
 	$t add Instances          [$theapp @total_instances]
@@ -755,6 +785,14 @@ proc ::stackato::cmd::query::general {config} {
     }
 
     set info [$client info]
+
+    if {[$client isv2]} {
+	debug.cmd/query {drop usage/limits, bogus under v3}
+	# Drop usage/limits data, bogus for a v3 target.
+	dict unset info usage
+	dict unset info limits
+    }
+
     if {[$config @json]} {
 	#@type info = dict:
 	#    name build support version description /string
@@ -909,7 +947,7 @@ proc ::stackato::cmd::query::UsageV2 {client config all space} {
 	return [$client usage]
     } else {
 	if {$space ne {}} {
-	    # Specified space, validate and covnert the name.
+	    # Specified space, validate and convert the name.
 	    set space [spacename validate [$config @userOrGroup self] $space]
 	} else {
 	    # Current space.
@@ -971,24 +1009,21 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	return
     }
 
-    [table::do t {Application \# Mem Health URLs Services Drains} {
+    [table::do t {Application \# Mem Health Restart URLs Services Drains} {
 	foreach app $applications {
 	    try {
-		set health [$app health]
+		set health [app health-color [$app health]]
 	    } trap {STACKATO CLIENT V2 STAGING FAILED}      {e o} - \
 	      trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 		debug.cmd/query {not staged}
-		set health 0%
+		  set health [color bad 0%]
 	    }
 
-	    if {[$app @restart_required defined?]} {
-		append health [expr { [$app @restart_required]
-				      ? " (R)"
-				      : " (-)" }]
+	    if {[$app @restart_required defined?] &&
+		[$app @restart_required]} {
+		set restart [color note Required]
 	    } else {
-		# Do not confuse user of non-stackto target.
-		# Good for testing though.
-		#append health " (?)"
+		set restart ""
 	    }
 
 	    set name         [$app @name]
@@ -998,7 +1033,7 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	    set services     [join [lsort -dict [$app services]] \n]
 	    set drains       [join [lsort -dict [DrainListV2 $app]] \n]
 
-	    $t add $name $numinstances $mem $health $uris $services $drains
+	    $t add $name $numinstances $mem $health $restart $uris $services $drains
 	}
     }] show display
 
@@ -1048,7 +1083,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 	    $t add \
 		[dict getit $app name] \
 		[dict getit $app instances] \
-		$health \
+		[app health-color $health] \
 		[join [Uprefix [lsort -dict [dict getit $app uris]]] \n] \
 		[join [lsort -dict [dict getit $app services]] \n] \
 		[join [lsort -dict [DrainListV1 $client $app]] \n]
@@ -1060,7 +1095,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 proc ::stackato::cmd::query::Uprefix {ulist} {
     set res {}
     foreach u $ulist {
-	lappend res https://$u
+	lappend res http://$u
     }
     return $res
 }

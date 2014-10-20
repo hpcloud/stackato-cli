@@ -177,7 +177,7 @@ test unbind-service-1.6.2 {unbind-service, running app, restart} -constraints cf
     remove-appdir
     stage-close
 } -match glob -result {Unbinding test-service from node-env ... 
-Stopping Application \[node-env\] ... OK
+Stopping Application \[node-env\] ... *OK
 Starting Application \[node-env\] ... *
 OK
 *//node-env.* deployed}

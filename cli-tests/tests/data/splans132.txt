@@ -1,12 +1,13 @@
-+----+------------+-------------------------------+----------+---------+------+---------+------+
-|    | Name       | Description                   | Provider | Version | Plan | Details | Orgs |
-+----+------------+-------------------------------+----------+---------+------+---------+------+
-| FP | filesystem | Persistent filesystem service | core     | 1.0     | free | free    |      |
-| FP | harbor     | External port mapping service | core     | 1.0     | free | free    |      |
-| FP | mongodb    | MongoDB NoSQL store           | core     | 2.4     | free | free    |      |
-| FP | mysql      | MySQL database service        | core     | 5.5     | free | free    |      |
-| FP | postgresql | PostgreSQL database service   | core     | 9.1     | free | free    |      |
-| FP | rabbitmq   | RabbitMQ message queue        | core     | 2.8     | free | free    |      |
-| FP | rabbitmq3  | RabbitMQ message queue        | core     | 3.1     | free | free    |      |
-| FP | redis      | Redis key-value store service | core     | 2.8     | free | free    |      |
-+----+------------+-------------------------------+----------+---------+------+---------+------+
++------------+------+------------------------------------------+---------+------+--------+----------+---------+------+
+| Vendor     | Plan | Description                              | Details | Free | Public | Provider | Version | Orgs |
++------------+------+------------------------------------------+---------+------+--------+----------+---------+------+
+| filesystem | free | Persistent filesystem service            | free    | yes  | yes    | core     | 1.0     |      |
+| harbor     | free | External port mapping service            | free    | yes  | yes    | core     | 1.0     |      |
+| memcached  | free | Memcached in-memory object cache service | free    | yes  | yes    | core     | 1.4     |      |
+| mongodb    | free | MongoDB NoSQL store                      | free    | yes  | yes    | core     | 2.4     |      |
+| mysql      | free | MySQL database service                   | free    | yes  | yes    | core     | 5.5     |      |
+| postgresql | free | PostgreSQL database service              | free    | yes  | yes    | core     | 9.1     |      |
+| rabbitmq   | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 2.8     |      |
+| rabbitmq3  | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 3.1     |      |
+| redis      | free | Redis key-value store service            | free    | yes  | yes    | core     | 2.8     |      |
++------------+------+------------------------------------------+---------+------+--------+----------+---------+------+

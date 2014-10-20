@@ -7,7 +7,8 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
@@ -15,7 +16,6 @@ package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
-package require stackato::term
 package require stackato::v2
 package require table
 
@@ -32,7 +32,8 @@ namespace eval ::stackato::cmd::spaces {
 	update
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -42,7 +43,6 @@ namespace eval ::stackato::cmd::spaces {
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -65,7 +65,7 @@ proc ::stackato::cmd::spaces::update {config} {
 
 	$space $attr set [set newvalue [$config $cattr]]
 	if {!$changes} {
-	    display "Changing '$sname' ..."
+	    display "Changing '[color name $sname]' ..."
 	}
 
 	if {$transform ne {}} {
@@ -79,9 +79,9 @@ proc ::stackato::cmd::spaces::update {config} {
     if {$changes} {
 	display Committing... false
 	$space commit
-	display [color green OK]
+	display [color good OK]
     } else {
-	display [color blue {No changes}]
+	display [color note {No changes}]
     }
     return
 }
@@ -101,23 +101,23 @@ proc ::stackato::cmd::spaces::switch {config} {
     }
 
     if {$org eq {}} {
-	display [color yellow {Unable to switch, no organization specified}]
+	display [color warning {Unable to switch, no organization specified}]
 	return
     }
     if {$space eq {}} {
-	display [color yellow {Unable to switch, no space specified}]
+	display [color warning {Unable to switch, no space specified}]
 	return
     }
 
-    display "Switching to organization [$org @name] ... " false
+    display "Switching to organization [color name [$org @name]] ... " false
     corg set $org
     corg save
-    display [color green OK]
+    display [color good OK]
 
-    display "Switching to space [$space @name] ... " false
+    display "Switching to space [color name [$space @name]] ... " false
     cspace set $space
     cspace save
-    display [color green OK]
+    display [color good OK]
 
     display [context format-large]
     return
@@ -141,13 +141,13 @@ proc ::stackato::cmd::spaces::create {config} {
 
     display [context format-org]
 
-    display "Creating new space \"$name\" ... " false
+    display "Creating new space \"[color name $name]\" ... " false
 
     $thespace @name         set $name
     $thespace @organization set $theorg
     $thespace @is_default   set [$config @default]
     $thespace commit
-    display [color green OK]
+    display [color good OK]
 
     if {[$config @developer] ||
 	[$config @manager]   ||
@@ -170,27 +170,27 @@ proc ::stackato::cmd::spaces::create {config} {
 
 	    } trap {STACKATO CLIENT V2 INVALID RELATION} {e o} {
 		incr relationissues
-		display [wrap [color red $e] $hlen]
+		display [wrap [color bad $e] $hlen]
 	    } on error {e o} {
 		# General error, just show its message.
-		display [wrap [color red $e] $hlen]
+		display [wrap [color bad $e] $hlen]
 	    } on ok {e o} {
-		display [color green OK]
+		display [color good OK]
 	    }
 	}
 
 	if {$relationissues} {
 	    # Relation errors, ping user about possible cause
-	    display [wrap [color blue "Are you a developer for organization \"[$theorg @name]\" ?"]]
-	    display [wrap [color blue "  For if not would explain the invalid-relation errors we got issued."]]
+	    display [wrap [color note "Are you a developer for organization \"[$theorg @name]\" ?"]]
+	    display [wrap [color note "  For if not would explain the invalid-relation errors we got issued."]]
 	}
     }
 
     if {[$config @activate]} {
-	display "Switching to space [$thespace @name] ... " false
+	display "Switching to space [color name [$thespace @name]] ... " false
 	cspace set $thespace
 	cspace save
-	display [color green OK]
+	display [color good OK]
 
 	display [context format-large]
     }
@@ -212,8 +212,8 @@ proc ::stackato::cmd::spaces::delete {config} {
     }
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
-	      "\nReally delete \"[$space @name]\"$suffix ? " \
+	![ask yn \
+	      "\nReally delete \"[color name [$space @name]]\"$suffix ? " \
 	      no]} return
 
     if {$recursive} {
@@ -222,14 +222,14 @@ proc ::stackato::cmd::spaces::delete {config} {
 	$space delete
     }
 
-    display "Deleting space [$space @name] ... " false
+    display "Deleting space [color name [$space @name]] ... " false
     $space commit
-    display [color green OK]
+    display [color good OK]
 
     # Update (remove) the current space, if that is the space we just
     # deleted.
     if {$iscurrent} {
-	display "Dropped removed space as current space."
+	display [color warning "Dropped removed space as current space."]
 
 	cspace reset
 	cspace save
@@ -254,9 +254,9 @@ proc ::stackato::cmd::spaces::rename {config} {
 
     $space @name set $new
 
-    display "Renaming space to [$space @name] ... " false
+    display "Renaming space to [color name [$space @name]] ... " false
     $space commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -273,7 +273,7 @@ proc ::stackato::cmd::spaces::list {config} {
 	return
     }
 
-    display "In [[corg get] @name]..."
+    display "In [color name [[corg get] @name]]..."
     set cs [cspace get]
 
     set titles {{} Name Default Apps Services}
@@ -302,7 +302,7 @@ proc ::stackato::cmd::spaces::list {config} {
 	    }
 
 	    lappend values [expr {($cs ne {}) && [$cs == $space] ? "x" : ""}]
-	    lappend values [$space @name]
+	    lappend values [color name [$space @name]]
 	    lappend values $isdef
 	    lappend values [join [lsort -dict [$space @apps @name]] \n]
 	    lappend values [join [lsort -dict [$space @service_instances get* {user-provided true} @name]] \n]

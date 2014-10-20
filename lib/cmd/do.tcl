@@ -8,7 +8,7 @@
 
 package require Tcl 8.5
 package require fileutil
-package require stackato::color
+package require cmdr::color
 package require stackato::mgr::exit
 
 debug level  cmd/do
@@ -22,7 +22,7 @@ namespace eval ::stackato::cmd::do {
     namespace export it
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::mgr::exit
 }
 
@@ -59,15 +59,15 @@ proc ::stackato::cmd::do::IT {verbose args} {
     if {$verbose} {
 	package require linenoise
 	set c [linenoise columns]
-	puts [color blue $args]
-	puts [color blue [string repeat = $c]]
+	puts [color note $args]
+	puts [color note [string repeat = $c]]
 	# should limit by #columns.
     }
 
     stackato-cli do {*}$args
 
     if {$verbose} {
-	puts [color blue [string repeat ^ $c]]
+	puts [color note [string repeat ^ $c]]
 	# should limit by #columns.
     }
     return [expr {![exit state]}]

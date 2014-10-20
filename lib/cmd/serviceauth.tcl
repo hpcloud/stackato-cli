@@ -8,10 +8,10 @@
 
 package require Tcl 8.5
 package require cmdr
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
-package require stackato::term
 package require stackato::v2
 package require table
 
@@ -28,11 +28,11 @@ namespace eval ::stackato::cmd::serviceauth {
 	select-for
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -100,7 +100,7 @@ proc ::stackato::cmd::serviceauth::update {config} {
     display "Updating token \[[$thetoken @label]\] ... " false
     $thetoken @token set $tokenstr
     $thetoken commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/serviceauth {/done}
     return
@@ -134,7 +134,7 @@ proc ::stackato::cmd::serviceauth::create {config} {
     $atoken @token    set $tokenstr
 
     $atoken commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/serviceauth {/done}
     return
@@ -153,7 +153,7 @@ proc ::stackato::cmd::serviceauth::delete {config} {
     display "Deleting token \[[$atoken @label]\] ... " false
     $atoken delete
     $atoken commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/serviceauth {/done}
     return
@@ -184,7 +184,7 @@ proc ::stackato::cmd::serviceauth::select-for {what p} {
     }
 
     # Talk with the user.
-    set choice [term ask/menu "" \
+    set choice [ask menu "" \
 		    "Which token to $what: " \
 		    [lsort -dict $choices]]
 

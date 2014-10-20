@@ -13,13 +13,13 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::tadjunct
 package require stackato::mgr::ctarget
 package require stackato::mgr::corg
 package require stackato::mgr::self
-package require stackato::term
 package require stackato::v2::client
 
 namespace eval ::stackato::mgr {
@@ -33,14 +33,14 @@ namespace eval ::stackato::mgr::cspace {
 	reset save select-for get-auto-s30
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::warn
     namespace import ::stackato::mgr::tadjunct
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::self
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -230,10 +230,10 @@ proc ::stackato::mgr::cspace::Discard {store uuid {reason {invalid value}}} {
 
     # Discard external as well, if that was the source.
     if {$store} {
-	display [color yellow "Resetting current space, $reason."]
+	display [color warning "Resetting current space, $reason."]
 	save
     } else {
-	display [color yellow "Ignoring STACKATO_SPACE, $reason."]
+	display [color warning "Ignoring STACKATO_SPACE, $reason."]
     }
     return
 }
@@ -331,7 +331,7 @@ proc ::stackato::mgr::cspace::select-for {what p {mode noauto}} {
 
     if {([llength $choices] == 1) && ($mode eq "auto")} {
 	::set newspace [lindex $choices 0]
-	display "Choosing the one available space: \"[$newspace @name]\""
+	display "Choosing the one available space: \"[color name [$newspace @name]]\""
 	return $newspace
     }
 
@@ -356,7 +356,7 @@ proc ::stackato::mgr::cspace::select-for {what p {mode noauto}} {
 	dict set map [$o @name] $o
     }
     ::set choices [lsort -dict [dict keys $map]]
-    ::set name [term ask/menu "" \
+    ::set name [ask menu "" \
 		    "Which space to $what ? " \
 		    $choices]
 

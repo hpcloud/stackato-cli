@@ -7,6 +7,10 @@
 
 package require Tcl 8.5
 package require cmdr::validate ;# Fail utility command.
+package require debug
+
+debug level  validate/integer1
+debug prefix validate/integer1 {[debug caller] | }
 
 # # ## ### ##### ######## ############# #####################
 ## Definition
@@ -27,6 +31,7 @@ proc ::stackato::validate::integer1::release  {p x} { return }
 proc ::stackato::validate::integer1::complete {p x} { return {} }
 
 proc ::stackato::validate::integer1::validate {p x} {
+    debug.validate/integer1 {}
     if {[string is integer -strict $x] && ($x >= 1)} { return $x }
     fail $p INTEGER1 "an integer >= 1" $x
 }

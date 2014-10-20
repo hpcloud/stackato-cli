@@ -35,6 +35,11 @@ oo::class create ::stackato::v2::buildpack {
 	debug.v2/buildpack {/done}
     }
 
+    method keep-form {path} {
+	[authenticated] keep-form $path
+	return
+    }
+
     method upload! {zip} {
 	debug.v2/buildpack {}
 	[authenticated] upload-by-url [my url]/bits $zip {} buildpack

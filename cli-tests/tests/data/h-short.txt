@@ -1,3 +1,6 @@
+stackato
+    The command line client
+
 stackato add-service-broker [OPTIONS] [<name>]
     Make the named service broker known. This is a Stackato 3 specific
     command.
@@ -6,6 +9,9 @@ stackato add-user [OPTIONS] [<name>]
     Register a new user in the current or specified target. This operation
     requires administrator privileges, except if "allow_registration" is set
     server-side. This exception is specific to Stackato 2.
+
+stackato admin
+    A set of adminstrative tasks.
 
 stackato admin exit [OPTIONS]
     Exit the shell. No-op if not in a shell.
@@ -55,6 +61,31 @@ stackato clone-services [OPTIONS] <source> <application>
     Copy the service bindings of the source application to the destination
     application.
 
+stackato color
+    Management of terminal colors
+
+stackato color exit [OPTIONS]
+    Exit the shell. No-op if not in a shell.
+
+stackato color help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato color list [OPTIONS]
+    Show the current color settings.
+
+stackato color set [OPTIONS] <color> <specification>
+    (Re)define a color.
+
+stackato color test [OPTIONS] <specification> [<string>]
+    Test a color specification.
+
+stackato color unset [OPTIONS] <color>...
+    Remove a color redefinition.
+
+stackato colors [OPTIONS]
+    Show the current color settings.
+
 stackato crashes [OPTIONS] [<application>]
     List recent application crashes.
 
@@ -64,7 +95,7 @@ stackato crashlogs [OPTIONS] [<application>]
 stackato create-app [OPTIONS] [<application>]
     Create an empty application with the specified configuration.
 
-stackato create-buildpack [OPTIONS] <name> <zip>
+stackato create-buildpack [OPTIONS] <name> <zip|url|dir>
     Add a build-pack to the target.
 
 stackato create-domain [OPTIONS] <name>
@@ -135,6 +166,9 @@ stackato domains [OPTIONS]
     List the available domains in the specified space, or all. This is a
     Stackato 3 specific command.
 
+stackato drain
+    Commands for the management of drains attached to applications.
+
 stackato drain add [OPTIONS] [<application>] <drain> <uri>
     Attach a new named drain to the application.
 
@@ -189,6 +223,9 @@ stackato group [OPTIONS] [<name>]
     Report the current group, or (un)set it. This is a Stackato 2 specific
     command.
 
+stackato groups
+    A collection of commands to manage groups and the users in them.
+
 stackato groups add-user [OPTIONS] <group> <user>
     Add the named user to the specified group. This is a Stackato 2 specific
     command.
@@ -237,6 +274,8 @@ stackato help [OPTIONS] [<cmdname>...]
 stackato hide-service-plan [OPTIONS] <name> [<organization>]
     Hide the specified service-plan from the named organization. This is a
     Stackato 3 specific command.
+
+stackato history
 
 stackato history clear [OPTIONS]
     Clear the saved history.
@@ -337,16 +376,18 @@ stackato placement-zones [OPTIONS]
     command.
 
 stackato purge-service-offerings [OPTIONS] <service>
-    Purge all offerings of the service (type) from the system. Danger. Do this
+    Purge all offerings of the service type from the system. Danger. Do this
     only for services we know to have their brokers killed, leaving behind
     orphans. This is a Stackato 3.4+ specific command.
 
 stackato push [OPTIONS] [<application>]
     Configure, create, push, map, and start a new application.
 
+stackato quota
+    Management of quota plans.
+
 stackato quota configure [OPTIONS] [<name>]
-    Reconfigure the named quota plan. This is a Stackato 3 specific
-    command.
+    Reconfigure the named quota plan. This is a Stackato 3 specific command.
 
 stackato quota create [OPTIONS] [<name>]
     Create a new quota plan. This is a Stackato 3 specific command.
@@ -362,23 +403,21 @@ stackato quota help [OPTIONS] [<cmdname>...]
     commands is given. The default format is --full.
 
 stackato quota list [OPTIONS]
-    List the available quota plans. This is a Stackato 3 specific
-    command.
+    List the available quota plans. This is a Stackato 3 specific command.
 
 stackato quota rename [OPTIONS] [<name>] <newname>
     Rename the named quota plan. This is a Stackato 3 specific command.
 
 stackato quota show [OPTIONS] [<name>]
-    Show the details of the named quota plan. If not specified it will
-    be asked for interactively (menu). This is a Stackato 3 specific command.
+    Show the details of the named quota plan. If not specified it will be
+    asked for interactively (menu). This is a Stackato 3 specific command.
 
 stackato quota-org [OPTIONS] [<name>] <quota>
     Set the quotas for the current or named organization. This is a Stackato 3
     specific command.
 
 stackato quotas [OPTIONS]
-    List the available quota plans. This is a Stackato 3 specific
-    command.
+    List the available quota plans. This is a Stackato 3 specific command.
 
 stackato register [OPTIONS] [<name>]
     Register a new user in the current or specified target. This operation

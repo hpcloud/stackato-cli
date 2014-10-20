@@ -13,7 +13,7 @@ package require exec
 package require platform
 package require url
 package require struct::list
-package require stackato::color
+package require cmdr::color
 package require stackato::misc
 package require stackato::log
 package require stackato::mgr::auth
@@ -32,7 +32,7 @@ namespace eval ::stackato::mgr::ssh {
     namespace export run cc copy quote quote1
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::misc
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say
@@ -102,7 +102,7 @@ proc ::stackato::mgr::ssh::cc {config arguments} {
     return
 }
 
-proc ::stackato::mgr::ssh::run {config args theapp instance {bg 0} {eincmd {}} {eocmd {}}} {
+proc ::stackato::mgr::ssh::run {config arguments theapp instance {bg 0} {eincmd {}} {eocmd {}}} {
     # eincmd = External INput Command.
     # eocmd  = External Output Command.
 
@@ -130,7 +130,7 @@ proc ::stackato::mgr::ssh::run {config args theapp instance {bg 0} {eincmd {}} {
 
     if {![file exists $keyfile]} {
 	if {$bg == 1} {
-	    say [color yellow "\nDisabled real-time view of staging, no ssh key available for target \[$target\]"]
+	    say [color warning "\nDisabled real-time view of staging, no ssh key available for target \[$target\]"]
 	    return {}
 	} else {
 	    err "No ssh key available for target \[$target\]"
@@ -167,7 +167,7 @@ proc ::stackato::mgr::ssh::run {config args theapp instance {bg 0} {eincmd {}} {
 	lappend cmd -G [cgroup get]
     }
 
-    lappend cmd $token $appname $instance {*}$args
+    lappend cmd $token $appname $instance {*}$arguments
 
     return [InvokeSSH $config $cmd $bg $eincmd $eocmd]
 }
@@ -486,9 +486,38 @@ proc ::stackato::mgr::ssh::CopyRemoteLocalMultiDir {srclist dst} {
 
     upvar 1 config config theapp theapp instance instance
 
-    run $config [list "tar cf - [join [quote {*}$srclist]]"] \
+    # NOTE: CheckSources not only returned file/dir information, but
+    # NOTE: also performed glob expansion. We can assume to have only
+    # NOTE: exact paths here.
+
+    # We now construct a script which packages up all the remote files
+    # in such a way that the stem is stripped of the path names. This
+    # matches scp's behaviour. See bug 104473.
+    #
+    # Note that the creation of the script is a bit more complicated
+    # than just issuing one tar command per src. We aggregate multiple
+    # files in the same directory into a single tar command as a
+    # simple optimization.
+
+    # Phase I. Aggregate files per base directory.
+    foreach src $srclist {
+	set base  [file dirname $src]
+	set fpath [file tail    $src]
+	dict lappend map $base $fpath
+    }
+
+    # Phase II. Issue tar command per base directory.
+    set script {}
+    dict for {base files} $map {
+	lappend script "tar cf - -C [quote1 $base] [quote {*}$files]"
+    }
+    set script [join $script \n]
+
+    # And go.
+    set nexpected [llength $srclist]
+    run $config [list [SAC $script]] \
 	$theapp $instance 3 \
-	{} [list {*}[self exe] scp-xfer-receive $dst]
+	{} [list {*}[self exe] scp-xfer-receive $dst $nexpected]
     return
 }
 
@@ -521,13 +550,7 @@ proc ::stackato::mgr::ssh::CheckSources {paths} {
     foreach src $paths { append cmd " [quote1a $src]" }
     set script [string map [list @@@ $cmd] $csscript]
 
-    # Transfer the script, run it, and collect results. The system for
-    # transfering commands currently does not like multi-line
-    # commands. Transfering everything base64-coded gets around the
-    # issue.
-
-    set script [base64::encode -maxlen 0 $script]
-    set lines [run $config [list "echo $script | base64 -d - | bash"] $theapp $instance 4]
+    set lines [run $config [list [SAC $script]] $theapp $instance 4]
 
     # Process the result into Tcl structures for the caller (list of
     # paths, plus mapping from paths to their types).
@@ -559,6 +582,15 @@ proc ::stackato::mgr::ssh::CheckSources {paths} {
     debug.mgr/ssh {==============================}
 
     list $paths $ftype
+}
+
+proc ::stackato::mgr::ssh::SAC {script} {
+    # SAC = Script-As-Command.
+    # Encapsulate script into a command which uploads and runs it.
+    # The system for transfering commands currently does not like
+    # multi-line commands.
+    # Transfering everything base64-coded gets around the issue.
+    return "echo [base64::encode -maxlen 0 $script] | base64 -d - | bash"
 }
 
 proc ::stackato::mgr::ssh::TestIsFile {path} {
@@ -615,6 +647,7 @@ proc ::stackato::mgr::ssh::SSHKeyOptions {ov} {
 
 proc ::stackato::mgr::ssh::SSHCommand {ov cv} {
     debug.mgr/ssh {}
+    global env
     upvar 1 $ov opts $cv cmd
 
     lappend opts -2
@@ -677,6 +710,7 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 	    set lines [exec 2>@ stderr <@ stdin {*}$cmd]
 	} trap {CHILDSTATUS} {e o} {
 	    exit fail [GetStatus $o]
+	    set lines {}
 	}
 	return $lines
     }
@@ -722,7 +756,7 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::mgr::ssh {
-    # See CheckSources for use. Inserts the pattersn to check at @@@.
+    # See CheckSources for use. Inserts the patterns to check at @@@.
     # Needs a temp script file for the type-determination as xargs
     # cannot call a bash function. And xargs is required because it
     # gets the separation of paths right in face of spaces and quotes.

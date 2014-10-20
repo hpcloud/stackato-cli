@@ -7,12 +7,12 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client ; # pulls all of v2
 package require stackato::mgr::ctarget
-package require stackato::term
 package require table
 
 debug level  cmd/quotas
@@ -27,13 +27,13 @@ namespace eval ::stackato::cmd::quotas {
 	create delete rename list show configure select-for
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::v2
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::psz
     namespace import ::stackato::log::err
-    namespace import ::stackato::term
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
 
@@ -68,7 +68,7 @@ proc ::stackato::cmd::quotas::create {config} {
 
     set qd [v2 quota_definition new]
 
-    display "Creating new quota plan $name ... "
+    display "Creating new quota plan [color name $name] ... "
     $qd @name set $name
 
     foreach {a required def} $map {
@@ -80,7 +80,7 @@ proc ::stackato::cmd::quotas::create {config} {
 
     display "Committing ... " false
     $qd commit
-    display [color green OK]
+    display [color good OK]
 
     return
 }
@@ -100,7 +100,7 @@ proc ::stackato::cmd::quotas::configure {config} {
 	$qd @$a set [$config @$k]
     }
 
-    display "Changing quota plan [$qd @name] ... "
+    display "Changing quota plan [color name [$qd @name]] ... "
 
     set changes [dict sort [$qd journal]]
     if {[dict size $changes]} {
@@ -110,7 +110,7 @@ proc ::stackato::cmd::quotas::configure {config} {
 
 	    set label [$qd @$attr label]
 	    set verb   was
-	    set prefix [color blue Setting]
+	    set prefix [color note Setting]
 	    if {!$was} {
 		display "    $prefix $label: $new ($verb <undefined>)"
 	    } else {
@@ -120,9 +120,9 @@ proc ::stackato::cmd::quotas::configure {config} {
 
 	display "Committing ... " false
 	$qd commit
-	display [color green OK]
+	display [color good OK]
     } else {
-	display [color green {No changes}]
+	display [color good {No changes}]
     }
     return
 }
@@ -134,15 +134,15 @@ proc ::stackato::cmd::quotas::delete {config} {
     set qd [$config @name]
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
-	      "\nReally delete \"[$qd @name]\" ? " \
+	![ask yn \
+	      "\nReally delete \"[color name [$qd @name]]\" ? " \
 	      no]} return
 
     $qd delete
 
-    display "Deleting quota plan [$qd @name] ... " false
+    display "Deleting quota plan [color name [$qd @name]] ... " false
     $qd commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -156,9 +156,9 @@ proc ::stackato::cmd::quotas::rename {config} {
 
     $qd @name set $new
 
-    display "Renaming quota plan to [$qd @name] ... " false
+    display "Renaming quota plan to [color name [$qd @name]] ... " false
     $qd commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -226,7 +226,7 @@ proc ::stackato::cmd::quotas::show {config} {
 	return
     }
 
-    display "[ctarget get] - [$qd @name]"
+    display "[color name [ctarget get]] - [color name [$qd @name]]"
     [table::do t {Key Value} {
 	foreach {a __ def} $map {
 	    set label [string trim [$qd @$a label]]
@@ -278,7 +278,7 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
 	dict set objmap [$o @name] $o
     }
     ::set choices [lsort -dict [dict keys $objmap]]
-    ::set name [term ask/menu "" \
+    ::set name [ask menu "" \
 		    "Which quota plan to $what ? " \
 		    $choices]
 

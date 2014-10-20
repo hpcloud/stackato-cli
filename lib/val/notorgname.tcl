@@ -42,12 +42,6 @@ proc ::stackato::validate::notorgname::complete {p x} { return {} }
 proc ::stackato::validate::notorgname::validate {p x} {
     debug.validate/notorgname {}
 
-    # Accept the default.
-    if {$x eq {}} {
-	debug.validate/notorgname {OK/default}
-	return $x
-    }
-
     refresh-client $p
 
     try {

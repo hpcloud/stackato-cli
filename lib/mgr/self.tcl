@@ -182,7 +182,15 @@ proc ::stackato::mgr::self::revision {} {
     if {![file exists $revfile]} {
 	debug.mgr/self {revfile does not exist, assume unwrapped and ask git}
 	cd::indir [topdir] {
-	    set rev "local: [exec git describe]"
+	    set d [exec git describe]
+	    # Extract revision, and determine when it was committed.
+	    if {![regexp {.*-g(.*)$} $d -> rev]} {
+		# Sitting exactly on a tag. No -g* part in the description.
+		# Use alternate way of determining the revision.
+		set rev [exec git log --max-count=1 --pretty=format:%H]
+	    }
+	    append d " @ " [exec git log ${rev}~1..$rev --pretty=format:%ci]
+	    set rev "local: $d"
 	}
     } else {
 	debug.mgr/self {revfile found, read and show contents}

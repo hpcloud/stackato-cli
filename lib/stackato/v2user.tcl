@@ -8,6 +8,7 @@
 package require Tcl 8.5
 package require TclOO
 package require dictutil
+package require cmdr::color
 package require stackato::v2::base
 
 # # ## ### ##### ######## ############# #####################
@@ -50,6 +51,7 @@ oo::class create ::stackato::v2::user {
 	my SearchableOn managed_space
 	my SearchableOn audited_space
 
+	set myuaa_error {}
 	next $url
     }
 
@@ -72,6 +74,8 @@ oo::class create ::stackato::v2::user {
 	if {[my id] eq "legacy-api"} {
 	    return "([my id])"
 	}
+	#return [dict get' [lindex [my emails] 0] value "($myuaa_error)"]
+	#return [dict get' [lindex [my emails] 0] value "(Unknown: [my id])"]
 	return [dict get' [lindex [my emails] 0] value ([my id])]
     }
 
@@ -129,7 +133,7 @@ oo::class create ::stackato::v2::user {
 	    # my ForceDance
 
 	    my = [$client stackato-change-admin [my id] $newvalue]
-	    display [color green OK]
+	    display [cmdr color good OK]
 
 	} trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} {
 	    debug.v2/user {}
@@ -145,7 +149,7 @@ oo::class create ::stackato::v2::user {
 		my RevokeDance $client
 	    }
 
-	    display [color green OK]
+	    display [cmdr color good OK]
 	}
 
 	debug.v2/user {/done}
@@ -223,7 +227,7 @@ oo::class create ::stackato::v2::user {
 	    set callerdoesadmin 0
 
 	    if {$admin} {
-		display [color green OK]
+		display [cmdr color good OK]
 		display "Granted administrator privileges to \[$email\] ... " false
 	    }
 
@@ -299,14 +303,23 @@ oo::class create ::stackato::v2::user {
 
     # # ## ### ##### ######## #############
 
+    method uaaerror {} {
+	return $myuaa_error
+    }
+
     method UAA {} {
-	debug.v2/user {}
+	debug.v2/user {[info level -1]}
 	if {![info exists myuaa]} {
 	    debug.v2/user {Fill cache}
 	    try {
 		set myuaa [[my client] uaa_get_user [my id]]
 	    } trap {REST HTTP 404} {e o} {
 		#puts |$o|
+		set myuaa {}
+		set myuaa_error $e
+	    } trap {STACKATO CLIENT V2 NOTFOUND} {e o} {
+		#puts |$o|
+		set myuaa_error $e
 		set myuaa {}
 	    }
 	}
@@ -324,6 +337,7 @@ oo::class create ::stackato::v2::user {
     # # ## ### ##### ######## #############
 
     variable myuaa
+    variable myuaa_error
 
     # # ## ### ##### ######## #############
     ## SearchableOn name

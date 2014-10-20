@@ -28,11 +28,33 @@ namespace eval ::stackato::cmd::scp {
 proc ::stackato::cmd::scp::xfer_receive {config} {
     debug.cmd/scp {}
 
-    set dst [$config @dst]
+    set dst [$config @dst] ;# Where to store the incoming files
+    set n   [$config @n]   ;# How many files are expected. -1 = unknown.
 
     fconfigure stdin -encoding binary -translation binary
     #file mkdir            $dst
-    tar::untar stdin -dir $dst -chan
+
+    incr n $n
+    # Trick: untar returns a list of paths and file sizes. I.e. double
+    # the number of files received. Instead of dividing things before
+    # decrementing we simply double the number of expected items
+    # instead.
+
+    while {![eof stdin]} {
+	set got [llength [tar::untar stdin -dir $dst -chan]]
+	# got = double number of items received (path + size, per item).
+
+	# We do no iteration if no particular number is expected. In
+	# that case there is one tar stream which contained everything
+	# (See CopyRemoteLocalDirDir).
+	if {$n < 0} break
+
+	# Only if we know how much to expect the system may generate
+	# multiple tar streams (see CopyRemoteLocalMultiDir).
+	incr n -$got
+	if {$n <= 0} break
+    }
+
     return
 }
 

@@ -1,6 +1,6 @@
 Creating new quota plan testquota ... 
-  Paid Services Allowed      : 0
-  Max Number Of Services     : 0
-  Memory Limit               : 0B
-  Max Number of Routes       : 0
+  Paid Services Allowed      : 1
+  Max Number Of Services     : 100
+  Memory Limit               : 2.0G
+  Max Number of Routes       : 1000
 Committing ... OK

@@ -13,6 +13,7 @@ package require Tcl 8.5
 package require fileutil
 package require json
 package require stackato::mgr::cfile
+package require stackato::log
 
 namespace eval ::stackato::mgr {
     namespace export tadjunct
@@ -25,6 +26,7 @@ namespace eval ::stackato::mgr::tadjunct {
     namespace ensemble create
 
     namespace import ::stackato::mgr::cfile
+    namespace import ::stackato::log::err
 }
 
 debug level  mgr/tadjunct
@@ -120,9 +122,14 @@ proc ::stackato::mgr::tadjunct::known {} {
     }
 
     # @todo@ cache json parse result ?
-    return [json::json2dict \
-		[string trim \
-		     [fileutil::cat $path]]]
+    try {
+	set adjunct [json::json2dict \
+			 [string trim \
+			      [fileutil::cat $path]]]
+    } trap {JSON} {e o} {
+	err "Bad configuration file $path: Bad JSON: $e"
+    }
+    return $adjunct
 }
 
 # # ## ### ##### ######## ############# #####################

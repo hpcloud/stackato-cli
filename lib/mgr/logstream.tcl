@@ -6,7 +6,7 @@ package require Tcl 8.5
 package require dictutil
 package require exec
 package require json
-package require stackato::color
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::auth
 package require stackato::mgr::cgroup
@@ -31,7 +31,7 @@ namespace eval ::stackato::mgr::logstream {
 	new-entries no-new-entries kill
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::log::err
     namespace import ::stackato::log::display
     namespace import ::stackato::mgr::auth
@@ -403,7 +403,7 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
     set r [lindex $details end]
 
     if {[dict get $o -code] in {error 1}} {
-	display [color red $r]
+	display [color bad $r]
 	return
     }
 
@@ -413,7 +413,7 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
     if {[catch {
 	ShowLines $config [split [string trimright $data \n] \n]
     } e]} {
-	display [color red $::errorInfo]
+	display [color bad $::errorInfo]
 	return
     }
 
@@ -613,7 +613,7 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
     if {[dict exists $record error]} {
 	set m [dict get $record error]
 	if {$m ne {}} {
-	    display [color red $m]
+	    display [color bad $m]
 	    return
 	}
     }
@@ -653,9 +653,9 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	# app messages.
 	# colors: red green yellow white blue cyan bold
 	if {[string match "stackato*" $source]} {
-	    set linecolor yellow
+	    set linecolor log-sys
 	} else {
-	    set linecolor cyanfg
+	    set linecolor log-app
 	}
 	
 	if {$nosts} {
@@ -664,10 +664,8 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	} else {
 	    set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
 	}
-	set date     [color $linecolor $date]
-	set source   [color $linecolor $source]
-	#set instance [color blue   $instance]
-	display "$date$source: $text"
+
+	display "[color $linecolor $date$source]: [EolCode $text]"
     }
 }
 
@@ -678,7 +676,7 @@ proc ::stackato::mgr::logstream::Peel {line} {
 	# Parse error, or other issue.
 	# Show the raw JSON as it came from the server, plus the error message we got.
 	# Note that this disables all filters also.
-	display "(($line)) ([color red $emsg])"
+	display "(($line)) ([color bad $emsg])"
 	return -code return ;# Stop not only self, but caller as well.
     }
     return $record
@@ -808,7 +806,6 @@ proc ::stackato::mgr::logstream::Skip {lines} {
     return $toshow
 }
 
-
 proc ::stackato::mgr::logstream::Filter {record} {
     upvar 1 \
 	pnewer    pnewer    \
@@ -851,9 +848,23 @@ proc ::stackato::mgr::logstream::Filter {record} {
     return 0
 }
 
+# Bug 105090 - Encode EOLs in log entries to make them visible.
+proc ::stackato::mgr::logstream::EolCode {text} {
+    return [string map [EolMap] $text]
+}
+proc ::stackato::mgr::logstream::EolMap {} {
+    # Lazy creation. Ensures that we have a proper active color system.
+    # Memoization to avoid redoing this for each line.
+    lappend  eolmap \n [color note "\\n"]
+    lappend  eolmap \r [color note "\\r"]
+    proc ::stackato::mgr::logstream::EolMap {} [list return $eolmap ]
+    return $eolmap
+}
+
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::mgr::logstream {
+
     # active - counter of active tail requests. No keying by appname, as only one
     #          log thread is possible.
     # fast   - true if new fast logging is possible.

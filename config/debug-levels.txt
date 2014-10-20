@@ -6,6 +6,7 @@ cmd/app
 cmd/app/ignored
 cmd/buildpacks
 cmd/cgroup
+cmd/color
 cmd/do
 cmd/domains
 cmd/groups
@@ -25,6 +26,7 @@ cmd/usermgr
 cmd/zones
 cmdr
 cmdr/actor
+cmdr/color
 cmdr/config
 cmdr/help
 cmdr/help/json
@@ -111,6 +113,8 @@ validate/hostport
 validate/http-header
 validate/http-operation
 validate/instance
+validate/integer0
+validate/integer1
 validate/interval
 validate/memspec
 validate/notappname

@@ -10,7 +10,7 @@ package require Tcl 8.5
 package require try            ;# I want try/catch/finally
 package require TclOO
 package require stackato::const
-package require stackato::color
+package require cmdr::color
 package require lambda
 package require restclient
 package require tls          ; # SSL support (https)
@@ -24,6 +24,9 @@ package require debug
 package require url
 
 package require autoproxy 1.5.3 ; # Contains the https fixes.
+package require tls
+
+tls::init -tls1 on
 http::register https 443 autoproxy::tls_socket ; # proxy aware TLS/SSL.
 
 debug level  client
@@ -341,7 +344,7 @@ oo::class create ::stackato::client {
 		    trap {REST HTTP REFUSED} {e o} - \
 		    trap {REST HTTP BROKEN} {e o} {
 			if {!$tries} { return {*}$o $e }
-			say! [color red "$e"]
+			say! [cmdr color bad "$e"]
 			say "Retrying in a second... (trials left: $tries)"
 			continue
 		    }
@@ -393,7 +396,7 @@ oo::class create ::stackato::client {
 		trap {REST HTTP BROKEN} {e o} {
 		    if {!$tries} { return {*}$o $e }
 
-		    say! \n[color red "$e"]
+		    say! \n[cmdr color bad "$e"]
 		    say "Retrying in a second... (trials left: $tries)"
 		    after 1000
 		    continue
@@ -1209,31 +1212,38 @@ oo::class create ::stackato::client {
                     return "Error $errcode: $desc"
                 }
 	    } else {
-		if {[string match *html*    $ctype] ||
-		    [string match *DOCTYPE* $data] ||
-		    [string match *html*    $data]} {
-		    # Error message is html dump.
-		    set data {<HTML dump elided>}
-		}
-
+		set data [my HandleHTMLDump $ctype $status $data]
 		return "Error (HTTP $status): $data"
 	    }
 	} on error e {
 	    if {$data eq {}} {
 		return "Error ($status): No Response Received"
 	    } else {
-		if {[string match *html*    $ctype] ||
-		    [string match *DOCTYPE* $data] ||
-		    [string match *html*    $data]} {
-		    # Error message is html dump.
-		    set data {<HTML dump elided>}
-		}
-
+		set data [my HandleHTMLDump $ctype $status $data]
 		#@todo: no trace => truncate
 		#return "Error (JSON $status): $e"
 		return "Error (JSON $status): $data"
 	    }
 	}
+    }
+
+    method HandleHTMLDump {ctype status data} {
+	if {[string match *html*    $ctype] ||
+	    [string match *DOCTYPE* $data] ||
+	    [string match *html*    $data]} {
+	    # Error message is html dump.
+
+	    if {$status == 404} {
+		set data "The Cloud Controller looks to be broken. Please contact your system administrator."
+	    } elseif {$status == 502} {
+		set data "The Cloud Controller is currently not responding to requests. It may still be in the process of starting up. If the issue persists please contact your system administrator."
+	    } else {
+		set data "The Cloud Controller is currently badly responding to requests. It may still be in the process of starting up. If the issue persists please contact your system administrator."
+		#set data {<HTML dump elided>}
+	    }
+	}
+
+	return $data
     }
 
     method check_login_status {} {
@@ -1253,7 +1263,7 @@ oo::class create ::stackato::client {
 	again+ ${p}%
 
 	if {$n >= $total} {
-	    display " [color green OK]"
+	    display " [cmdr color good OK]"
 	    clearlast
 	    #display ""
 	}

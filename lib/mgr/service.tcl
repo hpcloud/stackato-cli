@@ -9,7 +9,7 @@
 
 package require Tcl 8.5
 package require dictutil
-package require stackato::color
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::cspace
 package require stackato::v2
@@ -25,7 +25,7 @@ namespace eval ::stackato::mgr::service {
 	delete-with-banner create-udef-with-banner
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
@@ -82,7 +82,7 @@ proc ::stackato::mgr::service::create-udef-with-banner {client creds name {displ
     # This is a v2-only procedure.
     # name = name of new service instance.
 
-    set sn [expr {$display_name ? " \[$name\]" : ""}]
+    set sn [expr {$display_name ? " \[[color name $name]\]" : ""}]
     display "Creating new service$sn ... " false
 
     set theservice [v2 user_provided_service_instance new]
@@ -93,7 +93,7 @@ proc ::stackato::mgr::service::create-udef-with-banner {client creds name {displ
     
     $theservice commit
 
-    display [color green OK]
+    display [color good OK]
 
     # result is instance (v2)
     debug.cmd/app {==> ($theservice)}
@@ -108,7 +108,7 @@ proc ::stackato::mgr::service::create-with-banner {client theplan name {display_
     #
     # name = name of new service instance.
 
-    set sn [expr {$display_name ? " \[$name\]" : ""}]
+    set sn [expr {$display_name ? " \[[color name $name]\]" : ""}]
     display "Creating new service$sn ... " false
 
     if {[$client isv2]} {
@@ -125,7 +125,7 @@ proc ::stackato::mgr::service::create-with-banner {client theplan name {display_
 	set theservice $name
     }
 
-    display [color green OK]
+    display [color good OK]
 
     # result is name|instance (v1 vs v2)
     debug.cmd/app {==> ($theservice)}
@@ -142,7 +142,7 @@ proc ::stackato::mgr::service::bind-with-banner {client theservice theapp {show_
 	if {[llength [$theapp @service_bindings filter [lambda {s b} {
 	    [$b @service_instance] == $s
 	} $theservice]]]} {
-	    display "Binding [$theservice @name] to [$theapp @name] ... SKIPPED (already bound)"
+	    display "  Binding [color name [$theservice @name]] to [color name [$theapp @name]] ... SKIPPED (already bound)"
 	    return 0
 	}
 
@@ -150,17 +150,17 @@ proc ::stackato::mgr::service::bind-with-banner {client theservice theapp {show_
 	$link @app              set $theapp
 	$link @service_instance set $theservice
 
-	display "Binding [$theservice @name] to [$theapp @name] ... " false
+	display "  Binding [color name [$theservice @name]] to [color name [$theapp @name]] ... " false
 	$link commit
     } else {
 	# theapp, theservice = entity names.
 
-	display "Binding Service $theservice to $theapp ... " false
+	display "  Binding Service [color name $theservice] to [color name $theapp] ... " false
 	$client bind_service $theservice $theapp
     }
 
     if {$show_ok} {
-	display [color green OK]
+	display [color good OK]
     }
 
     return 1
@@ -179,11 +179,11 @@ proc ::stackato::mgr::service::unbind-with-banner {client theservice theapp {sho
 	} $theservice]]
 
 	if {![llength $links]} {
-	    display "Unbinding [$theservice @name] from [$theapp @name] ... SKIPPED (not bound)"
+	    display "Unbinding [color name [$theservice @name]] from [color name [$theapp @name]] ... SKIPPED (not bound)"
 	    return 0
 	}
 
-	display "Unbinding [$theservice @name] from [$theapp @name] ... " false
+	display "Unbinding [color name [$theservice @name]] from [color name [$theapp @name]] ... " false
 	foreach link $links {
 	    $link delete
 	    $link commit
@@ -192,12 +192,12 @@ proc ::stackato::mgr::service::unbind-with-banner {client theservice theapp {sho
     } else {
 	# theapp, theservice = entity names.
 
-	display "Unbinding Service $theservice from $theapp ... " false
+	display "Unbinding Service [color name $theservice] from [color name $theapp] ... " false
 	$client unbind_service $theservice $theapp
     }
 
     if {$show_ok} {
-	display [color green OK]
+	display [color good OK]
     }
     return 1
 }
@@ -224,13 +224,13 @@ proc ::stackato::mgr::service::delete-with-banner {client service} {
 	    append msg "[lindex $users 0]"
 	}
 
-	display [color red $msg]
+	display [color bad $msg]
 	return
     }
 
-    display "Deleting service \[$service\] ... " false
+    display "Deleting service \[[color name $service]\] ... " false
     $client delete_service $service
-    display [color green OK]
+    display [color good OK]
 }
 
 # # ## ### ##### ######## ############# #####################

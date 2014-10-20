@@ -71,6 +71,32 @@ test ssh-1.3 {ssh, explicit app} -setup {
     stage-close
 } -match glob -result [viewFile data/ls-l.txt]
 
+test ssh-1.4 {ssh, auto-select app, explicit --instance} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    indir $appdir { run ssh --instance 0 ls -l }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/ls-l.txt]
+
+test ssh-1.5 {ssh, auto-select app, --all} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    indir $appdir { run ssh --all ls -l }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/ls-l.txt]
+
 TODO ssh --target, --group, multiple dependent apps.
 # --group see 4.* below, dry runs
 

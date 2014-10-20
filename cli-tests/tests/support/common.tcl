@@ -364,7 +364,7 @@ proc make-non-admin {} {
 	run add-user -n [theuser] --password P
     } else {
 	run add-user -n [theuser] --email [theuser] --password P --organization [theorg]
-	run link-user-org   [theuser] [theorg] ;# --developer implied and default
+	run link-user-org   [theuser] [theorg]    --manager --auditor
 	run link-user-space [theuser] [thespace]  --developer
     }
 }

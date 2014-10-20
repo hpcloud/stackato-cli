@@ -25,7 +25,7 @@ package require oo::util 1.2
 package require stackato::jmap
 package require stackato::v2
 package require stackato::log
-package require stackato::color
+package require cmdr::color
 # We assume to have mgr::client loaded.
 # Cannot load it here, would be a cycle
 # v2::base --> v2::xxx --> v2::client --> mgr::client --> v2::base
@@ -61,6 +61,10 @@ oo::class create ::stackato::v2::base::pp {
     }
 
     method name {} {
+	return $myname
+    }
+
+    method the-name {} {
 	return $myname
     }
 
@@ -164,7 +168,7 @@ oo::class create ::stackato::v2::base {
 			    ::stackato::mgr::client]
 	namespace import ::stackato::jmap
 	namespace import ::stackato::log::display
-	namespace import ::stackato::color
+	namespace import ::cmdr::color
 
 	# Note: Use of 'Enter' is controlled by the caller. Perform
 	# construction only through the public ::stackato::v2
@@ -1628,16 +1632,14 @@ oo::class create ::stackato::v2::base {
 	    return
 	}
 
-	# Update local cache (list of urls).
-	dict lappend mydata $name {*}$added
-
 	if {[my is new]} {
 	    # Operate directly on the delta to send on commit.
 	    # There the relationship is represented as an array of uuid's.
 	    # For a new object there is no server state to manipulate, yet.
 
 	    foreach url $added {
-		dict append mydiff ${xname}_guids [id-of $url]
+		dict append  mydiff ${xname}_guids [id-of $url]
+		dict lappend mydata $name $url
 	    }
 	    return
 	}
@@ -1647,6 +1649,9 @@ oo::class create ::stackato::v2::base {
 	foreach url $added {
 	    debug.v2/base {link [my url] $xname [id-of $url]}
 	    my = [[authenticated] link [my url] $xname [id-of $url]]
+
+	    # Update local cache on each success
+	    dict lappend mydata $name $url
 	}
 	return
     }
@@ -1697,13 +1702,6 @@ oo::class create ::stackato::v2::base {
 	    return
 	}
 
-	# Update local cache (list of urls).
-	foreach r $removed {
-	    set pos [lsearch -exact $oldurls $r]
-	    set oldurls [lreplace $oldvalue $pos $pos]
-	}
-	dict set mydata $name $oldurls
-
 	if {[my is new]} {
 	    # Operate directly on the delta to send on commit.
 	    # There the relationship is represented as an array of uuid's.
@@ -1711,10 +1709,14 @@ oo::class create ::stackato::v2::base {
 
 	    set current [dict get' $mydiff ${xname}_guids {}]
 	    foreach url $removed {
-		set pos [lsearch -exact $current [id-of $url]]
-		set current [lreplace $oldvalue $pos $pos]
+		set pos     [lsearch -exact $current [id-of $url]]
+		set current [lreplace $current $pos $pos]
+
+		set pos     [lsearch -exact $oldurls $url]
+		set oldurls [lreplace $oldurls $pos $pos]
 	    }
 	    my change ${xname}_guids $current
+	    dict set mydata $name $oldurls
 	    return
 	}
 
@@ -1723,6 +1725,11 @@ oo::class create ::stackato::v2::base {
 	foreach url $removed {
 	    debug.v2/base {unlink [my url] $xname [id-of $url]}
 	    my = [[authenticated] unlink [my url] $xname [id-of $url]]
+
+	    # Update local cache on each success.
+	    set pos     [lsearch -exact $oldurls $url]
+	    set oldurls [lreplace $oldurls $pos $pos]
+	    dict set mydata $name $oldurls
 	}
 	return
     }
@@ -1950,7 +1957,7 @@ oo::class create ::stackato::v2::base {
 	}
 
 	if {[info exists mynote]} {
-	    display [color red "[my show] $context = $mynote"]
+	    display [color bad "[my show] $context = $mynote"]
 	}
 
 	debug.v2/base {retrieve from [[authenticated] target] :: [my url]}

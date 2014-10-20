@@ -8,7 +8,7 @@
 | Managed Spaces        | * |
 | Audited Spaces        | * |
 | Organizations         | @org@ *|
-| Managed Organizations | @org@ *|
+| Managed Organizations | * |
 | Billing Organizations | * |
-| Audited Organizations | @org@ *|
+| Audited Organizations | * |
 +-*-+-*-+

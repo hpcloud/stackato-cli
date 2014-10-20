@@ -9,9 +9,9 @@
 
 package require Tcl 8.5
 package require table
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
-package require stackato::color
 package require stackato::mgr::cgroup
 package require stackato::mgr::client
 
@@ -23,7 +23,7 @@ namespace eval ::stackato::cmd::cgroup {
     namespace export getorset set-core reset-core
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::banner
     namespace import ::stackato::log::display
@@ -85,7 +85,7 @@ proc ::stackato::cmd::cgroup::set-core {client name} {
     cgroup set $name
     cgroup save
 
-    say [color green "Successfully set current group to \[$name\]"]
+    say [color good "Successfully set current group to \[$name\]"]
     return
 }
 
@@ -97,7 +97,7 @@ proc ::stackato::cmd::cgroup::reset-core {{client {}}} {
 
     if {($client ne {}) &&
 	![dict exists [$client info] groups]} return
-    say "Reset current group: [color green OK]"
+    say "Reset current group: [color good OK]"
     return
 }
 

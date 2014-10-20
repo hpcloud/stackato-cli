@@ -19,6 +19,7 @@ package require try            ;# I want try/catch/finally
 package require TclOO
 package require base64
 package require json 1.2       ;# requiring many-json2dict
+package require cmdr::color
 package require stackato::jmap
 package require stackato::form2
 package require restclient
@@ -77,7 +78,7 @@ oo::class create ::stackato::v2::client {
 
     variable mytarget myhost myuser myproxy myauth_token \
 	mytrace myprogress myheaders myrefresh_token \
-	myclientinfo myorphans
+	myclientinfo myorphans mykeepform
 
     method target       {} { return $mytarget }
     method authtoken    {} { return $myauth_token }
@@ -103,6 +104,7 @@ oo::class create ::stackato::v2::client {
 	set myproxy {}
 	set mytrace 0
 	set myprogress 0
+	set mykeepform {}
 
 	# Namespace import, sort of.
 	namespace path [linsert [namespace path] end \
@@ -180,12 +182,12 @@ oo::class create ::stackato::v2::client {
     }
 
     method full-server-version {} {
-	debug.client {}
+	debug.v2/client {}
 	return [dict get' [my info] vendor_version 0.0]
     }
 
     method server-version {} {
-	debug.client {}
+	debug.v2/client {}
 	set v [dict get' [my info] vendor_version 0.0]
 	# drop -gXXXX suffix (git revision)
 	regsub -- {-g.*$} $v {} v
@@ -194,7 +196,7 @@ oo::class create ::stackato::v2::client {
 	# drop leading 'v', dashes to dots
 	set v [string map {v {} - .} $v]
 	# done
-	debug.client {= $v}
+	debug.v2/client {= $v}
 	return $v
     }
 
@@ -256,6 +258,11 @@ oo::class create ::stackato::v2::client {
 
     method cc-nginx {} {
 	return [dict get' [my info] cc_nginx 0]
+    }
+
+    method zero-downtime {} {
+	debug.v2/client {0-down has = [dict exists [my info] stackato zero_downtime]}
+	return [dict get' [my info] stackato zero_downtime 0]
     }
 
     # # ## ### ##### ######## #############
@@ -414,7 +421,12 @@ oo::class create ::stackato::v2::client {
     # Apps
     ######################################################
 
-    method upload-by-url {url zipfile {resource_manifest {}} {field application}} {
+    method keep-form {path} {
+	set mykeepform $path
+	return
+    }
+
+    method upload-by-url {url zipfile {resource_manifest {}} {field application} {zero 0}} {
 	debug.v2/client {}
 	#@type zipfile = path
 
@@ -431,26 +443,34 @@ oo::class create ::stackato::v2::client {
 	# relevant form field is simply not provided. Furthermore, the
 	# form field "_method" has been dropped.
 
+	debug.v2/client {FORM}
 	form2 start   data
 	form2 field   data resources $resources
+
+	debug.v2/client {FORM 0-down: [my zero-downtime] && $zero}
+	if {[my zero-downtime] && $zero} {
+	    debug.v2/client {FORM 0-down active -> zero_downtime}
+	    form2 field data zero_downtime 1
+	}
+
 	if {$zipfile ne {}} {
 	    form2 zipfile data $field $zipfile
 	}
 	lassign [form2 compose data] contenttype data dlength
 
-	if {0} {
+	if {$mykeepform ne {}} {
 	    # Debugging ... Stream to temp file for review, and stream
 	    # upload from the same file because the cat and subordinates
 	    # are destroyed by the fcopy.
-	    set c [open UPLOAD_FORM w]
+	    set c [open $mykeepform w]
 	    fconfigure $c -translation binary
 	    fcopy $data $c
 	    close $data
 	    close $c
-	    set data [open UPLOAD_FORM r]
+	    set data [open $mykeepform r]
 	    fconfigure $data -translation binary
 
-	    set dlength [file size UPLOAD_FORM]
+	    set dlength [file size $mykeepform]
 	}
 
 	debug.v2/client {$contenttype | $dlength := $data}
@@ -480,7 +500,7 @@ oo::class create ::stackato::v2::client {
 			  return {*}$o $e
 		      }
 
-		      say! \n[color red "$e"]
+		      say! \n[cmdr color bad "$e"]
 		      say "Retrying in a second... (trials left: $tries)"
 		      after 1000
 		      continue
@@ -559,7 +579,7 @@ oo::class create ::stackato::v2::client {
 			  return {*}$o $e
 		      }
 
-		      say! \n[color red "$e"]
+		      say! \n[cmdr color bad "$e"]
 		      say "Retrying in a second... (trials left: $tries)"
 		      after 1000
 		      continue
@@ -585,7 +605,7 @@ oo::class create ::stackato::v2::client {
 	again+ ${p}%
 
 	if {$n >= $total} {
-	    display " [color green OK]" false
+	    display " [cmdr color good OK]" false
 	    #clearlast - see (**) upload-by-url/finally
 	    #display ""
 	}
@@ -1726,8 +1746,17 @@ oo::class create ::stackato::v2::client {
 	    if {($parsed ne {}) &&
 		[my HAS $parsed error_description]} {
 
-		set map     [list "\"" {'}]
-		set desc    [string map $map [dict get $parsed error_description]]
+		set map  [list "\"" {'}]
+		set desc [string map $map [dict get $parsed error_description]]
+
+		if {[my HAS $parsed error] &&
+		    ([dict get $parsed error] eq "unauthorized")} {
+		    debug.v2/client {permission error}
+		    # V2 - Authentication/Permission error.
+
+		    my AuthError $desc
+		}
+
 		append desc " ($status)"
 		return $desc
 	    }
@@ -1788,6 +1817,12 @@ oo::class create ::stackato::v2::client {
 		    my AuthError $desc
 		}
 
+		if {$errcode == 10002} {
+		    debug.v2/client {permission error}
+		    # V2 - Authentication/Permission error.
+		    my AuthError $desc
+		}
+
                 if {$errcode == 310} {
                     # staging error is common enough that the user
                     # need not know the http error code behind it.
@@ -1796,13 +1831,7 @@ oo::class create ::stackato::v2::client {
                     return "Error $errcode: $desc"
                 }
 	    } else {
-		if {[string match *html*    $ctype] ||
-		    [string match *DOCTYPE* $data] ||
-		    [string match *html*    $data]} {
-		    # Error message is html dump.
-		    set data {<HTML dump elided>}
-		}
-
+		set data [my HandleHTMLDump $ctype status $data]
 		return "Error (HTTP $status): $data"
 	    }
 	} trap {STACKATO CLIENT V2} {e o} {
@@ -1811,18 +1840,31 @@ oo::class create ::stackato::v2::client {
 	    if {$data eq {}} {
 		return "Error ($status): No Response Received"
 	    } else {
-		if {[string match *html*    $ctype] ||
-		    [string match *DOCTYPE* $data] ||
-		    [string match *html*    $data]} {
-		    # Error message is html dump.
-		    set data {<HTML dump elided>}
-		}
-
+		set data [my HandleHTMLDump $ctype $status $data]
 		#@todo: no trace => truncate
 		#return "Error (JSON $status): $e"
 		return "Error (JSON $status): $data"
 	    }
 	}
+    }
+
+    method HandleHTMLDump {ctype status data} {
+	if {[string match *html*    $ctype] ||
+	    [string match *DOCTYPE* $data] ||
+	    [string match *html*    $data]} {
+	    # Error message is html dump.
+
+	    if {$status == 404} {
+		set data "The Cloud Controller looks to be broken. Please contact your system administrator."
+	    } elseif {$status == 502} {
+		set data "The Cloud Controller is currently not responding to requests. It may still be in the process of starting up. If the issue persists please contact your system administrator."
+	    } else {
+		set data "The Cloud Controller is currently badly responding to requests. It may still be in the process of starting up. If the issue persists please contact your system administrator."
+		#set data {<HTML dump elided>}
+	    }
+	}
+
+	return $data
     }
 
     method HAS {dict key} {

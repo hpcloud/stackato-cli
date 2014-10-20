@@ -14,7 +14,7 @@
 package require Tcl 8.5
 package require tclyaml
 package require dictutil ; # dict sort
-package require stackato::color
+package require cmdr::color
 
 # # ## ### ##### ######## ############# #####################
 
@@ -30,7 +30,7 @@ namespace eval ::stackato::yaml {
 
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
 }
 
 # Danger! Ensure that regular dict commands used here are
@@ -214,7 +214,7 @@ proc ::stackato::yaml::deep-merge {child parent} {
 proc ::stackato::yaml::tag!warn {tag yml {label structure}} {
     lassign $yml thetag thevalue
     if {$thetag eq $tag} return
-    say! [color yellow "Manifest warning: Expected a yaml $tag for $label, got a $thetag"]
+    say! [color warning "Manifest warning: Expected a yaml $tag for $label, got a $thetag"]
     return
 }
 

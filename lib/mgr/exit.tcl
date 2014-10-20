@@ -12,7 +12,7 @@ package require Tcl 8.5
 package require exec
 package require fileutil
 package require stackato::log
-package require stackato::color
+package require cmdr::color
 package require cmdr
 package require stackato::mgr::auth
 package require stackato::mgr::cfile
@@ -36,7 +36,7 @@ namespace eval ::stackato::mgr::exit {
     namespace ensemble create
 
     namespace import ::stackato::log::*
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::mgr::auth
     namespace import ::stackato::mgr::cfile
     namespace import ::stackato::mgr::cgroup
@@ -181,21 +181,21 @@ proc ::stackato::mgr::exit::attempt {script} {
       trap {CMDR CONFIG AMBIGUOUS OPTION} {e o} - \
       trap {CMDR CONFIG COMMIT FAIL} {e o} {
 	debug.mgr/exit {A}
-	say! [color red $e]
+	say! [color bad $e]
 	fail
     } trap {CMDR CONFIG WRONG-ARGS}  {e o} {
 	debug.mgr/exit {B}
 	if {[string match *\n* $e]} {
 	    set trailer [lassign [split $e \n] header]
-	    say! [color red $header]
+	    say! [color bad $header]
 	    say! [join $trailer \n]
 	} else {
-	    say! [color red $e]
+	    say! [color bad $e]
 	}
 	fail
     } trap {CMDR PARAMETER UNDEFINED} {e o} {
 	debug.mgr/exit {C}
-	say! [color red [string map {{Undefined: } {Missing definition for argument '}} $e]']
+	say! [color bad [string map {{Undefined: } {Missing definition for argument '}} $e]']
 	fail
     } trap {SIGTERM} {e o} - trap {TERM INTERUPT} {e o} {
 	debug.mgr/exit {D}
@@ -205,22 +205,22 @@ proc ::stackato::mgr::exit::attempt {script} {
 
     } trap {ZIP ENCODE DUPLICATE PATH} {e o} {
 	debug.mgr/exit {E}
-	say! [color red $e]
+	say! [color bad $e]
 	fail
 
     } trap {STACKATO SERVER DATA ERROR} {e} {
 	debug.mgr/exit {F}
-	say! [color red "Bad server response; $e"]
+	say! [color bad "Bad server response; $e"]
 	fail
 
     } trap {STACKATO CLIENT AUTHERROR}    {e} - \
       trap {STACKATO CLIENT V2 AUTHERROR} {e} {
 	debug.mgr/exit {G}
 	if {[auth get] eq {}} {
-	    say! [color red "Login Required"]
+	    say! [color bad "Login Required"]
 	    say! [self please login]
 	} else {
-	    say! [color red "Not Authorized"]
+	    say! [color bad "Not Authorized"]
 	    say! "$e"
 	    say! [self please login]
 	}
@@ -236,7 +236,7 @@ proc ::stackato::mgr::exit::attempt {script} {
       trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} - \
       trap {STACKATO CLIENT V2 BADTARGET}   {e o} {
 	debug.mgr/exit {H $o}
-	say! [color red [wrap $e]]
+	say! [color bad [wrap $e]]
 
 	debug.mgr/exit {$e}
 	debug.mgr/exit {$::errorCode}
@@ -247,7 +247,7 @@ proc ::stackato::mgr::exit::attempt {script} {
 
     } trap {@todo@ http exception} e {
 	debug.mgr/exit {I}
-	say! [color red "$e"]
+	say! [color bad "$e"]
 	fail
 
     } trap {STACKATO CLIENT CLI GRACEFUL-EXIT} e {
@@ -256,14 +256,14 @@ proc ::stackato::mgr::exit::attempt {script} {
     } trap {STACKATO CLIENT CLI CLI-WARN} e {
 	debug.mgr/exit {K}
 	if {$e ne {}} {
-	    say! [color yellow [wrap $e]]
+	    say! [color warning [wrap $e]]
 	}
 	# keep ok (just a warning)
 
     } trap {STACKATO CLIENT CLI} e - trap {BROWSE FAIL} e {
 	debug.mgr/exit {L}
 	if {$e ne {}} {
-	    say! [color red [wrap $e]]
+	    say! [color bad [wrap $e]]
 	}
 	fail
 
@@ -271,12 +271,12 @@ proc ::stackato::mgr::exit::attempt {script} {
       trap {REST SSL}  {e o} - \
       trap {HTTP URL}  {e o} {
 	  debug.mgr/exit {M}
-	say [color red $e]
+	say [color bad $e]
 	fail
 
     } trap {POSIX EACCES} {e o} {
 	debug.mgr/exit {N}
-	say [color red $e]
+	say [color bad $e]
 	fail
 
     } trap {STACKATO CLIENT INTERNAL} {e o} {
@@ -302,7 +302,7 @@ proc ::stackato::mgr::exit::attempt {script} {
 
     } trap {@todo@ syntax error} e {
 	debug.mgr/exit {Q}
-	say! [color red "$e"]\n$::errorInfo
+	say! [color bad "$e"]\n$::errorInfo
 	fail
 
     } on error {e o} {
@@ -349,9 +349,9 @@ proc ::stackato::mgr::exit::attempt {script} {
 	    fail
 	} ; if {$myoptions(verbose)} {
 	    if {$myexitstatus} {
-		puts [color green "\[$mynamespace:$myaction\] SUCCEEDED"]
+		puts [color good "\[$mynamespace:$myaction\] SUCCEEDED"]
 	    } else {
-		puts [color red   "\[$mynamespace:$myaction\] FAILED"]
+		puts [color bad  "\[$mynamespace:$myaction\] FAILED"]
 	    }
 	    say ""
 	}}
@@ -374,13 +374,13 @@ proc ::stackato::mgr::exit::ProcessInternalError {msg code trace} {
 
     # Bug 90845.
     if {[string match {*stdin isn't a terminal*} $msg]} {
-	say! "Error: [color red $msg]"
+	say! "Error: [color bad $msg]"
 	say! "Try with --noprompt to suppress all user interaction requiring a proper terminal"
 	debug.mgr/exit {/done-noterm}
 	return
     }
 
-    say! [color red "The client has encountered an internal error."]
+    say! [color error "The client has encountered an internal error."]
 
     set trace "TRACE:\t[join [split $trace \n] \nTRACE:\t]"
 
@@ -418,7 +418,7 @@ proc ::stackato::mgr::exit::ProcessInternalError {msg code trace} {
 	return
     }
 
-    say! "Error: [color red $msg]"
+    say! "Error: [color error $msg]"
 
     set f [fileutil::tempfile stackato-]
     fileutil::writeFile $f $out

@@ -35,6 +35,8 @@ for i in \
     clock::iso8601 \
     cmdr \
     cmdr::actor \
+    cmdr::ask \
+    cmdr::color \
     cmdr::config \
     cmdr::help \
     cmdr::help::json \

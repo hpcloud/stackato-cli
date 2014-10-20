@@ -179,8 +179,7 @@ Services
                                                   plans of the target, for the
                                                   current or specified space
     stackato purge-service-offerings <service>    Purge all offerings of the
-                                                  service (type) from the
-                                                  system
+                                                  service type from the system
     stackato service <name>                       Show the information about
                                                   the named service
     stackato services                             List the supported and
@@ -301,6 +300,7 @@ Services
                                                                        user
                                                                        provided
                                                                        service
+
     Plans
         stackato hide-service-plan <name> [<organization>]    Hide the
                                                               specified
@@ -432,7 +432,7 @@ Administration
                                                           in the order they are
                                                           checked in during
                                                           auto-detection
-        stackato create-buildpack <name> <zip>            Add a build-pack to
+        stackato create-buildpack <name> <zip|url|dir>    Add a build-pack to
                                                           the target
         stackato delete-buildpack [<name>]                Remove the specified
                                                           build-back from the
@@ -444,6 +444,17 @@ Administration
                                                           information known
                                                           about the specified
                                                           build-pack
+
+    Colors
+        stackato color list                               Show the current
+                                                          color settings
+        stackato color set <color> <specification>        (Re)define a color
+        stackato color test <specification> [<string>]    Test a color
+                                                          specification
+        stackato color unset <color>...                   Remove a color
+                                                          redefinition
+        stackato colors                                   Show the current
+                                                          color settings
 
     Groups (Stackato 2)
         stackato group [<name>]                       Report the current group,
@@ -470,19 +481,16 @@ Administration
 
     Quotas
         stackato quota configure [<name>]           Reconfigure the named quota
-                                                    definition
-        stackato quota create [<name>]              Create a new quota
-                                                    definition
-        stackato quota delete [<name>]              Delete the named quota
-                                                    definition
+                                                    plan
+        stackato quota create [<name>]              Create a new quota plan
+        stackato quota delete [<name>]              Delete the named quota plan
         stackato quota list                         List the available quota
-                                                    definitions
-        stackato quota rename [<name>] <newname>    Rename the named quota
-                                                    definition
+                                                    plans
+        stackato quota rename [<name>] <newname>    Rename the named quota plan
         stackato quota show [<name>]                Show the details of the
                                                     named quota plan
         stackato quotas                             List the available quota
-                                                    definitions
+                                                    plans
 
     User Management
         stackato add-user [<name>]      Register a new user in the current or
@@ -510,13 +518,26 @@ Convenience
     stackato unalias <name>               Remove a shortcut by name
 
 Miscellaneous
+    stackato                                          The command line client
+    stackato admin                                    A set of adminstrative
+                                                      tasks
+    stackato color                                    Management of terminal
+                                                      colors
     stackato curl <operation> <path> [<header>...]    Run a raw rest request
                                                       against the chosen target
+    stackato drain                                    Commands for the
+                                                      management of drains
+                                                      attached to applications
+    stackato groups                                   A collection of commands
+                                                      to manage groups and the
+                                                      users in them
     stackato guid <type> [<name>]                     Map the specified name
                                                       into a uuid, given the
                                                       type
+    stackato history                                  
     stackato named-entities                           List the entity types
                                                       usable for 'guid'
+    stackato quota                                    Management of quota plans
     stackato trace                                    Print the saved REST
                                                       trace for the last client
                                                       command to stdout

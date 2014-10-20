@@ -44,7 +44,10 @@ proc ::stackato::validate::common::nospace {p code type x} {
     } else {
 	set name [$p label]
     }
-    return -code error -errorcode [list CMDR VALIDATE {*}$code] \
+    # dbshell - bug 104768.
+    #return -code error -errorcode [list CMDR VALIDATE {*}$code]
+    # "No space defined. Unable to convert $type candidate \"$x\" for $ptype \"$name\""
+    return -code error -errorcode [list STACKATO CLIENT CLI {*}$code] \
 	"No space defined. Unable to convert $type candidate \"$x\" for $ptype \"$name\""
 }
 

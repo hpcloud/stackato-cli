@@ -7,7 +7,7 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
@@ -26,7 +26,7 @@ namespace eval ::stackato::cmd::groups {
 	add-user-core limits-core
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -74,7 +74,7 @@ proc ::stackato::cmd::groups::delete-user {config} {
 
     display {Removing User From Group ... } false
     $client group_remove_user $group $user
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -93,7 +93,7 @@ proc ::stackato::cmd::groups::create {config} {
 
     display {Creating New Group ... } false
     $client add_group $group
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -111,7 +111,7 @@ proc ::stackato::cmd::groups::delete {config} {
 
     display {Deleting Group ... } false
     $client delete_group $group
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -206,7 +206,7 @@ proc ::stackato::cmd::groups::add-user-core {client group user} {
 
     display {Adding User To Group ... } false
     $client group_add_user $group $user
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -235,7 +235,7 @@ proc ::stackato::cmd::groups::limits-core {client group config} {
 	# Ignore limits which were specified, but are not
 	# supported by the target.
 	if {![dict exists $oldlimits $key]} {
-	    display [color yellow "Warning: Unable to modify unsupported limit \"$key\"."]
+	    display [color warning "Warning: Unable to modify unsupported limit \"$key\"."]
 	    set unsupported 1
 	    continue
 	}
@@ -283,7 +283,7 @@ proc ::stackato::cmd::groups::limits-core {client group config} {
 
     display {Updating Group Limits ... } false
     $client group_limits_set $group $limits
-    display [color green OK]
+    display [color good OK]
     return
 }
 

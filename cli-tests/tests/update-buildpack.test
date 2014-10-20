@@ -107,7 +107,7 @@ test update-buildpack-1.7 {update-buildpack --enable/--disable conflict} -constr
 } -cleanup {
     run delete-buildpack -n clitestbuildpack
     stage-close
-} -returnCodes error -result {You cannot use "enable" together with "--disable".}
+} -returnCodes error -result {You cannot use "--enable" together with "--disable".}
 
 test update-buildpack-1.8 {update-buildpack --lock/--unlock conflict} -constraints s34ge -setup {
     stage-open
@@ -118,7 +118,7 @@ test update-buildpack-1.8 {update-buildpack --lock/--unlock conflict} -constrain
 } -cleanup {
     run delete-buildpack -n clitestbuildpack
     stage-close
-} -returnCodes error -result {You cannot use "unlock" together with "--lock".}
+} -returnCodes error -result {You cannot use "--unlock" together with "--lock".}
 
 foreach {n option} {
     9  --lock

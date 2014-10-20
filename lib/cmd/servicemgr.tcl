@@ -9,8 +9,9 @@
 package require Tcl 8.5
 package require cmdr
 package require dictutil
+package require cmdr::ask
+package require cmdr::color
 package require stackato::cmd::app
-package require stackato::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::context
@@ -22,7 +23,6 @@ package require stackato::mgr::service
 package require stackato::mgr::tclients
 package require stackato::mgr::tunnel
 package require stackato::misc
-package require stackato::term
 package require stackato::v2
 package require stackato::validate::appname
 package require stackato::validate::servicetype
@@ -49,8 +49,9 @@ namespace eval ::stackato::cmd::servicemgr {
 	show-plan purge-service-type update-upsi
     namespace ensemble create
 
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::cmd::app
-    namespace import ::stackato::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -62,7 +63,6 @@ namespace eval ::stackato::cmd::servicemgr {
     namespace import ::stackato::mgr::service
     namespace import ::stackato::mgr::tclients
     namespace import ::stackato::misc
-    namespace import ::stackato::term
     namespace import ::stackato::v2
     namespace import ::stackato::validate::appname
     namespace import ::stackato::validate::servicetype
@@ -86,7 +86,7 @@ proc ::stackato::cmd::servicemgr::purge-service-type {config} {
 
     display "Purging service type $name and all its offerings ... " false
     $theservice purge!
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -166,12 +166,12 @@ proc ::stackato::cmd::servicemgr::update-plan {config} {
 
 	    if {[$theplan $attre defined?]} {
 		set current [$theplan $attre]
-		set prompt  "[string totitle [string trim $label]] ($current): "
-		set new [term ask/string $prompt $current]
+		set prompt  "[string totitle [string trim $label]] ([color yes $current]): "
+		set new [ask string $prompt $current]
 		if {$new eq $current} continue
 	    } else {
 		set prompt  "[string totitle [string trim $label]]: "
-		set new [term ask/string $prompt]
+		set new [ask string $prompt]
 	    }
 
 	    $config $attrc set $new
@@ -190,7 +190,7 @@ proc ::stackato::cmd::servicemgr::update-plan {config} {
     if {$changes} {
 	display [join $lines \n]
 	$theplan commit
-	display [color green OK]
+	display [color good OK]
     } else {
 	display "No changes made."
     }
@@ -227,7 +227,7 @@ proc ::stackato::cmd::servicemgr::link-plan-org {config} {
 
     display $msg false
     $link commit
-    display [color green " OK"]
+    display [color good " OK"]
 
     debug.cmd/servicemgr {/done}
     return
@@ -261,7 +261,7 @@ proc ::stackato::cmd::servicemgr::unlink-plan-org {config} {
 	$link commit
     }
 
-    display [color green " OK"]
+    display [color good " OK"]
     debug.cmd/servicemgr {/done}
     return
 }
@@ -584,7 +584,7 @@ proc ::stackato::cmd::servicemgr::rename {config} {
     display "Renaming service \[[$service @name]\] to $new ... " false
     $service @name set $new
     $service commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/servicemgr {/done}
     return
@@ -778,7 +778,7 @@ proc ::stackato::cmd::servicemgr::update-upsi {config} {
     ShowCreds $theservice
     display "Committing ..." false
     $theservice commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/servicemgr {/done}
     return
@@ -846,24 +846,24 @@ proc ::stackato::cmd::servicemgr::DeleteV2 {config client} {
 	}
 
 	if {[cmdr interactive?] &&
-	    ![term ask/yn \
-		  "\nReally delete service \"$name\" ? " \
+	    ![ask yn \
+		  "\nReally delete service \"[color name $name]\" ? " \
 		  no]} continue
 
 	if {$nbounds} {
 	    # Implied that unbind is set.
 	    foreach link $bindings {
-		display "Unbinding [$service @name] from [$link @app @name] ... " false
+		display "Unbinding [color name [$service @name]] from [color name [$link @app @name]] ... " false
 		$link delete
 		$link commit
-		display [color green OK]
+		display [color good OK]
 	    }
 	}
 
-	display "Deleting service $name ... " false
+	display "Deleting service [color name $name] ... " false
 	$service delete
 	$service commit
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.cmd/servicemgr {/done}
@@ -1099,7 +1099,7 @@ proc ::stackato::cmd::servicemgr::SelectCreateV2 {client p} {
     }
 
     # Talk with the user.
-    set vendorlabel [term ask/menu "" \
+    set vendorlabel [ask menu "" \
 			 "Which kind to provision: " \
 			 [lsort -dict $choices]]
 
@@ -1127,7 +1127,7 @@ proc ::stackato::cmd::servicemgr::SelectCreateV1 {client} {
     }
     set choices [lsort -dict $choices]
 
-    set vendor [term ask/menu "" \
+    set vendor [ask menu "" \
 		    "Please select the service you wish to provision: " \
 		    $choices]
 
@@ -1174,7 +1174,7 @@ proc ::stackato::cmd::servicemgr::select-plan-for-create {p} {
     }
 
     # Talk with the user.
-    set planlabel [term ask/menu "" \
+    set planlabel [ask menu "" \
 		       "Please select the service plan to enact: " \
 		       [lsort -dict $choices]]
 
@@ -1231,7 +1231,7 @@ proc ::stackato::cmd::servicemgr::SelectDeleteV2 {client} {
     }
 
     # Talk with the user.
-    set servicelabel [term ask/menu "" \
+    set servicelabel [ask menu "" \
 			  "Please select one you wish to delete: " \
 			  [lsort -dict $choices]]
 
@@ -1258,7 +1258,7 @@ proc ::stackato::cmd::servicemgr::SelectDeleteV1 {client} {
     set choices [lsort -dict $choices]
 
     debug.cmd/servicemgr {interact}
-    set service [list [term ask/menu "" \
+    set service [list [ask menu "" \
 		      "Please select one you wish to delete: " \
 		      $choices]]
 
@@ -1308,7 +1308,7 @@ proc ::stackato::cmd::servicemgr::SelectChangeV2 {client operation} {
     }
 
     # Talk with the user.
-    set servicelabel [term ask/menu "" \
+    set servicelabel [ask menu "" \
 			  "Please select one you wish to $operation: " \
 			  [lsort -dict $choices]]
 
@@ -1335,7 +1335,7 @@ proc ::stackato::cmd::servicemgr::SelectChangeV1 {client operation} {
     set choices [lsort -dict $choices]
 
     debug.cmd/servicemgr {interact}
-    set service [list [term ask/menu "" \
+    set service [list [ask menu "" \
 		      "Please select one you wish to $operation: " \
 		      $choices]]
 
@@ -1697,7 +1697,7 @@ proc ::stackato::cmd::servicemgr::ProcessService2 {service} {
 	if {![dict size $choices]} {
 	    err "No services available to tunnel to"
 	}
-	set service [term ask/menu "" \
+	set service [ask menu "" \
 			 "Which service to tunnel to: " \
 			 [lsort -dict [dict keys $choices]]]
 	set service [dict get $choices $service]
@@ -1749,7 +1749,7 @@ proc ::stackato::cmd::servicemgr::ProcessService1 {client service} {
 	if {![llength $choices]} {
 	    err "No services available to tunnel to"
 	}
-	set service [term ask/menu "" \
+	set service [ask menu "" \
 			 "Which service to tunnel to: " \
 			 $choices]
     }
@@ -1796,7 +1796,7 @@ proc ::stackato::cmd::servicemgr::ProcessClient {tclient servicename vendor} {
 	}
     } else {
 	if {$tclient eq {}} {
-	    set tclient [term ask/menu "" \
+	    set tclient [ask menu "" \
 			     "Which client would you like to start? " \
 			     [concat none [dict keys $clients]]]
 	}
@@ -1826,14 +1826,14 @@ proc ::stackato::cmd::servicemgr::CollectCredentials {config} {
     if {![$config @credentials set?]} {
 	# Go interactive
 
-	set keys [term ask/string "Which credentials to use for connections \[hostname, port, password\]: "]
+	set keys [ask string "Which credentials to use for connections \[hostname, port, password\]: "]
 	if {$keys eq {}} {
 	    set keys {hostname port password}
 	} else {
 	    set keys [struct::list map [split $keys ,] {string trim}]
 	}
 	foreach k $keys {
-	    dict set creds $k [term ask/string "$k: "]
+	    dict set creds $k [ask string "$k: "]
 	}
     } else {
 	# Take from option - Treat input as Tcl dictionary.

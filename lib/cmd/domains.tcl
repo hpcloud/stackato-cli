@@ -7,12 +7,12 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
-package require stackato::term
 package require stackato::v2
 package require table
 
@@ -28,13 +28,13 @@ namespace eval ::stackato::cmd::domains {
 	create map unmap list create delete
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -61,9 +61,9 @@ proc ::stackato::cmd::domains::map {config} {
 	$domain @owning_organization set [corg get]
 	$domain @wildcard            set 1
 
-	display "Creating new domain $name ... " false
+	display "Creating new domain [color name $name] ... " false
 	$domain commit
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.cmd/domains {domain = $domain ([$domain @name])}
@@ -74,13 +74,13 @@ proc ::stackato::cmd::domains::map {config} {
     set org   [corg   get]
     set space [cspace get]
 
-    display "Mapping [$domain @name] to [$org @name] ... " false
+    display "Mapping [color name [$domain @name]] to [color name [$org @name]] ... " false
     $org   @domains add $domain
-    display [color green OK]
+    display [color good OK]
 
-    display "Mapping [$domain @name] to [$space @name] ... " false
+    display "Mapping [color name [$domain @name]] to [color name [$space @name]] ... " false
     $space @domains add $domain
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -106,9 +106,9 @@ proc ::stackato::cmd::domains::unmap {config} {
 
     set space [cspace get]
 
-    display "Unmapping [$domain @name] from [$space @name] ... " false
+    display "Unmapping [color name [$domain @name]] from [color name [$space @name]] ... " false
     $space @domains remove $domain
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -142,14 +142,14 @@ proc ::stackato::cmd::domains::create {config} {
 
 	if {!$shared} {
 	    $domain @owning_organization set [corg get]
-	    set note "Owned by [[corg get] @name]"
+	    set note "[color note "Owned by"] [color name [[corg get] @name]]"
 	} else {
-	    set note "Shared"
+	    set note [color note "Shared"]
 	}
 
-	display "Creating new domain $name ($note) ... " false
+	display "Creating new domain [color name $name] ($note) ... " false
 	$domain commit
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.cmd/domains {domain = $domain ([$domain @name])}
@@ -173,8 +173,8 @@ proc ::stackato::cmd::domains::delete {config} {
     debug.cmd/domains {domain = $domain ([$domain @name])}
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
-	      "\nReally delete \"[$domain @name]\" ? " \
+	![ask yn \
+	      "\nReally delete \"[color name [$domain @name]]\" ? " \
 	      no]} return
 
     if {![$domain @owning_organization defined?]} {
@@ -185,9 +185,9 @@ proc ::stackato::cmd::domains::delete {config} {
 
     $domain delete
 
-    display "Deleting $type domain [$domain @name] ... " false
+    display "Deleting $type domain [color name [$domain @name]] ... " false
     $domain commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -207,14 +207,14 @@ proc ::stackato::cmd::domains::list {config} {
 	    set domains [[corg get] @domains get* \
 			     {depth 1 include-relations owning_organization}]
 	    if {![$config @json]} {
-		display "Org [[corg get] @name]..."
+		display "Org [color name [[corg get] @name]]..."
 	    }
 	} else {
 	    # 3.0
 	    set domains [[cspace get] @domains get* \
 			     {depth 1 include-relations owning_organization}]
 	    if {![$config @json]} {
-		display "Space [[cspace get] @name]..."
+		display "Space [color name [[cspace get] @name]]..."
 	    }
 	}
     }
@@ -237,7 +237,7 @@ proc ::stackato::cmd::domains::list {config} {
 		set owner  {}
 		set shared *
 	    }
-	    $t add [$domain @name] $owner $shared
+	    $t add [color name [$domain @name]] $owner $shared
 	}
     }] show display
     return

@@ -9,9 +9,9 @@
 
 package require Tcl 8.5
 package require table
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
-package require stackato::color
 package require stackato::mgr::alias
 
 namespace eval ::stackato::cmd {
@@ -19,10 +19,10 @@ namespace eval ::stackato::cmd {
     namespace ensemble create
 }
 namespace eval ::stackato::cmd::alias {
+    namespace import ::cmdr::color
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say
     namespace import ::stackato::jmap
-    namespace import ::stackato::color
     namespace import ::stackato::mgr::alias
     rename alias manager
 
@@ -70,7 +70,7 @@ proc ::stackato::cmd::alias::alias {config} {
     set command [$config @command]
 
     manager add $name $command
-    say [color green "Successfully aliased '$name' to '$command'"]
+    say [color good "Successfully aliased '$name' to '$command'"]
     return
 }
 
@@ -80,10 +80,10 @@ proc ::stackato::cmd::alias::unalias {config} {
     set name [$config @name]
 
     if {![manager has $name]} {
-	err [color red "Unknown alias '$name'"]
+	err [color bad "Unknown alias '$name'"]
     } else {
 	manager remove $name
-	say [color green "Successfully unaliased '$name'"]
+	say [color good "Successfully unaliased '$name'"]
     }
     return
 }

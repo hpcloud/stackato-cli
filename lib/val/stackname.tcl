@@ -46,12 +46,6 @@ proc ::stackato::validate::stackname::complete {p x} {
 proc ::stackato::validate::stackname::validate {p x} {
     debug.validate/stackname {}
 
-    # Accept the default.
-    if {$x eq {}} {
-	debug.validate/stackname {OK/empty}
-	return $x
-    }
-
     refresh-client $p
 
     # TODO FUTURE: val/stackname -- mgr/client, v2/client -- consolidate in client class.

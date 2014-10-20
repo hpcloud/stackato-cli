@@ -44,9 +44,6 @@ proc ::stackato::validate::notserviceplan::complete {p x} { return {} }
 proc ::stackato::validate::notserviceplan::validate {p x} {
     debug.validate/notserviceplan {}
 
-    # Accept the default.
-    if {$x eq {}} { debug.validate/notserviceplan {OK/default} ; return $x }
-
     refresh-client $p
 
     # NOTE: service-plans are not searchable server-side by name.

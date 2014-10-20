@@ -47,8 +47,6 @@ proc ::stackato::validate::serviceplan::complete {p x} {
 
 proc ::stackato::validate::serviceplan::validate {p x} {
     debug.validate/serviceplan {}
-    # Accept the default.
-    if {$x eq {}} { debug.validate/serviceplan {OK/default} ; return $x }
 
     refresh-client $p
 

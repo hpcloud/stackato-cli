@@ -283,6 +283,8 @@ proc http::Finish {token {errormsg ""} {skipCB 0}} {
 	    set state(status) error
 	}
     }
+
+    Log Finish/${token}($errormsg)/Done
 }
 
 # http::CloseSocket -
@@ -349,16 +351,20 @@ proc http::reset {token {why reset}} {
     set state(status) $why
 
     Log Reset/$token/$why
-    catch {
-	fileevent $state(sock) readable {}
-	Log "Event readable $state(sock) $token - off"
-    }
-    catch {
-	fileevent $state(sock) writable {}
-	Log "Event writable $state(sock) $token - off"
+
+    if {[info exists state(sock)]} {
+	if {[catch {
+	    Log "Event readable $state(sock) $token - off /reset"
+	    fileevent $state(sock) readable {}
+	} msg]} { Log "Event readable $token /reset: $msg" }
+	if {[catch {
+	    fileevent $state(sock) writable {}
+	    Log "Event writable $state(sock) $token - off /reset"
+	} msg]} { Log "Event writable $token /reset: $msg" }
     }
 
     Finish $token
+
     if {[info exists state(error)]} {
 	set errorlist $state(error)
 	unset state
@@ -384,6 +390,12 @@ proc http::geturl {url args} {
     variable defaultCharset
     variable defaultKeepalive
     variable strict
+
+    # Squash all information about previously caught errors, if
+    # any. This prevent it from leaking into the http error state (See
+    # Finish), which would cause confusing error messages.
+    set ::errorInfo {}
+    set ::errorCode {}
 
     Log geturl $url $args
 
@@ -1042,7 +1054,7 @@ proc http::Connect {token proto phost srvurl} {
     variable $token
     upvar 0 $token state
 
-    Log "Connect $token $proto $phost $srvurl"
+    Log "Connect [list $token $proto $phost $srvurl - $state(sock)]"
 
     set err "due to unexpected EOF"
     if {
@@ -1051,7 +1063,7 @@ proc http::Connect {token proto phost srvurl} {
     } then {
 	Finish $token "connect failed $err"
     } else {
-	Log "Event writable $token $state(sock) - off"
+	Log "Event writable $token $state(sock) - off /connect"
 	fileevent $state(sock) writable {}
 	::http::Connected $token $proto $phost $srvurl
     }
@@ -1114,7 +1126,7 @@ proc http::Write {token} {
     if {$done} {
 	Log Write/done
 	catch {flush $sock}
-	Log "Event writable $sock $token - off"
+	Log "Event writable $sock $token - off /write"
 	fileevent $sock writable {}
 	Log "Event readable $sock $token - Event"
 	fileevent $sock readable [list http::Event $sock $token]

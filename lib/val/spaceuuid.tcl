@@ -48,8 +48,6 @@ proc ::stackato::validate::spaceuuid::complete {p x} {
 
 proc ::stackato::validate::spaceuuid::validate {p x} {
     debug.validate/spaceuuid {}
-    # Accept the default.
-    if {$x eq {}} { debug.validate/spaceuuid {OK/default} ; return $x }
 
     refresh-client $p
 

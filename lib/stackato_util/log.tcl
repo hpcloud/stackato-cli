@@ -233,7 +233,7 @@ proc ::stackato::log::pretty-since {x} {
     if {$x <=  172000} { return "a day ago" }
     if {$x <=  518400} { return "[expr {int(($x+800)/86400)}] days ago" }
     if {$x <= 1036800} { return "a week ago" }
-    return "[expr {int((a+180000)/604800)}] weeks ago"
+    return "[expr {int(($x+180000)/604800)}] weeks ago"
 
     # Notes on the various constants:
     #    120 = 2 minutes |

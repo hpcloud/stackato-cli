@@ -51,11 +51,6 @@ proc ::stackato::validate::servicetype::complete {p x} {
 
 proc ::stackato::validate::servicetype::validate {p x} {
     debug.validate/servicetype {}
-    # Accept the default.
-    if {$x eq {}} {
-	debug.validate/servicetype {OK/default}
-	return $x
-    }
 
     if {![[refresh-client $p] isv2]} {
 	# Against a v1 target we cannot validate and accept all

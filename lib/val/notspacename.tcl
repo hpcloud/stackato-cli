@@ -44,12 +44,6 @@ proc ::stackato::validate::notspacename::complete {p x} { return {} }
 proc ::stackato::validate::notspacename::validate {p x} {
     debug.validate/notspacename {}
 
-    # Accept the default.
-    if {$x eq {}} {
-	debug.validate/notspacename {OK/default}
-	return $x
-    }
-
     refresh-client $p
 
     # find space by name in current organization

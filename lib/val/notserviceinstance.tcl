@@ -44,9 +44,6 @@ proc ::stackato::validate::notserviceinstance::complete {p x} { return {} }
 proc ::stackato::validate::notserviceinstance::validate {p x} {
     debug.validate/notserviceinstance {}
 
-    # Accept the default.
-    if {$x eq {}} { debug.validate/notserviceinstance {OK/default} ; return $x }
-
     if {![[refresh-client $p] isv2]} {
 	# Against a v1 target we cannot validate and accept all
 	debug.validate/notserviceinstance {OK/v1 pass = $x}

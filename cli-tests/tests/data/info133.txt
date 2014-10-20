@@ -7,7 +7,7 @@
     "name"                   : "*",
     "stackato"               : {
         "UUID"             : "*",
-        "license_accepted" : true
+        "license_accepted" : true*
     },
     "support"                : "*",
     "token_endpoint"         : "*/uaa",

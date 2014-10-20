@@ -1,7 +1,6 @@
 Changing quota plan testquota ... 
-    Setting Allow use of 'sudo' by Apps: 1 (was 0)
-    Setting Memory Limit               : 200 (was 0)
-    Setting Paid Services Allowed      : 1 (was 0)
+    Setting Allow use of 'sudo' by Apps: 1 (was *)
+    Setting Memory Limit               : 200 (was *)
     Setting Max Number of Routes       : 400 (was *)
-    Setting Max Number Of Services     : 300 (was 0)
+    Setting Max Number Of Services     : 300 (was *)
 Committing ... OK

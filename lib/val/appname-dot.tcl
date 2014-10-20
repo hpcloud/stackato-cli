@@ -103,7 +103,8 @@ proc ::stackato::validate::appname-dot::validate {p x} {
     }
 
     debug.validate/appname-dot {FAIL}
-    fail-unknown-thing $p APPNAME-DOT "application" $x
+    fail-unknown-thing $p APPNAME-DOT "application" $x \
+	" in space '[[cspace get] full-name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

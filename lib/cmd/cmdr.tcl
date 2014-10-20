@@ -8,7 +8,7 @@ package require cmdr::history
 package require lambda
 package require try
 package require cmdr::tty
-package require stackato::color
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::alias
 package require stackato::mgr::exit
@@ -27,18 +27,12 @@ try {
 
 } trap {POSIX ENOENT} {e o} {
     if {[string match {*error getting working directory name*} $e]} {
-	if {[cmdr tty stdout]} {
-	    stackato::color colorize
-	}
         stackato::log to stdout
-	stackato::log say [stackato::color red {Unable to run client from a deleted directory}]
+	stackato::log say [cmdr color error {Unable to run client from a deleted directory}]
 	::exit 1
     }
     return {*}$o $e
 } finally {
-    if {[cmdr tty stdout]} {
-	stackato::color colorize
-    }
     stackato::log to stdout
 }
 
@@ -149,6 +143,27 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    presence
 	    when-set [call@mgr exit dump-stderr]
 	}
+	option debug-tls-handshake {
+	    Activate tracing of the TLS handshake
+	} {
+	    undocumented
+	    presence
+	    when-set [lambda {p x} {
+		package require s-http
+		global shpre
+		set    shpre [http::Now]
+		package require tls
+		tls::init -tls1 on -command [lambda {c args} {
+		    global shpre
+		    set n [http::Now]
+		    set d [expr {$n - $shpre}]
+		    set prefix "[cmdr color bg-red TLS:]  [format %10d $d] [format %15d $n] "
+		    puts $prefix\t$c\t$args
+		    if {$c eq "verify"} { return 1 }
+		    return
+		}] ;# tls::callback
+	    }]
+	}
 	option debug-http-log {
 	    Activate tracing inside of the http package itself.
 	} {
@@ -162,7 +177,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    global shpre
 		    set n [Now]
 		    set d [expr {$n - $shpre}]
-		    set prefix "[::stackato::color cyan HTTP:] [format %10d $d] [format %15d $n] "
+		    set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
 		    set text $prefix[join [split [join $args] \n] "\n$prefix"]
 		    puts $text
 		    set shpre [Now]
@@ -183,7 +198,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    global shpre shdsep
 		    set n [Now]
 		    set d [expr {$n - $shpre}]
-		    set prefix "[::stackato::color cyan HTTP:] [format %10d $d] [format %15d $n] "
+		    set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
 		    puts "$prefix$shdsep"
 		    puts -nonewline [Hexl $prefix [join $args]]
 		    puts "$prefix$shdsep"
@@ -202,7 +217,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    set local [string map {:: _} $token]
 		    upvar #0 $token $local
 		    set text [Parray $local]
-		    set prefix "[::stackato::color cyan HTTP:] "
+		    set prefix "[cmdr color trace HTTP:] "
 		    set text $prefix[join [split $text \n] "\n$prefix"]
 		    puts $text
 
@@ -213,7 +228,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 			} else {
 			    set v {}
 			}
-			puts "[::stackato::color cyan "TOK: "] $var $op ($index) @ ($v)"
+			puts "[cmdr color trace "TOK: "] $var $op ($index) @ ($v)"
 			if {($index eq "state") && ($op eq "unset")} {
 			    ::error STATE-UNSET
 			}
@@ -649,6 +664,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	option mem {
 	    Amount of memory applications can use.
+
+	    Use the suffices 'M' and 'G' for the convenient specification
+	    of mega- and gigabytes. Without a unit-suffix mega-bytes are
+	    assumed. As the base-unit megabytes must specified as integers.
+	    Gigabytes can be specified as fractions.
 	} { validate [call@vtype memspec] }
     }
 
@@ -733,6 +753,64 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     }
 
     # From here on out, implement the command set in the new form.
+    # # ## ### ##### ######## ############# #####################
+    ## color management
+
+    officer color {
+	description {Management of terminal colors}
+	private list {
+	    section Administration Colors
+	    description {
+		Show the current color settings.
+	    }
+	} [jump@cmd color listing]
+	private test {
+	    section Administration Colors
+	    description {
+		Test a color specification.
+	    }
+	    input specification {
+		The color specification. The accepted forms are
+		'%r,g,b', '=othername', 'eX(,X)...', and any raw
+		string.
+	    } {	validate str }
+	    input string {
+		The string to apply the color specification to.
+	    } {
+		optional ; validate str ; default 0123456789
+	    }
+	} [jump@cmd color test]
+	private set {
+	    section Administration Colors
+	    description {
+		(Re)define a color.
+	    }
+	    input color {
+		The name of the color to work on.
+	    } {
+		#validate color name
+	    }
+	    input specification {
+		The color specification. The accepted forms are
+		'%r,g,b', '=othername', 'eX(,X)...', and any raw
+		string.
+	    } {	validate str }
+	} [jump@cmd color def]
+	private unset {
+	    section Administration Colors
+	    description {
+		Remove a color redefinition.
+	    }
+	    input color {
+		The name of the color to work on.
+	    } {
+		#validate color name
+		list
+	    }
+	} [jump@cmd color undef]
+    }
+    alias colors = color list
+
     # # ## ### ##### ######## ############# #####################
     ## Various debugging helper commands.
 
@@ -826,6 +904,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Print the saved REST trace for the last client
 		command to stdout.
 	    }
+	    option short {
+		When present, show only the short list of requests,
+		without details like headers and responses.
+	    } { presence }
 	} [jump@cmd query trace]
 
 	private map-named-entity {
@@ -880,6 +962,16 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		alias d
 		validate str
+	    }
+	    option output {
+		Path to the file to write the returned payload to.
+		A value of "-" or "stdin" causes the client to write
+		the data to stdout.
+	    } {
+		alias o
+		alias O
+		validate str
+		default stdout
 	    }
 	    option form {
 		Zero or more form fields to be added to the base url.
@@ -1477,11 +1569,23 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The organization to place the new user into.
 		Defaults to the current organization.
 		This is a Stackato 3 specific option.
+		Cannot be used together with --no-organization.
 	    } {
 		alias o
-		when-set [call@mgr client isv2]
+		when-set [combine \
+			      [call@mgr client isv2] \
+			      [exclude no-organization --organization]]
 		validate [call@vtype orgname]
 		generate [call@mgr corg get-auto]
+	    }
+	    option no-organization {
+		Flag to indicate that the new user should not be placed into any organization.
+		This is a Stackato 3 specific option.
+		Cannot be used together with --organization.
+		When used any --manager and --auditor flags are ignored.
+	    } {
+		presence
+		when-set [exclude organization --no-organization]
 	    }
 
 	    option manager {
@@ -2750,6 +2854,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		validate [call@vtype path rwfile]
 		default {}
 	    }
+	    option keep-form {
+		Path to a file to keep the whole uploaded multipart/formdata
+		under after upload, for inspection.
+	    } {
+		undocumented
+		validate [call@vtype path rwfile]
+		default {}
+	    }
 	    state copy-unsafe-links {
 		Fake argument for the internal push (tunnel helper).
 	    } { default no }
@@ -2926,7 +3038,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The instance to access with the command.
 		Defaults to 0.
 	    } {
-		validate [call@vtype integer0]
+		validate [call@vtype instance]
+		generate [call@vtype instance default]
 	    }
 	}
 
@@ -2936,8 +3049,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Defaults to 0.
 		Cannot be used together with --all.
 	    } {
-		validate [call@vtype integer0]
-		when-set [exclude all --instance]
+		validate [call@vtype instance]
+		generate [call@vtype instance default]
+		when-set [disallow @all]
 	    }
 	}
 
@@ -3234,6 +3348,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The application's per-instance memory allocation.
 		Defaults to a framework-specific value if not
 		specified by stackato.yml.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
 	    } {
 		validate [call@vtype memspec]
 		#generate [call@mgr manifest mem]
@@ -3242,6 +3361,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The application's per-instance disk allocation.
 		Defaults to a framework-specific value if not
 		specified by stackato.yml.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
 	    } {
 		validate [call@vtype memspec]
 		#generate [call@mgr manifest mem]
@@ -3470,12 +3594,22 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	    option disk {
 		The new disk reservation to use.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
 	    } {
 		alias d
 		validate [call@vtype memspec]
 	    }
 	    option mem {
 		The new memory reservation to use.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
 	    } {
 		alias m
 		validate [call@vtype memspec]
@@ -3713,7 +3847,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Report the health of the specified application(s).
 	    }
 	    use .prompt
-	    use .client-auth+group
+	    use .login-with-group
 	    use .manifest
 	    option all {
 		Report on all applications in the current space.
@@ -3749,6 +3883,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    # See also command 'tunnel'
 	    option keep-zip {
 		Path to a file to keep the upload zip under after upload, for inspection.
+	    } {
+		undocumented
+		validate [call@vtype path rwfile]
+		default {}
+	    }
+	    option keep-form {
+		Path to a file to keep the whole uploaded multipart/formdata
+		under after upload, for inspection.
 	    } {
 		undocumented
 		validate [call@vtype path rwfile]
@@ -3856,6 +3998,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Run an arbitrary command on a running instance.
 	    }
 	    use .prompt
+	    use .mquiet
 	    use .ssh
 	    use .application-as-option
 	    input command {
@@ -3875,6 +4018,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    indicates a remote file or path. Sources and destinations can be
 		    file names, directory names, or full paths.
 		}
+		use .mquiet
 		state dry {
 		    Fake dry setting
 		} { validate integer ; default 0 }
@@ -3897,6 +4041,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    SSH to a running instance (or target),
 		    or run an arbitrary command.
 		}
+		use .mquiet
 		use .ssh
 		use .application-api
 		input command {
@@ -3923,6 +4068,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    description { Receive multiple files locally. }
 		    use .nomotd
 		    input dst { Destination directory. }
+		    input n { Expected number of files } {
+			optional ; default -1
+		    }
 		} [jump@cmd scp xfer_receive]
 
 		private receive1 {
@@ -4752,6 +4900,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .login
 	    use .v2
 	    use .post30
+	    use .autocurrentorg
 	    option shared {
 		Mark the new domain as shared by all organizations.
 		If not present the new domain will be owned by and
@@ -4888,6 +5037,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	    option mem {
 		Amount of memory applications can use.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
 	    } {
 		default 2048
 		validate [call@vtype memspec]
@@ -5093,6 +5247,25 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    state locked {
 		Whether the buildpack can be modified or not.
 	    } { validate boolean }
+
+	    option keep-form {
+		Path to a file to keep the whole uploaded multipart/formdata
+		under after upload, for inspection.
+	    } {
+		argument path
+		undocumented
+		validate [call@vtype path rwfile]
+		default {}
+	    }
+	    option keep-zip {
+		Path to a file to keep the whole uploaded zip file
+		under after upload, for inspection.
+	    } {
+		argument path
+		undocumented
+		validate [call@vtype path rwfile]
+		default {}
+	    }
 	}
 
 	private list {
@@ -5182,10 +5355,12 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .bp
 	    use .bpconfig
 	    option zip {
- 		Path to the new zip file containing the updated implementation
-		of the buildpack.
+		Path or url of the new zip file containing the implementation of the buildpack.
+		Accepts the path to a local directory as well, which will become the zip file to upload.
 	    } {
-		validate [call@vtype path rfile]
+		#label zip|url|dir
+		validate str
+		#validate [call@vtype path rfile];# validation in backend.
 	    }
 	    input name {
 		Name of the build pack to update.
@@ -5335,4 +5510,4 @@ proc combine {args} {
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.1.1
+package provide stackato::cmdr 3.1.2

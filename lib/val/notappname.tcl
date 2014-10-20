@@ -48,13 +48,6 @@ proc ::stackato::validate::notappname::complete {p x} { return {} }
 
 proc ::stackato::validate::notappname::validate {p x} {
     debug.validate/notappname {}
-    # Accept the default. The manifest processing will come up with
-    # the proper name.
-
-    if {$x eq {}} {
-	debug.validate/notappname {OK/empty}
-	return $x
-    }
 
     set c [refresh-client $p]
 

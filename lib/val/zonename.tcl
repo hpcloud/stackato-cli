@@ -55,8 +55,6 @@ proc ::stackato::validate::zonename::complete {p x} {
 
 proc ::stackato::validate::zonename::validate {p x} {
     debug.validate/zonename {}
-    # Accept the default.
-    if {$x eq {}} { debug.validate/zonename {OK/default} ; return $x }
 
     refresh-client $p
 

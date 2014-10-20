@@ -11,6 +11,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::cspace
 package require stackato::validate::common
@@ -32,6 +33,7 @@ namespace eval ::stackato::validate::appname {
 
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
@@ -107,6 +109,20 @@ proc ::stackato::validate::appname::validate {p x} {
     debug.validate/appname {}
 
     set c [refresh-client $p]
+
+    try {
+	# Force setup of context, if not done yet. This can/will
+	# happen for dbshell which does an application argument
+	# validation as part of deciding if the argument is an
+	# application or not (sole place oing this ('test' mode of
+	# handling an optional parameter). As this swallows CMDR
+	# VALIDATE errors we trap these and convert to a general error
+	# to show that the test in itself could not be done.
+	$p config @organization
+	$p config @space
+    } trap {CMDR VALIDATE} {e o} {
+	err $e
+    }
 
     if {[$c isv2] && ([cspace get] eq {})} {
 	debug.validate/appname {FAIL/missing space}

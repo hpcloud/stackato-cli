@@ -6,18 +6,18 @@
 package require Tcl 8.5
 package require url
 package require fileutil
-package require stackato::color
+package require cmdr
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
 package require stackato::mgr::self
-package require stackato::term
 package require stackato::validate::memspec
 package require stackato::validate::stackname
 package require stackato::yaml
 package require varsub ; # Utility package, local, variable extraction and resolution
-package require cmdr
 package require zipfile::decode 0.6 ;# want the iszip test command
 
 namespace eval ::stackato::mgr {
@@ -27,7 +27,8 @@ namespace eval ::stackato::mgr::manifest {
     namespace export {[0-9a-z]*}
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::log::say!
@@ -36,7 +37,6 @@ namespace eval ::stackato::mgr::manifest {
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::self
-    namespace import ::stackato::term
     namespace import ::stackato::validate::memspec
     namespace import ::stackato::validate::stackname
     namespace import ::stackato::v2
@@ -1226,13 +1226,13 @@ proc ::stackato::mgr::manifest::askname {} {
     variable mbase
     set maybe [file tail $mbase]
     if {[cmdr interactive?]} {
-	set proceed [term ask/yn \
-	 "Would you like to use '$maybe' as application name ? "]
+	set proceed [ask yn \
+			 "Would you like to use '[color name $maybe]' as application name ? "]
 	if {$proceed} {
 	    set appname $maybe
 	    debug.mgr/manifest/core { name/usr/default = $appname}
 	} else {
-	    set appname [term ask/string "Application Name: "]
+	    set appname [ask string "Application Name: "]
 	    debug.mgr/manifest/core { name/usr/entry   = $appname}
 	}
     } else {
@@ -1975,7 +1975,7 @@ proc ::stackato::mgr::manifest::ResolveSymbol {contextlist already symbol} {
     # Special syntax for interactive query of manifest symbol values.
     if {[string match {ask *} $symbol]} {
 	regexp {^ask (.*)$} $symbol -> label
-	return [term ask/string "${label}: "]
+	return [ask string "${label}: "]
     }
 
     switch -exact -- $symbol {
@@ -2034,24 +2034,49 @@ proc ::stackato::mgr::manifest::SpaceBase {{contextlist {}}} {
     if {!$nd} {
 	Error "Unable to construct url. We need a domain and found none. [self please domains {You can use}] to verify this."
     } elseif {$nd > 1} {
-	set msg "Unable to construct url. We found multiple domains and cannot choose."
-	if {[cmdr interactive?]} {
-	    foreach d $thedomains {
-		dict set map [$d @name] $d
+	if {![ChooseDomain $thedomains $client symvalue]} {
+	    set msg "Unable to construct url. We found multiple domains and cannot choose."
+	    if {[cmdr interactive?]} {
+		foreach d $thedomains {
+		    dict set map [$d @name] $d
+		}
+		set symvalue [ask menu [color warning $msg] \
+				  "Which domain do you wish to use? " \
+				  [dict keys $map]]
+	    } else {
+		Error "$msg [self please domains {You can use}] to verify this."
 	    }
-	    set symvalue [term ask/menu [color yellow $msg] \
-			      "Which domain do you wish to use? " \
-			      [dict keys $map]]
-	} else {
-	    Error "$msg [self please domains {You can use}] to verify this."
 	}
     } else {
+	# Only one domain found, take it.
 	set symvalue [[lindex $thedomains 0] @name]
     }
 
     debug.mgr/manifest/core         {domain = $symvalue}
     debug.mgr/manifest/core/resolve {config => $symvalue}
     return $symvalue
+}
+
+proc ::stackato::mgr::manifest::ChooseDomain {domains client svv} {
+    debug.mgr/manifest/core/resolve {}
+    upvar 1 $svv symvalue
+
+    # Bug 103112. In case of multiple domains for the space-base
+    # heuristically choose the domain matching the target. Fail as
+    # before if no such domain exists.
+
+    set target [url base [$client target]]
+    debug.mgr/manifest/core/resolve {target = $target}
+
+    foreach d $domains {
+	set dn [$d @name]
+	debug.mgr/manifest/core/resolve {$d => $dn}
+
+	if {$dn ne $target} continue
+	set symvalue $dn
+	return yes
+    }
+    return no
 }
 
 proc ::stackato::mgr::manifest::TargetUrl {{contextlist {}}} {
@@ -2462,6 +2487,25 @@ proc ::stackato::mgr::manifest::TS_Services {value} {
 		    SYNTAX SERVICES
 	    }
 	}
+	sequence {
+	    # A sequence of service names is CF's format. We rewrite
+	    # this into the mapping our other parts expect.
+	    #
+	    # Note however that the keys in this mapping have no
+	    # information about service types, etc. This means that
+	    # their values are empty scalars and not the usual
+	    # mapping.
+
+	    set tmp {}
+	    foreach s $services {
+		yaml tags!do $s {"services" element} ts sname {
+		    scalar {
+			lappend tmp $sname [Cscalar ""]
+		    }
+		}
+	    }
+	    set services $tmp
+	}
 	mapping {
 	    # Data is fine. Nothing to do.
 	}
@@ -2475,16 +2519,22 @@ proc ::stackato::mgr::manifest::TS_Services {value} {
 	# (a) stackato.yml /old : (outer, inner) = (vendor, name/scalar)
 	# (b) stackato.yml /new : (outer, inner) = (name, vendor/scalar)
 	# (c) manifest.yml : (outer, inner) = (name, (mapping, 'type': vendor))
+	# (d) manifest.yml /v2  : (outer = name, inner is empty, no type or other info)
+	#
+	# Regarding (d), see the rewrite of a sequence above.
 
 	yaml tags!do $inner {service definition} tag innervalue {
 	    scalar {
-		# (a, b)
-		if {($outer in $choices) && ($innervalue ni $choices)} {
+		if {$innervalue eq {}} {
+		    # (d)
+		    set name     $outer
+		    set newinner $inner
+		} elseif {($outer in $choices) && ($innervalue ni $choices)} {
 		    # (a)
 		    set name   $innervalue
 		    set vendor $outer
 
-		    say! [color yellow "Deprecated syntax (vendor: name) in service specification \"$outer: $innervalue\".\n\tPlease swap, i.e. use (name: vendor)."]
+		    say! [color warning "Deprecated syntax (vendor: name) in service specification \"$outer: $innervalue\".\n\tPlease swap, i.e. use (name: vendor)."]
 
 		    set newinner [Cmapping type [Cscalar $vendor]]
 
@@ -2837,6 +2887,11 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
 	set value [TCF_Framework $value]
     }
 
+    # services - re-map (handle syntax variants re name/type vs key/value)
+    if {[dict exists $value services]} {
+	set value [TS_Services $value]
+    }
+
     # Consolidate different spellings for mem|memory
     set value [T_Memory $value]
 
@@ -2851,6 +2906,42 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
     # This should be applied to the unified data, not just stackato.
     if {[dict exists $value stackato]} {
 	set value [TransformStackato $value]
+    }
+
+    # More merging for 'env'. CF has extended its regular manifest
+    # format to allow an 'env' key directly in the application
+    # block. If present we have to mix this with our 'stackato:env'
+    # settings. As CF's form (plain var: val) is a subset of our
+    # syntax we simply accept ours there to (i.e. transform and
+    # normalize), before merging. Data in 'env' is given priority over
+    # 'stackato:env', as it is the new official place for env settings.
+
+    #array set __ $value ; parray __ ; unset __
+
+    if {[dict exists $value env]} {
+	set value [TransformEnvironment $value]
+
+	yaml tags!do [dict get $value stackato] {key "stackato"} t data {
+	    mapping {
+		if {[dict exists $data env]} {
+		    # Have both official and AS env settings.  Merge them,
+		    # give official settings priority.  The result is filed
+		    # under 'stackato', as everything else expects it there.
+		    dict set data env \
+			[yaml deep-merge \
+			     [dict get $value env] \
+			     [dict get $data env]]
+		} else {
+		    # We have only official settings.
+		    # Rename them to be under 'stackato'.
+
+		    dict set data env [dict get $value env]
+		}
+	    }
+	}
+
+	dict set   value stackato [Cmapping {*}$data]
+	dict unset value env
     }
 
     #array set __ $value ; parray __ ; unset __
@@ -3189,19 +3280,35 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 	    services  {
 		yaml validate-glob $avalue services -- skey svalue {
 		    * {
-			yaml validate-glob $svalue $akey:$skey -- key value {
-			    plan -
-			    provider -
-			    version -
-			    label  -
-			    vendor -
-			    type   { yaml tag! scalar $value "key \"$akey\"" }
-			    credentials {
-				yaml tag! mapping $value "key \"$akey\""
+			yaml tags!do $svalue $akey:$skey __ __ {
+			    scalar {
+				# This happens when a CF sequence of
+				# service names was rewritten to the
+				# expected mapping of services. As
+				# these have no information about
+				# service types, etc. their values
+				# become empty scalars instead of the
+				# usual mapping.
+
+				# Nothing to be done.
+				# TODO maybe check that value is "".
 			    }
-			    * {
-				upvar 1 key ekey
-				UnknownKey $akey:$skey:$key
+			    mapping {
+				yaml validate-glob $svalue $akey:$skey -- key value {
+				    plan -
+				    provider -
+				    version -
+				    label  -
+				    vendor -
+				    type   { yaml tag! scalar $value "key \"$akey\"" }
+				    credentials {
+					yaml tag! mapping $value "key \"$akey\""
+				    }
+				    * {
+					upvar 1 key ekey
+					UnknownKey $akey:$skey:$key
+				    }
+				}
 			    }
 			}
 		    }
@@ -3422,7 +3529,7 @@ proc ::stackato::mgr::manifest::UnknownKey {k {suffix {}}} {
 
     if {$suffix ne {}} { set suffix " $suffix" }
 
-    say! [color yellow [wrap "Manifest warning: Unknown key \"$k\"$suffix"]]
+    say! [color warning [wrap "Manifest warning: Unknown key \"$k\"$suffix"]]
     return
 }
 
@@ -3430,7 +3537,7 @@ proc ::stackato::mgr::manifest::Warning {msg} {
     #error $k
     variable showwarnings
     if {!$showwarnings} return
-    say! [color yellow [wrap "Manifest warning: $msg"]]
+    say! [color warning [wrap "Manifest warning: $msg"]]
     return
 }
 

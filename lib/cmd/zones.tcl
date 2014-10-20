@@ -1,19 +1,19 @@
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
-## Command implementations. Management of quota plans.
+## Command implementations. Management of placement zones.
 
 # # ## ### ##### ######## ############# #####################
 ## Requisites
 
 package require Tcl 8.5
+package require cmdr::ask
+package require cmdr::color
 package require stackato::cmd::app
-package require stackato::color
 package require stackato::log
 package require stackato::mgr::client ; # pulls all of v2
 package require stackato::mgr::ctarget
 package require stackato::mgr::manifest
-package require stackato::term
 package require table
 
 debug level  cmd/zones
@@ -28,11 +28,11 @@ namespace eval ::stackato::cmd::zones {
 	set unset list show select-for
     namespace ensemble create
 
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::cmd::app
-    namespace import ::stackato::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
-    namespace import ::stackato::term
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
@@ -81,11 +81,11 @@ proc ::stackato::cmd::zones::SetCore {config theapp newzone} {
 	$theapp @distribution_zone set $newzone
 	$theapp commit
 
-	display [color green OK]
+	display [color good OK]
 
 	app check-app-for-restart $config $theapp
     } else {
-	display [color blue Unchanged]
+	display [color note Unchanged]
     }
 
     return
@@ -179,7 +179,7 @@ proc ::stackato::cmd::zones::select-for {what p {mode noauto}} {
 	dict set map [$o @name] $o
     }
     ::set choices [lsort -dict [dict keys $map]]
-    ::set name [term ask/menu "" \
+    ::set name [ask menu "" \
 		    "Which zone to $what ? " \
 		    $choices]
 

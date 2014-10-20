@@ -10,18 +10,20 @@
 package require Tcl 8.5
 package require browse
 package require cd
-package require cmdr
 package require dictutil
 package require exec
 package require json
 package require lambda
 package require sha1 2
+package require fileutil::traverse
 package require struct::list
 package require struct::set
 package require table
 package require zipfile::decode
 package require zipfile::encode
-package require stackato::color
+package require cmdr
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::app
@@ -41,7 +43,6 @@ package require stackato::mgr::self
 package require stackato::mgr::service
 package require stackato::mgr::ssh
 package require stackato::misc
-package require stackato::term
 package require stackato::validate::appname
 package require stackato::validate::memspec
 package require stackato::validate::routename
@@ -65,7 +66,8 @@ namespace eval ::stackato::cmd::app {
 	list-events start-single activate
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::again+
     namespace import ::stackato::log::banner
     namespace import ::stackato::log::clear
@@ -77,7 +79,6 @@ namespace eval ::stackato::cmd::app {
     namespace import ::stackato::log::quit
     namespace import ::stackato::log::uptime
     namespace import ::stackato::misc
-    namespace import ::stackato::term
     namespace import ::stackato::jmap
     namespace import ::stackato::mgr::app
     namespace import ::stackato::mgr::cfile
@@ -231,7 +232,7 @@ proc ::stackato::cmd::app::Rename {config theapp} {
     display "Renaming application \[[$theapp @name]\] to $new ... " false
     $theapp @name set $new
     $theapp commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/app {/done}
     return
@@ -296,7 +297,7 @@ proc ::stackato::cmd::app::StartV2 {config theapp push} {
     set appname [$theapp @name]
 
     if {[$theapp started?]} {
-	display [color yellow "Application '$appname' already started"]
+	display [color warning "Application '$appname' already started"]
 	debug.cmd/app {/done, already started}
 	return
     }
@@ -363,6 +364,8 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 
     try {
 	set hasstarted no
+	set maxcounter 11
+	set downcounter $maxcounter
 
 	while 1 {
 	    debug.cmd/app {ping CC}
@@ -376,7 +379,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 		}
 
 		if {[OneRunning $imap]} {
-		    display [color green OK]
+		    display [color good OK]
 		    return
 		}
 
@@ -397,17 +400,33 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 
 	    set hasstarted [expr {$hasstarted || [AnyStarting $imap]}]
 	    if {$hasstarted && [NoneActive $imap]} {
-		debug.cmd/app {start failed}
-		if {$push && [cmdr interactive?]} {
-		    display [color red "Application failed to start"]
-		    if {[term ask/yn {Should I delete the application ? }]} {
-			if {[logstream active]} {
-			    logstream stop $config
+		debug.cmd/app {all down @ $downcounter/$maxcounter}
+		# All instances are DOWN, and we saw STARTING before.
+		# NOTE: Do not abort immediately. This might be a
+		# transient state, or bad reporting. We abort if and
+		# only if we see this state maxcounter times
+		# consecutively.
+		incr downcounter -1
+		if {$downcounter <= 0} {
+		    debug.cmd/app {start failed ($downcounter)}
+		    if {$push && [cmdr interactive?]} {
+			display [color bad "Application failed to start"]
+			if {[ask yn {Should I delete the application ? }]} {
+			    if {[logstream active]} {
+				logstream stop $config
+			    }
+			    app delete $config $client $theapp false
 			}
-			app delete $config $client $theapp false
 		    }
+		    err "Application failed to start"
 		}
-		err "Application failed to start"
+		debug.cmd/app {all down - continue}
+	    } else {
+		debug.cmd/app {down counter reset = $maxcounter}
+		# Reset the failure counter, as we are either in the
+		# initial down-phase, or at least one instance is
+		# active (starting or running).
+		set downcounter $maxcounter
 	    }
 
 	    # Limit waiting to a second, if we have to wait at all.
@@ -437,7 +456,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 		} trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
 		    # Ignore stager issue now that we have timed out already.
 		}
-		err "Application is taking too long to start ($delta seconds), check your logs"
+		err "Application is taking too long to start ($delta seconds since last log entry), check your logs"
 	    }
 	} ;# while
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
@@ -560,10 +579,10 @@ proc ::stackato::cmd::app::PrintStatusSummary {imap} {
 
 proc ::stackato::cmd::app::StateColor {s text} {
     switch -exact -- $s {
-	DOWN     { set text [color red   $text] }
-	FLAPPING { set text [color red   $text] }
-	STARTING { set text [color blue  $text] }
-	RUNNING  { set text [color green $text] }
+	DOWN     { set text [color bad     $text] }
+	FLAPPING { set text [color bad     $text] }
+	STARTING { set text [color neutral $text] }
+	RUNNING  { set text [color good    $text] }
 	default  {}
     }
     return $text
@@ -577,12 +596,12 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 
     set app [$client app_info $appname]
     if {$app eq {}} {
-	display [color red "Application '$appname' could not be found"]
+	display [color bad "Application '$appname' could not be found"]
 	return
     }
 
     if {"STARTED" eq [dict getit $app state]} {
-	display [color yellow "Application '$appname' already started"]
+	display [color warning "Application '$appname' already started"]
 	return
     }
 
@@ -591,7 +610,7 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
     # staging/starting events (among others)
 
     if {![logstream get-use $client]} {
-	set banner "Staging Application \[$appname\] on \[[color blue [Context $client]]\] ... "
+	set banner "Staging Application \[[color name $appname]\] on \[[color name [Context $client]]\] ... "
 	display $banner false
     }
 
@@ -602,13 +621,13 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
     $client update_app $appname $app
 
     if {![logstream get-use $client]} {
-	display [color green OK]
+	display [color good OK]
     }
 
     logstream stop $config slow
 
     if {![logstream get-use $client]} {
-	set banner "Starting Application \[$appname\] on \[[color blue [Context $client]]\] ... "
+	set banner "Starting Application \[[color name $appname]\] on \[[color name [Context $client]]\] ... "
 	display $banner false
     }
 
@@ -637,15 +656,15 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 		# Check for the existence of crashes
 		if {[logstream active]} {
 		    logstream stop $config
-		    display [color red "\nError: Application \[$appname\] failed to start, see log above.\n"]
+		    display [color bad "\nError: Application \[$appname\] failed to start, see log above.\n"]
 		} else {
-		    display [color red "\nError: Application \[$appname\] failed to start, logs information below.\n"]
+		    display [color bad "\nError: Application \[$appname\] failed to start, logs information below.\n"]
 		    GrabCrashLogs $config $appname 0 true yes
 		}
 		if {$push} {
 		    display ""
 		    if {[cmdr interactive?]} {
-			if {[term ask/yn {Should I delete the application ? }]} {
+			if {[ask yn {Should I delete the application ? }]} {
 			    app delete $config $client $appname false
 			}
 		    }
@@ -687,7 +706,7 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
 	    # container imposes a multi-second wait as well before
 	    # timing out.
 
-	    display [color yellow "\nApplication '$appname' is taking too long to start ($delta seconds), check your logs"]
+	    display "[color warning "\nApplication"] '[color name $appname]' [color warning "is taking too long to start ($delta seconds), check your logs"]"
 	    set failed 1
 	    break
 	}
@@ -704,9 +723,9 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
     if {![logstream get-use $client]} {
 	if {[feedback]} {
 	    clear
-	    display "$banner[color green OK]"
+	    display "$banner[color good OK]"
 	} else {
-	    display [color green OK]
+	    display [color good OK]
 	}
     } else {
 	set url [lindex [dict get $app uris] 0]
@@ -737,7 +756,7 @@ proc ::stackato::cmd::app::Activate {config theapp} {
 
     display "Switching to version [$theversion name] of [$theapp @name] ..." false
     $theversion activate $codeonly
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -778,7 +797,7 @@ proc ::stackato::cmd::app::StopV2 {config theapp} {
     set appname [$theapp @name]
 
     if {[$theapp stopped?]} {
-	display [color yellow "Application '$appname' already stopped"]
+	display "[color warning "Application"] '[color name $appname]' [color warning "already stopped"]"
 	debug.cmd/app {/done, already stopped}
 	return
     }
@@ -788,7 +807,7 @@ proc ::stackato::cmd::app::StopV2 {config theapp} {
 
     display "Stopping Application \[$appname\] ... " false
     $theapp stop!
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/app {/done}
     return
@@ -801,13 +820,13 @@ proc ::stackato::cmd::app::StopV1 {config appname} {
 
     set app [$client app_info $appname]
     if {$app eq {}} {
-	display [color red "Application '$appname' could not be found"]
+	display [color bad "Application '$appname' could not be found"]
 	debug.cmd/app {/done, invalid}
 	return
     }
 
     if {"STOPPED" eq [dict getit $app state]} {
-	display [color yellow "Application '$appname' already stopped"]
+	display "[color warning "Application"] '[color name $appname]' [color warning "already stopped"]"
 	debug.cmd/app {/done, already stopped}
 	return
     }
@@ -824,7 +843,7 @@ proc ::stackato::cmd::app::StopV1 {config appname} {
     logstream stop $config
 
     if {![logstream get-use $client]} {
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.cmd/app {/done, ok}
@@ -881,14 +900,14 @@ proc ::stackato::cmd::app::check-app-for-restart {config theapp} {
 
     if {[$client isv2]} {
 	if {![$theapp started?]} {
-	    display [color green OK]
+	    display [color good OK]
 	    return
 	}
     } else {
 	set app [$client app_info $theapp]
 
 	if {[dict getit $app state] ne "STARTED"} {
-	    display [color green OK]
+	    display [color good OK]
 	    return
 	}
     }
@@ -1009,10 +1028,10 @@ proc ::stackato::cmd::app::GrabLogs {config appname instance} {
 	    DisplayLogfile $prefix $path $content $instance
 
 	} trap {STACKATO CLIENT NOTFOUND} {e o} {
-	    display [color red $e]
+	    display [color bad $e]
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    if {[string match *retrieving*404* $e]} {
-		display [color red "($instance)$path: No such file or directory"]
+		display [color bad "($instance)$path: No such file or directory"]
 	    }
 	} on error {e o} {
 	    # nothing, continue
@@ -1072,10 +1091,10 @@ proc ::stackato::cmd::app::GrabCrashLogs {config appname instance {was_staged fa
 	    DisplayLogfile $prefix $path $content $instance
 
 	} trap {STACKATO CLIENT NOTFOUND} {e o} {
-	    display [color red $e]
+	    display [color bad $e]
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    if {[string match *retrieving*404* $e]} {
-		display [color red "($instance)$path: No such file or directory"]
+		display [color bad "($instance)$path: No such file or directory"]
 	    }
 	} on error {e o} {
 	    # nothing, continue
@@ -1115,7 +1134,7 @@ proc ::stackato::cmd::app::GrabStartupTail {client appname {since 0}} {
 	# ignore error, hope that this is a transient condition
     } trap {STACKATO CLIENT NOTFOUND} {e o} {
 	if {$since >= 0} {
-	    display [color red $e]
+	    display [color bad $e]
 	    display "Continuing to watch for its appearance..."
 	}
 	return -1
@@ -1132,7 +1151,7 @@ proc ::stackato::cmd::app::DisplayLogfile {prefix path content {instance 0} {ban
     display $banner
 
     if {$prefix} {
-	set prefix [color bold "\[$instance: $path\] -"]
+	set prefix [color neutral "\[$instance: $path\] -"]
 	foreach line [split [string trimright $content] \n] {
 	    display "$prefix $line"
 	}
@@ -1273,8 +1292,8 @@ proc ::stackato::cmd::app::delete {config} {
     if {$all} {
 	set should_delete [expr {$force || ![cmdr interactive?]}]
 	if {!$should_delete} {
-	    set msg "Delete ALL Applications from \[[color blue [Context $client]]\] ? "
-	    set should_delete [term ask/yn $msg no]
+	    set msg "Delete [color note ALL] Applications from \[[color name [Context $client]]\] ? "
+	    set should_delete [ask yn $msg no]
 	}
 	if {$should_delete} {
 	    if {[$client isv2]} {
@@ -1357,7 +1376,7 @@ proc ::stackato::cmd::app::Map1 {config appname} {
 	debug.cmd/app {+ url = $url}
 	dict lappend app uris $url
 
-	display "  Map https://$url"
+	display "  Map http://$url"
     }
 
     display "Commit ..."
@@ -1387,16 +1406,29 @@ proc ::stackato::cmd::app::Map2 {config theapp} {
 proc ::stackato::cmd::app::map-urls {config theapp urls {rollback 0} {sync 1}} {
     debug.cmd/app {}
 
-    foreach url [lsort -dict $urls] {
-	set url [string tolower $url]
-	debug.cmd/app {+ url = $url}
+    if {$sync} {
+	foreach url [lsort -dict $urls] {
+	    set url [string tolower $url]
+	    display "  Map http://$url ... " false
 
-	if {$sync} {
-	    display "  Map https://$url ... " false
-	    $theapp @routes add [Url2Route $config $theapp $url $rollback]
-	    display [color green OK]
-	} else {
-	    display "  Map https://$url ... (Change Ignored)"
+	    debug.cmd/app {+ url = $url}
+
+	    set route [Url2Route $config $theapp $url $rollback]
+
+	    debug.cmd/app {      = $route (in [$route @space full-name])}
+
+	    $theapp @routes add $route
+
+	    debug.cmd/app {+ ----- done}
+	    display [color good OK]
+	}
+    } else {
+	# No mapping to be done.
+	foreach url [lsort -dict $urls] {
+	    set url [string tolower $url]
+	    debug.cmd/app {I url = $url}
+
+	    display "  Map http://$url ... (Change Ignored)"
 	}
     }
 
@@ -1412,13 +1444,13 @@ proc ::stackato::cmd::app::unmap-urls {config theapp urls {sync 1}} {
 	debug.cmd/app {- url = $url}
 
 	if {$sync} {
-	    display "  Unmap https://$url ... " false
+	    display "  Unmap http://$url ... " false
 
 	    set r [routename validate [$config @url self] $url]
 	    $theapp @routes remove $r
-	    display [color green OK]
+	    display [color good OK]
 	} else {
-	    display "  Unmap https://$url ... (Change Ignored)"
+	    display "  Unmap http://$url ... (Change Ignored)"
 	}
     }
 
@@ -1430,7 +1462,7 @@ proc ::stackato::cmd::app::kept-urls {theapp urls {sync 1}} {
     debug.cmd/app {}
 
     foreach u $urls {
-	display "  Kept  https://$u ... "
+	display "  Kept  http://$u ... "
     }
 
     debug.cmd/app {/done}
@@ -1611,14 +1643,14 @@ proc ::stackato::cmd::app::Unmap2 {config theapp} {
 
     display "  Unmap $name ... " false
     $theapp @routes remove $route
-    display [color green OK]
+    display [color good OK]
 
     MapFinal unmapped 1
     return
 }
 
 proc ::stackato::cmd::app::MapFinal {action n} {
-    display [color green "Successfully $action $n url[expr {$n==1 ? "":"s"}]"]
+    display [color good "Successfully $action $n url[expr {$n==1 ? "":"s"}]"]
     return
 }
 
@@ -1661,7 +1693,7 @@ proc ::stackato::cmd::app::StatsV1 {config client theapp} {
     }
 
     if {![llength $stats]} {
-	display [color yellow "No running instances for \[$appname\]"]
+	display "[color warning "No running instances for"] \[[color name $appname]\]"
 	return
     }
 
@@ -1717,12 +1749,12 @@ proc ::stackato::cmd::app::StatsV2 {config theapp} {
     }
 
     if {![llength $stats]} {
-	display [color yellow "No running instances for \[$appname\]"]
+	display "[color warning "No running instances"] for \[[color name $appname]\]"
 	return
     }
 
     display [context format-short " -> $appname"]
-    [table::do t {Instance {CPU (Cores)} {Memory (limit)} {Disk (limit)} Started Crashed Uptime} {
+    [table::do t {Instance State {CPU} {Memory (limit)} {Disk (limit)} Started Crashed Uptime} {
 	foreach {index data} $stats {
 	    set state [dict get $data state]
 
@@ -1741,26 +1773,34 @@ proc ::stackato::cmd::app::StatsV2 {config theapp} {
 		set usage [dict get' $stats usage {}]
 		if {$usage ne {}} {
 		    set started [dict get $usage time]
-		    # mem usage is delivred in KB
-		    set m [psz [expr {[dict get $usage mem] * 1024}]]
+		    # mem usage is delivered in B
+		    # Ref bug 104709, see also
+		    # https://github.com/ActiveState/stackato-cli/issues/2
+		    # for a contrary opinion.
+		    set m [psz [dict get $usage mem]]
 		    # disk usage is delivered in B
 		    set d [psz [dict get $usage disk]]
+		    set cpu [dict get $usage cpu]
+
 		} else {
 		    set started N/A
 		    set m N/A
 		    set d N/A
+		    set cpu N/A
 		}
 	    } else {
 		set started {}
 		set uptime N/A
 		set m N/A ; set mq N/A
 		set d N/A ; set dq N/A
+		set cpu N/A
 	    }
 
 	    set mem   "$m ($mq)"
 	    set disk  "$d ($dq)"
 
-	    $t add $index $state $mem $disk $started $crashed $uptime
+	    $t add $index [StateColor $state $state] \
+		$cpu $mem $disk $started $crashed $uptime
 	}
     }] show display
     return
@@ -1799,18 +1839,20 @@ proc ::stackato::cmd::app::Health {config args} {
     # v1 - applist = names
     # v2 - applist = objects
 
+    display [context format-short]
+
     set client [$config @client]
 
     if {[$client isv2]} {
 	# @application = list of instances
 	[table::do t {Application Health} {
-	    foreach app $args {
+	    foreach app [v2 sort @name $args -dict] {
 		$t add [$app @name] [$app health]
 	    }
 	}] show display
     } else {
 	[table::do t {Application Health} {
-	    foreach appname $args {
+	    foreach appname [lsort -dict $args] {
 		if {$appname eq {}} continue
 		set app [$client app_info $appname]
 		$t add $appname [misc health $app]
@@ -1864,7 +1906,7 @@ proc ::stackato::cmd::app::Scale {config theapp} {
 	}
 
 	if {![logstream get-use $client]} {
-	    display [color green OK]
+	    display [color good OK]
 	}
 
 	if {$needrestart && [AppIsRunning $config $theapp $appinfo]} {
@@ -1874,7 +1916,7 @@ proc ::stackato::cmd::app::Scale {config theapp} {
 
 	logstream stop $config
     } else {
-	display [color green {No changes}]
+	display [color note {No changes}]
     }
     return
 }
@@ -2219,7 +2261,7 @@ proc ::stackato::cmd::app::SIv1 {config theapp client} {
     }
 
     if {![llength $instances_info]} {
-	display [color yellow "No running instances for \[$theapp\]"]
+	display "[color warning "No running instances for"] \[[color name $theapp]\]"
 	return
     }
 
@@ -2228,7 +2270,7 @@ proc ::stackato::cmd::app::SIv1 {config theapp client} {
 	    set index [dict getit $entry index]
 	    set state [dict getit $entry state]
 	    set since [Epoch [dict getit $entry since]]
-	    $t add $index $state $since
+	    $t add $index [StateColor $state $state] $since
 	}
     }] show display
 
@@ -2260,7 +2302,7 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
     }
 
     if {![llength $instances]} {
-	display [color yellow "No running instances for \[[$theapp @name]\]"]
+	display "[color warning "No running instances for"] \[[color name [$theapp @name]]\]"
 	return
     }
 
@@ -2270,7 +2312,7 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
 	    set state [$i state]
 	    set since [Epoch [$i since]]
 
-	    $t add $index $state $since
+	    $t add $index [StateColor $state $state] $since
 	}
     }] show display
 
@@ -2394,7 +2436,7 @@ proc ::stackato::cmd::app::InteractiveMemoryEntry {config slot type currfmt {lab
 
     while {1} {
 	set newfmt \
-	    [term ask/string/extended "${label}: " \
+	    [ask string/extended "${label}: " \
 		 -complete ::stackato::validate::memspec::complete]
 
 	# Plain <Enter> ==> default.
@@ -2594,10 +2636,10 @@ proc ::stackato::cmd::app::Files {tail config theapp} {
 	}
 
     } trap {STACKATO CLIENT NOTFOUND} e {
-	display [color red $e]
+	display [color bad $e]
     } trap {STACKATO CLIENT TARGETERROR} {e o} {
 	if {[string match *retrieving*404* $e]} {
-	    display [color red "($instance)$path: No such file or directory"]
+	    display [color bad "($instance)$path: No such file or directory"]
 	} else {
 	    return {*}$o $e
 	}
@@ -2615,13 +2657,13 @@ proc ::stackato::cmd::app::AllFilesV2 {client prefix theapp path} {
 	    set content [$instance files $path]
 
 	    DisplayLogfile $prefix $path $content $idx \
-		[color bold "====> \[$idx: $path\] <====\n"]
+		[color neutral "====> \[$idx: $path\] <====\n"]
 
 	}  trap {STACKATO CLIENT NOTFOUND} e {
-	    display [color red $e]
+	    display [color bad $e]
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    if {[string match *retrieving*404* $e]} {
-		display [color red "($idx)$path: No such file or directory"]
+		display [color bad "($idx)$path: No such file or directory"]
 	    } else {
 		return {*}$o $e
 	    }
@@ -2646,13 +2688,13 @@ proc ::stackato::cmd::app::AllFiles {client prefix appname path} {
 	try {
 	    set content [$client app_files $appname $path $idx]
 	    DisplayLogfile $prefix $path $content $idx \
-		[color bold "====> \[$idx: $path\] <====\n"]
+		[color neutral "====> \[$idx: $path\] <====\n"]
 
 	}  trap {STACKATO CLIENT NOTFOUND} e {
-	    display [color red $e]
+	    display [color bad $e]
 	} trap {STACKATO CLIENT TARGETERROR} {e o} {
 	    if {[string match *retrieving*404* $e]} {
-		display [color red "($idx)$path: No such file or directory"]
+		display [color bad "($idx)$path: No such file or directory"]
 	    } else {
 		return {*}$o $e
 	    }
@@ -2956,10 +2998,10 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    set label [$theapp @$attr label]
 	    if {!$sync} {
 		set verb   keeping
-		set prefix [color red {Warning, ignoring local change of}]
+		set prefix [color warning {Warning, ignoring local change of}]
 	    } else {
 		set verb   was
-		set prefix [color blue Setting]
+		set prefix [color note Setting]
 	    }
 	    if {!$was} {
 		display "    $prefix $label: $new ($verb <undefined>)"
@@ -2971,7 +3013,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    # Undo changes, ignored.
 	    if {$changes} {
 		variable resetinfo
-		display [color blue $resetinfo]
+		display [color note $resetinfo]
 	    }
 
 	    $theapp rollback
@@ -2996,7 +3038,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    display {Committing ... } false
 	}
 	$theapp commit
-	display [color green OK]
+	display [color good OK]
     } elseif {$sync} {
 	display {No changes}
     }
@@ -3020,7 +3062,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 
 	    if {!$sync && ([llength $added] || [llength $removed])} {
 		variable resetinfo
-		display [color blue $resetinfo]
+		display [color note $resetinfo]
 	    }
 	} else {
 	    # Push, add all. Rollback app creation in case of trouble.
@@ -3071,7 +3113,7 @@ proc ::stackato::cmd::app::CreateAppV1 {interact starting defersd config client 
 
     display "Creating Application \[$appname\] in \[[ctarget get]\] ... " false
     set response [$client create_app $appname $manifest]
-    display [color green OK]
+    display [color good OK]
 
     if {[$config @json]} {
 	puts [jmap map dict $response]
@@ -3420,7 +3462,12 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 
     Upload $config $theapp $appname
 
+    debug.cmd/app {Action = ($action)}
     switch -exact -- $action {
+	skip {
+	    # The target supports a zero-downtime switchover. A restart is
+	    # not only not required, but contra-indicated. Do nothing.
+	}
 	start {
 	    start-single $config $theapp
 	}
@@ -3453,8 +3500,8 @@ proc ::stackato::cmd::app::RunDebugger {config} {
     set cmd $env(STACKATO_DEBUG_COMMAND)
 
     if {($dhost eq {}) || ($dport eq {})} {
-	display [color red "Unable to run $cmd"]
-	display [color red "Host/port information is missing"]
+	display [color bad "Unable to run $cmd"]
+	display [color bad "Host/port information is missing"]
 	return
     }
 
@@ -3481,9 +3528,9 @@ proc ::stackato::cmd::app::RunPPHooks {appname action} {
 
     try {
 	foreach cmd [manifest hooks pre-push] {
-	    display "[color blue pushing:] -----> $cmd"
+	    display "[color note pushing:] -----> $cmd"
 	    cd::indir [manifest path] {
-		exec::run "[color blue pushing:]       " $::env(SHELL) -c $cmd
+		exec::run "[color note pushing:]       " $::env(SHELL) -c $cmd
 	    }
 	}
     } finally {
@@ -3565,11 +3612,11 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 	if {!$sync} {
 	    set lmod   {   }
 	    set verb   keeping
-	    set prefix [color red {Warning, ignoring local change of}]
+	    set prefix [color warning {Warning, ignoring local change of}]
 	} else {
 	    set lmod   Not
 	    set verb   was
-	    set prefix [color blue Setting]
+	    set prefix [color note Setting]
 	}
 
 	if {!$islist} {
@@ -3618,14 +3665,14 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 
 	# .../Write
 	$client update_app $appname $app
-	display [color green OK]
+	display [color good OK]
     } else {
-	display "    [color green {No changes}]"
+	display "    [color note {No changes}]"
     }
 
     if {!$sync && $delta} {
 	variable resetinfo
-	display [color blue $resetinfo]
+	display [color note $resetinfo]
     }
 
     # Services check, and binding, after.
@@ -3654,7 +3701,17 @@ proc ::stackato::cmd::app::SyncV2 {config appname theapp interact} {
     debug.cmd/app {}
 
     if {[$theapp started?]} {
-	return "restart"
+	if {[[$config @client] zero-downtime]} {
+	    debug.cmd/app {0-down active}
+	    # The target supports a zero-downtime switchover. A
+	    # restart is not only not required, but
+	    # contra-indicated. Force the caller to do nothing.
+	    # The upload of the application bits will trigger
+	    # the CC 0-downtime switchover.
+	    return "skip"
+	} else {
+	    return "restart"
+	}
     } elseif {[$config @force-start]} {
 	# Application is inactive, and user requests start after update.
 	return "start"
@@ -3826,7 +3883,7 @@ proc ::stackato::cmd::app::SaveManifestInitial {config {mode full}} {
     debug.cmd/app {}
 
     if {![cmdr interactive?] ||
-	![term ask/yn \
+	![ask yn \
 	      "Would you like to save this configuration?" \
 	      no]} {
 	debug.cmd/app {Not saved}
@@ -3935,12 +3992,12 @@ proc ::stackato::cmd::app::AppPath {config} {
     if {[$config @path set?]} return
 
     set proceed \
-	[term ask/yn \
+	[ask yn \
 	     {Would you like to deploy from the current directory ? }]
 
     if {!$proceed} {
 	# TODO: interactive deployment path => custom completion.
-	set path [term ask/string {Please enter in the deployment path: }]
+	set path [ask string {Please enter in the deployment path: }]
     } else {
 	set path [pwd]
     }
@@ -4285,7 +4342,7 @@ proc ::stackato::cmd::app::AppRuntime {config frameobj} {
 	[$frameobj prompt_for_runtime?] &&
 	[cmdr interactive?]
     } {
-	set runtime [term ask/menu "What runtime?" "Select Runtime: " \
+	set runtime [ask menu "What runtime?" "Select Runtime: " \
 			 [lsort -dict [dict keys $runtimes]] \
 			 [$frameobj default_runtime [manifest path]]]
     }
@@ -4366,7 +4423,7 @@ proc ::stackato::cmd::app::AppStartCommand {config frameobj} {
     
     # Query the user.
     if {!$defined && ($frameobj ne {}) && [cmdr interactive?]} {
-	set command [term ask/string {Start command: }]
+	set command [ask string {Start command: }]
 	debug.cmd/app {command/interact = ($command)}
 	set defined [expr {$command ne {}}]
     }
@@ -4424,7 +4481,7 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
 	 [$frameobj require_url?])} {
 	variable yes_set
 
-	set url [term ask/string "Application Deployed URL \[$stock\]: "]
+	set url [ask string "Application Deployed URL \[[color yes $stock]\]: "]
 	# Common error case is for prompted users to answer y or Y or
 	# yes or YES to this ask() resulting in an unintended URL of
 	# y. Special case this common error.
@@ -4452,7 +4509,7 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     foreach u $urls {
 	set u [string tolower $u]
 	lappend tmp $u
-	display "Application Url:   https://$u"
+	display "Application Url:   http://$u"
     }
     set urls $tmp
 
@@ -4568,7 +4625,7 @@ proc ::stackato::cmd::app::AppFramework {config} {
     if {($frameobj ne {}) &&
 	[cmdr interactive?]} {
 	set framework_correct \
-	    [term ask/yn "Detected a [$frameobj description], is this correct ? "]
+	    [ask yn "Detected a [color name [$frameobj description]], is this correct ? "]
     }
 
     # (4) Ask the user.
@@ -4576,7 +4633,7 @@ proc ::stackato::cmd::app::AppFramework {config} {
 	(($frameobj eq {}) ||
 	 !$framework_correct)} {
 	if {$frameobj eq {}} {
-	    display "[color yellow WARNING] Can't determine the Application Type."
+	    display "[color warning WARNING] Can't determine the Application Type."
 	}
 
 	# incorrect, kill object
@@ -4588,7 +4645,7 @@ proc ::stackato::cmd::app::AppFramework {config} {
 	    set df [$frameobj key]
 	}
 
-	set fn [term ask/menu "What framework?" "Select Application Type: " \
+	set fn [ask menu "What framework?" "Select Application Type: " \
 		    [lsort -dict [framework known $supported]] $df]
 
 	catch { $frameobj destroy }
@@ -4827,7 +4884,7 @@ proc ::stackato::cmd::app::AppDrains {config theapp} {
 	} else {
 	    $client app_drain_create $theapp $k $url $json
 	}
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.cmd/app {/done}
@@ -4894,12 +4951,25 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 	    } else {
 		debug.cmd/app {MSI}
 
-		set theplan [LocateService $client $sconfig]
-		debug.cmd/app {MSI plan = $theplan}
+		if {$sconfig eq {}} {
+		    # We have only the service name.
+		    # It must exist, and we can only bind it.
 
-		CreateAndBind $client \
-		    $theplan $sname {} $theapp \
-		    $known $bound
+		    CreateAndBind $client \
+			{} $sname {} $theapp \
+			$known $bound
+		} else {
+		    # We have a config, find the corresponding plan.
+		    # Create the service if missing. Check against plan
+		    # if not.
+
+		    set theplan [LocateService $client $sconfig]
+		    debug.cmd/app {MSI plan = $theplan}
+
+		    CreateAndBind $client \
+			$theplan $sname {} $theapp \
+			$known $bound
+		}
 	    }
 	}
 
@@ -4920,21 +4990,21 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 	    set cred [GetCredentials $client $theservice]
 
 	    if {$cred eq {}} {
-		display "Debugging now enabled on [color red unknown] port."
+		display "Debugging now enabled on [color bad unknown] port."
 
 		# Signal to RunDebugger that we do not have the information it needs.
 		SaveDebuggerInfo {} {}
 	    } elseif {![dict exists $cred port]} {
-		display "Debugging now enabled on [color red unknown] port."
-		display [color red "Service failed to transmit its port information"]
-		display [color red "Please contact the administrator for \[[ctarget get]\]"]
+		display "Debugging now enabled on [color bad unknown] port."
+		display [color bad "Service failed to transmit its port information"]
+		display [color bad "Please contact the administrator for \[[ctarget get]\]"]
 
 		# Signal to RunDebugger that we do not have the information it needs.
 		SaveDebuggerInfo {} {}
 	    } else {
 		set port [dict get $cred port]
 		set host [dict get $cred host]
-		display "[color green {Debugging now enabled}] on host [color cyan $host], port [color cyan $port]"
+		display "[color good {Debugging now enabled}] on host [color name $host], port [color name $port]"
 
 		# Stash information for RunDebugger.
 		SaveDebuggerInfo $host $port
@@ -5172,8 +5242,8 @@ proc ::stackato::cmd::app::GetCred1 {client theservice} {
     set si [$client get_service $theservice]
 
     if {![dict exists $si credentials]} {
-	display [color red "Service failed to transmit its credentials"]
-	display [color red "Please contact the administrator for \[[ctarget get]\]"]
+	display [color bad "Service failed to transmit its credentials"]
+	display [color bad "Please contact the administrator for \[[ctarget get]\]"]
 	return {}
     } else {
 	return [dict get $si credentials]
@@ -5541,16 +5611,16 @@ proc ::stackato::cmd::app::AE_DetermineValue {varname vardef oenv} {
 	# (b) Free form text, or choices from a list.
 	if {[dict exists $vardef choices]} {
 	    set choices [dict get $vardef choices]
-	    set value [term ask/choose $prompt $choices $value]
+	    set value [ask choose $prompt $choices $value]
 	} else {
 	    while {1} {
 		if {$hidden} {
-		    set response [term ask/string* "$prompt: "]
+		    set response [ask string* "$prompt: "]
 		} else {
-		    set response [term ask/string "$prompt \[$value\]: "]
+		    set response [ask string "$prompt \[[color yes $value]\]: "]
 		}
 		if {$required && ($response eq "") && ($value eq "")} {
-		    display [color red "$varname requires a value"]
+		    display [color bad "$varname requires a value"]
 		    continue
 		}
 		break
@@ -5585,7 +5655,7 @@ proc ::stackato::cmd::app::AE_WriteV1 {cmode client appname app envdict} {
 
     if {[string equal $cmode commit]} {
 	$client update_app $appname $app
-	display [color green OK]
+	display [color good OK]
 	return $app
     }
 
@@ -5600,7 +5670,7 @@ proc ::stackato::cmd::app::AE_WriteV2 {mode theapp envdict} {
 	display "Updating environment ... " 0
 	$theapp @environment_json set $envdict
 	$theapp commit
-	display [color green OK]
+	display [color good OK]
     } else {
 	$theapp @environment_json set $envdict
     }
@@ -5694,9 +5764,14 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 
     # vendor  = v1: service name  | requested service type|plan
     #           v2: plan instance |
+    #           v2! plan can be empty => no creation, no matching.
 
     # Under v2 vendor eq "" indicates UPSI and details == credentials.
     #          vendor ne "" is MSI, and details is ignored.
+
+    # Both vendor == credentials == "" means that the service must exist.
+    # It cannot be created, only found and bound. Checking of requested
+    # vs. existing plan is not possible either.
 
     # service = instance name (to be) | requested service, by name
 
@@ -5708,6 +5783,8 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
     #         list (s-i instance) v2
 
     # Unknown services are created and bound, known services just bound.
+
+    display "Service [color name $service]:"
 
     if {[dict exists $known $service]} {
 	# Requested service is known.
@@ -5726,27 +5803,34 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 	    #     theplan    - instance, s-plan, existing
 	    #     vendor     - instance, s-plan, requested
 
-	    if {[catch {
-		set theplan [$theservice @service_plan]
-	    }]} {
-		# This branch is v2 only!! theservice has no plan, i.e. is
-		# an UPSI. Check that we are given an UPSI as well, and
-		# that it is the same (in terms of credentials).
-
-		if {$vendor ne {}} {
-		    ServiceConflict $service [$vendor name] user-provided
-		} elseif {[dict sort $details] ne [dict sort [$theservice @credentials]]} {
-		    ServiceConflict $service user-provided user-provided { and different credentials}
-		}
+	    if {($vendor eq {}) && ($details eq {})} {
+		# Checking requires either MSI, or UPSI.
+		# This is neither, not known. No checking possible.
+		display [color warning "  No configuration found in the manifest."]
+		display [color warning "  Unable to check against the actual service."]
 	    } else {
-		# theservice has a plan, i.e. is an MSI. Check that we
-		# were are given an MSI as well, and that it is the same
-		# in terms of plans.
+		if {[catch {
+		    set theplan [$theservice @service_plan]
+		}]} {
+		    # This branch is v2 only!! theservice has no plan, i.e. is
+		    # an UPSI. Check that we are given an UPSI as well, and
+		    # that it is the same (in terms of credentials).
 
-		if {$vendor eq {}} {
-		    ServiceConflict $service user-provided [$theplan name]
-		} elseif {![$vendor == $theplan]} {
-		    ServiceConflict $service [$vendor name] [$theplan name]
+		    if {$vendor ne {}} {
+			ServiceConflict $service [$vendor name] user-provided
+		    } elseif {[dict sort $details] ne [dict sort [$theservice @credentials]]} {
+			ServiceConflict $service user-provided user-provided { and different credentials}
+		    }
+		} else {
+		    # theservice has a plan, i.e. is an MSI. Check that we
+		    # were are given an MSI as well, and that it is the same
+		    # in terms of plans.
+
+		    if {$vendor eq {}} {
+			ServiceConflict $service user-provided [$theplan name]
+		    } elseif {![$vendor == $theplan]} {
+			ServiceConflict $service [$vendor name] [$theplan name]
+		    }
 		}
 	    }
 	} else {
@@ -5770,9 +5854,17 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
     } else {
 	# Unknown, create
 	# v1: name, v2: instance
+
+	if {($vendor eq {}) && ($details eq {})} {
+	    # Neither MSI, nor UPSI, no spec at all. Creation not possible.
+	    err "  Unable to create service without configuration."
+	}
+
 	if {$vendor ne {}} {
+	    # MSI
 	    set theservice [service create-with-banner $client $vendor $service 1]
 	} else {
+	    # UPSI
 	    set theservice [service create-udef-with-banner $client $details $service 1]
 	}
     }
@@ -5786,7 +5878,7 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 }
 
 proc ::stackato::cmd::app::ServiceConflict {service need have {suffix {}}} {
-    err "The application's request for a $need service \"$service\" conflicts with a $have service of the same name${suffix}."
+    err "  The application's request for a $need service \"$service\" conflicts with a $have service of the same name${suffix}."
 }
 
 proc ::stackato::cmd::app::BindServices {client theapp appname} {
@@ -5810,7 +5902,7 @@ proc ::stackato::cmd::app::BindServices {client theapp appname} {
     # Bind existing services, if any.
     if {
 	[llength $user_services] &&
-	[term ask/yn "Bind existing services to '$appname' ? " no]
+	[ask yn "Bind existing services to '[color name $appname]' ? " no]
     } {
 	lappend bound {*}[ChooseExistingServices $client $theapp $user_services]
     }
@@ -5818,7 +5910,7 @@ proc ::stackato::cmd::app::BindServices {client theapp appname} {
     # Bind new services, if any provisionable.
     if {
 	[llength $services] &&
-	[term ask/yn "Create services to bind to '$appname' ? " no]
+	[ask yn "Create services to bind to '[color name $appname]' ? " no]
     } {
 	lappend bound {*}[ChooseNewServices $client $theapp $services]
     }
@@ -5891,7 +5983,7 @@ proc ::stackato::cmd::app::ChooseExistingServices {client theapp user_services} 
     while {1} {
 	set choices [lsort -dict [dict keys $user_services]]
 
-	set name [term ask/menu \
+	set name [ask menu \
 		      "Which one ?" "Choose: " \
 		      $choices]
 
@@ -5903,7 +5995,7 @@ proc ::stackato::cmd::app::ChooseExistingServices {client theapp user_services} 
 	# Save for manifest.
 	lappend bound $name $mdetails
 
-	if {![term ask/yn "Bind another ? " no]} break
+	if {![ask yn "Bind another ? " no]} break
 
 	# Remove the chosen service from the possible selections.
 	# Binding twice is nonsensical.
@@ -5963,7 +6055,7 @@ proc ::stackato::cmd::app::ChooseNewServices {client theapp services} {
 
     set bound {}
     while {1} {
-	set choice [term ask/menu \
+	set choice [ask menu \
 			"What kind of service ?" "Choose: " \
 			$choices]
 
@@ -5973,15 +6065,15 @@ proc ::stackato::cmd::app::ChooseNewServices {client theapp services} {
 
 	set default_name [service random-name-for $choice]
 	set service_name \
-	    [term ask/string \
-		 "Specify the name of the service \[$default_name\]: " \
+	    [ask string \
+		 "Specify the name of the service \[[color yes $default_name]\]: " \
 		 $default_name]
 
 	CreateAndBind $client $theplan $service_name {} $theapp
 
 	lappend bound $service_name $mdetails
 
-	if {![term ask/yn "Create another ? " no]} break
+	if {![ask yn "Create another ? " no]} break
     }
 
     return $bound
@@ -6246,6 +6338,10 @@ proc ::stackato::cmd::app::SSH {config theapp} {
     debug.cmd/app {}
     # @dry
 
+    if {$theapp eq {}} {
+	err "No application specified"
+    }
+
     set args [$config @command]
     if {[$config @all]} {
 	if {![llength $args]} {
@@ -6269,6 +6365,11 @@ proc ::stackato::cmd::app::SSH {config theapp} {
 	}
     } else {
 	set instance [$config @instance]
+
+	if {[[$config @client] isv2]} {
+	    set instance [$instance index]
+	}
+
 	ssh run $config $args $theapp $instance
     }
     return
@@ -6286,11 +6387,15 @@ proc ::stackato::cmd::app::securecp {config} {
 proc ::stackato::cmd::app::SCP {config theapp} {
     debug.cmd/app {}
 
-    set instance [$config @instance]
     set paths    [$config @paths]
+    set instance [$config @instance]
 
     if {[llength $paths] < 2} {
 	$config notEnough ;# scp. proper additional check
+    }
+
+    if {[[$config @client] isv2]} {
+	set instance [$instance index]
     }
 
     ssh copy $config $paths $theapp $instance
@@ -6398,7 +6503,7 @@ proc ::stackato::cmd::app::EnvDelete {config theapp} {
 	display "Deleting Environment Variable \[$varname\] ... " false
 
 	if {$newenv eq $env} {
-	    display [color green OK]
+	    display [color good OK]
 	    return
 	}
 
@@ -6499,7 +6604,7 @@ proc ::stackato::cmd::app::DrainAdd {config theapp} {
 	$client app_drain_create $theapp $drain $uri $json
     }
 
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -6525,7 +6630,7 @@ proc ::stackato::cmd::app::DrainDelete {config theapp} {
 	$client app_drain_delete $theapp $drain
     }
 
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -6683,7 +6788,7 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	Pack $explode_dir $ftp $upload_file $mcfile
 	file delete $mcfile
 
-	display [color green OK]
+	display [color good OK]
 	set upload_size [file size $upload_file]
 
 	if {$upload_size > 1024*1024} {
@@ -6723,13 +6828,17 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 	debug.cmd/app {**************************************************************}
 
 	if {[$client isv2]} {
+	    if {[$config @keep-form set?]} {
+		$theapp keep-form [$config @keep-form]
+	    }
+
 	    $theapp upload! $file $appcloud_resources
 	} else {
 	    $client upload_app $appname $file $appcloud_resources
 	}
 
 	display {Push Status: } false
-	display [color green OK]
+	display [color good OK]
 
     } trap {POSIX ENAMETOOLONG} {e o} {
 	# Rethrow as client error.
@@ -6754,7 +6863,7 @@ proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
 	file mkdir $explode_dir
 	file copy $path $explode_dir
 
-    } elseif {[file extension $path] in {.war .zip}} {
+    } elseif {[file extension $path] in {.jar .war .zip}} {
 	# Its an archive, unpack to treat as app directory.
 	zipfile::decode::unzipfile $path $explode_dir
 
@@ -6774,10 +6883,10 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 
     # (xx) Application is specified through its directory and files
     # therein. If a .ear file is found we do not unpack it as it is
-    # hard to pack. If a .war file is found treat that as the app, and
-    # nothing else.  In case of multiple .war/.ear files one is chosen
-    # semi-random.  Don't do something like that. Better specify it as
-    # full file, to invoke the treatment at (**) above.
+    # hard to pack. If a .war/.jar file is found treat that as the
+    # app, and nothing else.  In case of multiple .jar/.war/.ear files
+    # one is chosen semi-random.  Don't do something like that. Better
+    # specify it as full file, to invoke the treatment at (**) above.
 
     # Stage the app appropriately and do the appropriate
     # fingerprinting, etc.
@@ -6792,18 +6901,20 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	set special [expr {![$client isv2]}]
     }
 
-    debug.cmd/app {special ear/war - by option   = [expr {[$config @force-war-unpacking set?] ? [$config @force-war-unpacking] : "n/a" }]}
-    debug.cmd/app {special ear/war - by manifest = [expr {[manifest force-war-unpacking] ne {} ? [manifest force-war-unpacking] : "n/a" }]}
-    debug.cmd/app {special ear/war - by API v1   = [expr {![$client isv2]}]}
+    debug.cmd/app {special ear/war/jar - by option   = [expr {[$config @force-war-unpacking set?] ? [$config @force-war-unpacking] : "n/a" }]}
+    debug.cmd/app {special ear/war/jar - by manifest = [expr {[manifest force-war-unpacking] ne {} ? [manifest force-war-unpacking] : "n/a" }]}
+    debug.cmd/app {special ear/war/jar - by API v1   = [expr {![$client isv2]}]}
 
     if {$special} {
 	debug.cmd/app {special ear/war handling}
-	# Special handling of ear/war files.
+	# Special handling of ear/war/jar files.
 
 	set warfiles [glob -nocomplain *.war]
 	set war_file [lindex $warfiles 0]
 	set earfiles [glob -nocomplain *.ear]
 	set ear_file [lindex $earfiles 0]
+	set jarfiles [glob -nocomplain *.jar]
+	set jar_file [lindex $jarfiles 0]
 
 	if {$ear_file ne {}} {
 	    debug.cmd/app {ear-file found = $ear_file}
@@ -6827,7 +6938,21 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	    return
 	}
 
-	# No ear/war files, fall back to regular operation.
+	if {$jar_file ne {}} {
+	    debug.cmd/app {jar-file found = $jar_file}
+	    # Its an archive, unpack to treat as app directory.
+	    if {[file isdirectory $jar_file]} {
+		# Actually its a directory, plain copy is good enough.
+		cd::indir $jar_file {
+		    MakeACopy $explode_dir [pwd] {}
+		}
+	    } else {
+		zipfile::decode::unzipfile $jar_file $explode_dir
+	    }
+	    return
+	}
+
+	# No ear/war/jar files, fall back to regular operation.
     }
 
     if {!$copyunsafe} {
@@ -6898,12 +7023,12 @@ proc ::stackato::cmd::app::ProcessResources {config explode_dir} {
 	set resources {}
     }
 
-    display " [color green OK]"
+    display " [color good OK]"
     clearlast
 
     if {![llength $resources]} {
 	debug.cmd/app {nothing cached ==> 0 ()}
-	display "  Processing resources ... [color green OK]"
+	display "  Processing resources ... [color good OK]"
 	return {}
     }
 
@@ -6919,7 +7044,7 @@ proc ::stackato::cmd::app::ProcessResources {config explode_dir} {
 	lappend result $resource
     }
 
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/app {==> [llength $result] ($result)}
     return $result
@@ -6946,9 +7071,9 @@ proc ::stackato::cmd::app::application-size {path} {
 	    debug.cmd/app {-- ear file size}
 	    return [MB [file size $path]]
 
-	} elseif {[file extension $path] in {.war .zip}} {
+	} elseif {[file extension $path] in {.jar .war .zip}} {
 	    # Its an archive, unpack to treat as app directory.
-	    debug.cmd/app {-- war file}
+	    debug.cmd/app {-- war/jar/zip archive}
 	    return [MB [ZipTotal $path]]
 	} else {
 	    # Plain file, just treat it as the single file in an
@@ -6960,16 +7085,18 @@ proc ::stackato::cmd::app::application-size {path} {
 
     # (xx) Application is specified through its directory and files
     # therein. If a .ear file is found we do not unpack it as it is
-    # hard to pack. If a .war file is found treat that as the app, and
-    # nothing else.  In case of multiple .war/.ear files one is chosen
-    # semi-random.  Don't do something like that. Better specify it as
-    # full file, to invoke the treatment at (**) above.
+    # hard to pack. If a .war/.jar file is found treat that as the
+    # app, and nothing else.  In case of multiple .war/.ear/.jar files
+    # one is chosen semi-random.  Don't do something like that. Better
+    # specify it as full file, to invoke the treatment at (**) above.
 	    
     cd::indir $path {
 	set warfiles [glob -nocomplain *.war]
 	set war_file [lindex $warfiles 0]
 	set earfiles [glob -nocomplain *.ear]
 	set ear_file [lindex $earfiles 0]
+	set jarfiles [glob -nocomplain *.jar]
+	set jar_file [lindex $jarfiles 0]
 
 	# Stage the app appropriately and do the appropriate
 	# fingerprinting, etc.
@@ -6986,6 +7113,16 @@ proc ::stackato::cmd::app::application-size {path} {
 	    } else {
 		debug.cmd/app {-- war file}
 		return [MB [ZipTotal $war_file]]
+	    }
+	} elseif {$jar_file ne {}} {
+	    # Its an archive, unpack to treat as app directory.
+	    if {[file isdirectory $jar_file]} {
+		# Actually its a directory, plain copy is good enough.
+		debug.cmd/app {-- jar directory}
+		return [MB [Total $jar_file]]
+	    } else {
+		debug.cmd/app {-- jar file}
+		return [MB [ZipTotal $jar_file]]
 	    }
 	} else {
 	    debug.cmd/app {-- plain directory}
@@ -7092,7 +7229,7 @@ proc ::stackato::cmd::app::GetUnreachableLinks {root ignorepatterns} {
     if {![llength $unreachable_paths]} {
 	#again+ {                  }
 	#again+ {}
-	display " [color green OK]"
+	display " [color good OK]"
 	clearlast
 	return
     } else {
@@ -7241,7 +7378,7 @@ proc ::stackato::cmd::app::MakeACopy {explode_dir root ignorepatterns} {
 
     #again+ {                    }
     #again+ {}
-    display " [color green OK]"
+    display " [color good OK]"
     clearlast
 }
 

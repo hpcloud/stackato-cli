@@ -58,10 +58,23 @@ package require debug
 package require debug::caller
 package require cmdr::help::json
 package require stackato::cmdr
+package require stackato::cmd::color
+package require cmdr::color
+
+# Stackato specific standard color names
+# - trace output.
+# - log output, system vs application
+cmdr color define trace   e30,46  ;# text=black, bg=cyan (currently cannot aggregate new color by symbolic codes).
+cmdr color define log-sys e33     ;# text=yellow
+cmdr color define log-app e36     ;# text=cyan
+stackato::cmd::color import
+
+#TODO: Read and integrate external color configuration file.
 
 package require term::ansi::code::ctrl ; # ANSI terminal control codes
 #debug header  {[term::ansi::code::ctrl::sda_bgblack][term::ansi::code::ctrl::sda_bgcyan][pid] :: }
 debug trailer {[term::ansi::code::ctrl::sda_reset]}
+#debug trailer {[cmdr color reset]}
 
 if {[lindex $argv 0] eq "--child"} {
     # Child processes (log stream, for example).
@@ -70,12 +83,13 @@ if {[lindex $argv 0] eq "--child"} {
 
     set argv [lrange $argv 1 end]
     set ::CHILD 1
-    debug header {[term::ansi::code::ctrl::sda_bgblack][term::ansi::code::ctrl::sda_bgcyan]CHILD [pid] @ [clock format [clock seconds]] :: }
+    debug header {[cmdr color trace]CHILD [pid] @ [clock format [clock seconds]] :: }
 
 } else {
     # Toplevel process. Overwrite old trace (REST).
     set ::CHILD 0
     debug header {[term::ansi::code::ctrl::sda_bgblack][term::ansi::code::ctrl::sda_bgcyan]MAIN  [pid] @ [clock format [clock seconds]] :: }
+    #debug header {[cmdr color trace]MAIN  [pid] @ [clock format [clock seconds]] :: }
 }
 
 try {
@@ -96,11 +110,16 @@ try {
     }
 
     stackato-cli do {*}$argv
+
+} trap {STACKATO CLIENT CLI GRACEFUL-EXIT} e {
+    if {$e ne {}} { puts $e }
+
 } trap {CMDR ACTION UNKNOWN} {e o} - \
   trap {CMDR ACTION BAD} {e o} - \
   trap {CMDR VALIDATE} {e o} - \
+  trap {CMDR CONFIG BAD OPTION} {e o} - \
   trap {CMDR DO UNKNOWN} {e o} {
-      puts [stackato::color::red $e]
+      puts [cmdr color bad $e]
       stackato::mgr exit fail
 }
 stackato::mgr exit done

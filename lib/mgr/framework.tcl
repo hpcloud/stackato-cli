@@ -108,6 +108,8 @@ proc ::stackato::mgr::framework::detect {path {available {}}} {
 	return [detect_from_dir $path $available]
     } elseif {[file extension $path] eq ".war"} {
 	return [detect_framework_from_war $path]
+    } elseif {[file extension $path] eq ".jar"} {
+	return [detect_framework_from_war $path]
     } elseif {[file extension $path] eq ".zip"} {
 	return [detect_framework_from_zip $path $available]
     } elseif {"standalone" in $available} {
@@ -193,6 +195,17 @@ proc ::stackato::mgr::framework::detect_from_dir {path {available {}}} {
 		return [detect_from_dir $warfile $available]
 	    } else {
 		return [detect_framework_from_war $warfile]
+	    }
+	}
+	if {[set jarfile [lindex [glob -nocomplain *.jar] 0]] ne {}} {
+	    debug.mgr/framework Java/Jar
+	    debug.mgr/framework {[package ifneeded zipfile::decode [package present zipfile::decode]]}
+
+	    if {[file isdirectory $jarfile]} {
+		# Recurse. Note how our .jar file is actually a directory.
+		return [detect_from_dir $jarfile $available]
+	    } else {
+		return [detect_framework_from_war $jarfile]
 	    }
 	}
 	if {[file exists WEB-INF/web.xml]} {

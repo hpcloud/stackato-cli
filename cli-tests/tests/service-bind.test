@@ -178,7 +178,7 @@ test bind-service-1.6.2 {bind-service, running app, restart} -constraints cfv2 -
     remove-appdir
     stage-close
 } -match glob -result {Binding test-service to node-env ... 
-Stopping Application \[node-env\] ... OK
+Stopping Application \[node-env\] ... *OK
 Starting Application \[node-env\] ... *
 OK
 *//node-env.* deployed}

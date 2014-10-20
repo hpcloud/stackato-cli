@@ -106,6 +106,7 @@ namespace eval ::stackato::mgr::cfile {
 	group     {~/.stackato/client/group}
 	rest      {~/.stackato/client/trace-rest}
 	history   {~/.stackato/client/history}
+	colors    {~/.stackato/client/colors}
     }
 }
 

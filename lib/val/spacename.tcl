@@ -46,8 +46,6 @@ proc ::stackato::validate::spacename::complete {p x} {
 
 proc ::stackato::validate::spacename::validate {p x} {
     debug.validate/spacename {}
-    # Accept the default.
-    if {$x eq {}} { debug.validate/spacename {OK/default} ; return $x }
 
     refresh-client $p
 

@@ -12,9 +12,9 @@ package require json
 package require uri
 package require tunnel
 package require varsub
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
-package require stackato::term
 package require stackato::mgr::self
 package require stackato::mgr::service
 package require stackato::validate::appname
@@ -37,8 +37,8 @@ namespace eval ::stackato::mgr::tunnel {
 
     namespace ensemble create
 
-    namespace import ::stackato::color
-    namespace import ::stackato::term
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::self
@@ -260,9 +260,9 @@ proc ::stackato::mgr::tunnel::url {allowhttp client} {
 		set theurl $url
 
 		if {$scheme eq "http"} {
-		    display "[color yellow UNSAFE], at $url"
+		    display "[color warning UNSAFE], at $url"
 		} else {
-		    display "[color green OK], at $url"
+		    display "[color good OK], at $url"
 		}
 
 		debug.mgr/tunnel {/done ==> $url}
@@ -287,7 +287,7 @@ proc ::stackato::mgr::tunnel::url {allowhttp client} {
 
 	if {$code < 0} {
 	    # DNS setup issue.
-	    display [color red FAILED]
+	    display [color bad FAILED]
 	    err "$e\nPlease configure your DNS to ensure that either\n\thttps://$tun_url or\n\thttp://$tun_url\nare reachable."
 	}
 
@@ -374,7 +374,7 @@ proc ::stackato::mgr::tunnel::healthy? {allowhttp client auth stopcmd} {
 	# Something strongly broken. Stop and abort.
 	debug.mgr/tunnel {Application not reachable (404)}
 
-	display [color red "Unable to reach application (404)"]
+	display [color bad "Unable to reach application (404)"]
 	{*}$stopcmd
 	return 0
 
@@ -389,7 +389,7 @@ proc ::stackato::mgr::tunnel::healthy? {allowhttp client auth stopcmd} {
 
 	# Report any other issues as unhealthy and abort the
 	# helper app.
-	display [color red $e]
+	display [color bad $e]
 	{*}$stopcmd
 	return 0
     }
@@ -459,7 +459,7 @@ proc ::stackato::mgr::tunnel::connection-info {allowhttp client type sname auth}
 	err "Expected remote tunnel to know about service $sname, but it doesn't"
     }
 
-    display [color green OK]
+    display [color good OK]
 
     debug.mgr/tunnel {R = ($code) <$response>}
 
@@ -520,7 +520,7 @@ proc ::stackato::mgr::tunnel::start {allowhttp client trace mode sname local_por
     variable thetunnel
 
     set once [expr {$mode eq "once"}]
-    display "Starting [expr {$once ? "single-shot " : ""}]tunnel to [color bold $sname] on port [color bold $local_port]."
+    display "Starting [expr {$once ? "single-shot " : ""}]tunnel to [color {bold name} $sname] on port [color {bold name} $local_port]."
 
     set thetunnel [tunnel new]
     $thetunnel start \
@@ -645,7 +645,7 @@ proc ::stackato::mgr::tunnel::Resolver {info local_port varname} {
 	    if {[dict exists $info $varname]} {
 		set value [dict get $info $varname]
 	    } else {
-		set value [term ask/string "${varname}: "]
+		set value [ask string "${varname}: "]
 	    }
 	}
     }

@@ -7,10 +7,10 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
-package require stackato::term
 package require stackato::v2
 package require table
 
@@ -26,11 +26,11 @@ namespace eval ::stackato::cmd::routes {
 	create delete list
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -43,15 +43,15 @@ proc ::stackato::cmd::routes::delete {config} {
     set route [$config @name]
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
-	      "\nReally delete \"[$route name]\" ? " \
+	![ask yn \
+	      "\nReally delete \"[color name [$route name]]\" ? " \
 	      no]} return
 
     $route delete
 
-    display "Deleting route [$route name] ... " false
+    display "Deleting route [color name [$route name]] ... " false
     $route commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -85,7 +85,7 @@ proc ::stackato::cmd::routes::list {config} {
 		lappend aspace $space
 	    }
 	    $t add \
-		[$route name] \
+		http://[$route name] \
 		[$route @space full-name] \
 		[join $aname \n] \
 		[join $aspace \n]

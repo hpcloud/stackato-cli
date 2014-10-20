@@ -56,8 +56,11 @@ proc ::stackato::validate::instance::default {p}   {
 	}
 
 	manifest user_1app_do theapp {
-	    set imap [$theapp instances]
+	    if {$theapp ne "api"} {
+		set imap [$theapp instances]
+	    }
 	} keep
+	if {$theapp eq "api"} { return 0 }
 
 	debug.validate/instance {$theapp ([$theapp @name]) ==> ($imap)}
 
@@ -105,7 +108,15 @@ proc ::stackato::validate::instance::validate {p x} {
 	}
 
 	manifest user_1app_do theapp {
-	    set imap [$theapp instances]
+	    if {$theapp ne "api"} {
+		set imap [$theapp instances]
+	    }
+	}
+
+	if {$theapp eq "api"} {
+	    # Accept anything, does not matter for ssh to CC
+	    debug.validate/instance {OK/ssh-CC allow anything, irrelevant}
+	    return $x
 	}
 
 	if {[dict exists $imap $x]} {
@@ -114,8 +125,19 @@ proc ::stackato::validate::instance::validate {p x} {
 	    debug.validate/instance {OK/canon = $x}
 	    return $x
 	}
+
+	set idx [lsort -dict [dict keys $imap]]
+	set min [lindex $idx 0]
+	set max [lindex $idx end]
+
+	if {$min == $max} {
+	    set note "!= $min"
+	} else {
+	    set note "outside ${min}-$max"
+	}
+
 	debug.validate/instance {FAIL}
-	fail-unknown-thing $p INSTANCE "instance index" $x " for application '[$theapp @name]'"
+	fail-unknown-thing $p INSTANCE "instance index" $x " for application '[$theapp @name]' ($note)"
     } else {
 	# v1 ... Validate as plain integer0
 	integer0 validate $p $x

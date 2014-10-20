@@ -12,7 +12,7 @@ package require base64
 package require dictutil
 package require fileutil
 package require lambda
-package require stackato::color
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
@@ -30,7 +30,7 @@ namespace eval ::stackato::cmd::admin {
 	default-report grant-core
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -108,7 +108,7 @@ proc ::stackato::cmd::admin::report {config} {
 	$destination $thereport
 	
 
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -163,7 +163,7 @@ proc ::stackato::cmd::admin::GrantV1 {client email} {
 	display "Granting administrator privileges to \[$email\] ... " false
 	lappend admins $email
 	$client cc_config_set [dict create admins $admins]
-	display [color green OK]
+	display [color good OK]
     } else {
 	display "User \[$email\] already has administrator privileges"
     }
@@ -218,7 +218,7 @@ proc ::stackato::cmd::admin::RevokeV1 {client email} {
 	display "Revoking administrator privileges from \[$email\] ... " false
 	set admins [lreplace $admins $pos $pos]
 	$client cc_config_set [dict create admins $admins]
-	display [color green OK]
+	display [color good OK]
     } else {
 	display "User \[$email\] is already a regular user"
     }

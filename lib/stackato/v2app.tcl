@@ -324,9 +324,23 @@ oo::class create ::stackato::v2::app {
 	return
     }
 
+    method keep-form {path} {
+	[authenticated] keep-form $path
+	return
+    }
+
     method upload! {zip resources} {
 	debug.v2/app {}
-	[authenticated] upload-by-url [my url]/bits $zip $resources
+	set client [authenticated]
+	if {[my started?] && [$client zero-downtime]} {
+	    # 0-downtime notification in upload.
+	    debug.v2/app {0-down active}
+	    $client upload-by-url [my url]/bits $zip $resources application 1
+	} else {
+	    debug.v2/app {0-down inactive, regular upload}
+	    # regular upload, 0-downtime is not signaled, even if supported.
+	    $client upload-by-url [my url]/bits $zip $resources
+	}
 	return
     }
 
@@ -466,6 +480,10 @@ oo::class create ::stackato::v2::appinstance {
 
     # # ## ### ##### ######## #############
     ## API
+
+    method index {} {
+	return $mynum
+    }
 
     method = {json} {
 	set myjson $json

@@ -39,7 +39,8 @@ test files-1.2 {files, bogus app} -setup {
 } -cleanup {
     remove-appdir
     stage-close
-} -returnCodes error -result [unexpected input application application A]
+} -returnCodes error -result [unexpected input application application A \
+				  "in space '[theorg]::[thespace]'"]
 
 # # ## ### ##### ######## ############# #####################
 ## Note: Ignoring the 'log' output as it is timing sensitive and may

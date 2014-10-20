@@ -8,10 +8,10 @@
 
 package require Tcl 8.5
 package require cmdr
+package require cmdr::ask
+package require cmdr::color
 package require dictutil
 package require stackato::log
-package require stackato::color
-package require stackato::term
 package require stackato::mgr::client
 package require stackato::mgr::ctarget
 package require stackato::mgr::service
@@ -23,13 +23,14 @@ namespace eval ::stackato::mgr {
 namespace eval ::stackato::mgr::app {
     namespace export \
 	base ticker health tail timeout \
-	min-memory hasharbor delete
+	min-memory hasharbor delete \
+	health-color state-color
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
-    namespace import ::stackato::term
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::service
@@ -58,7 +59,7 @@ proc ::stackato::mgr::app::DeleteV2 {config client theapp force {rollback 0}} {
     set appname [$theapp @name]
 
     if {$rollback} {
-	display [color red "Rolling back application \[$appname\] ... "] false
+	display [color bad "Rolling back application \[[color name $appname]\] ... "] false
     }
 
     set services_to_delete [ServicesToDelete $theapp $force $rollback]
@@ -69,24 +70,24 @@ proc ::stackato::mgr::app::DeleteV2 {config client theapp force {rollback 0}} {
     }
 
     if {!$rollback} {
-	display "Deleting application \[$appname\] ... " false
+	display "Deleting application \[[color name $appname]\] ... " false
     }
 
     $theapp delete!
-    display [color green OK]
+    display [color good OK]
 
     foreach s $services_to_delete {
-	display "Deleting service \[[$s @name]\] ... " false
+	display "Deleting service \[[color name [$s @name]]\] ... " false
 	$s delete
 	$s commit
-	display [color green OK]
+	display [color good OK]
     }
 
     foreach r $routes_to_delete {
-	display "Deleting route \[[$r name]\] ... " false
+	display "Deleting route \[[color name [$r name]]\] ... " false
 	$r delete
 	$r commit
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.mgr/app {/done}
@@ -98,7 +99,7 @@ proc ::stackato::mgr::app::DeleteV1 {client appname force {rollback 0}} {
 
     set bling $rollback ;# will be reset in the loop, diverging
     if {$rollback} {
-	display [color red "Rolling back application \[$appname\] ... "] false
+	display [color bad "Rolling back application \[[color name $appname]\] ... "] false
     }
 
     set service_map        [service map $client]
@@ -118,7 +119,7 @@ proc ::stackato::mgr::app::DeleteV1 {client appname force {rollback 0}} {
 		set bling 0
 	    }
 	    set del_service \
-		[term ask/yn "Provisioned service \[$service\] detected would you like to delete it ?: " no]
+		[ask yn "Provisioned service \[[color name $service]\] detected would you like to delete it ?: " no]
 	}
 
 	if {!$del_service} continue
@@ -126,16 +127,16 @@ proc ::stackato::mgr::app::DeleteV1 {client appname force {rollback 0}} {
     }
 
     if {!$rollback} {
-	display "Deleting application \[$appname\] ... " false
+	display "Deleting application \[[color name $appname]\] ... " false
     }
 
     $client delete_app $appname
-    display [color green OK]
+    display [color good OK]
 
     foreach s $services_to_delete {
-	display "Deleting service \[$s\] ... " false
+	display "Deleting service \[[color name $s]\] ... " false
 	$client delete_service $s
-	display [color green OK]
+	display [color good OK]
     }
 
     debug.mgr/app {/done}
@@ -143,9 +144,12 @@ proc ::stackato::mgr::app::DeleteV1 {client appname force {rollback 0}} {
 }
 
 proc ::stackato::mgr::app::RoutesToDelete {theapp bling} {
+    debug.mgr/app {}
     set bound     [$theapp @routes]
     set to_delete {}
     set promptok  [cmdr interactive?]
+
+    debug.mgr/app {bound = ([join $bound ")\n bound = ("])}
 
     foreach route $bound {
 	#checker -scope line exclude badOption
@@ -158,8 +162,10 @@ proc ::stackato::mgr::app::RoutesToDelete {theapp bling} {
 		set bling 0
 	    }
 	    set del_route \
-		[term ask/yn "Exclusive route \[[$route name]\] detected. Would you like to delete it ?: " no]
+		[ask yn "Exclusive route \[[color name [$route name]]\] detected. Would you like to delete it ?: " no]
 	}
+
+	debug.mgr/app {d=$del_route m=$multiuse $route ([$route name])}
 
 	if {!$del_route} continue
 	lappend to_delete $route
@@ -184,7 +190,7 @@ proc ::stackato::mgr::app::ServicesToDelete {theapp force bling} {
 		set bling 0
 	    }
 	    set del_service \
-		[term ask/yn "Provisioned service \[[$service @name]\] detected. Would you like to delete it ?: " no]
+		[ask yn "Provisioned service \[[color name [$service @name]]\] detected. Would you like to delete it ?: " no]
 	}
 
 	if {!$del_service} continue
@@ -192,6 +198,31 @@ proc ::stackato::mgr::app::ServicesToDelete {theapp force bling} {
     }
 
     return $services_to_delete
+}
+
+proc ::stackato::mgr::app::state-color {x} {
+    switch -glob -- $x {
+	STOPPED { return [color note $x] }
+	STARTED { return $x }
+	default { return $x }
+    }
+}
+
+proc ::stackato::mgr::app::health-color {x} {
+    # STARTED
+    # N/A
+    # RUNNING
+    # 0%
+    # <n>%
+
+    switch -glob -- $x {
+	STARTED { return [color note    $x] }
+	N/A     { return [color note    $x] }
+	RUNNING { return [color good    $x] }
+	0%      { return [color bad     $x] }
+	*%      { return [color warning $x] }
+	default { return [color error   $x] }
+    }
 }
 
 proc ::stackato::mgr::app::base       {} { debug.mgr/app {} ; variable base   ; return $base    }

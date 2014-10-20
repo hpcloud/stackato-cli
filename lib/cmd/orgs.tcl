@@ -7,7 +7,8 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client ; # pulls all of v2
@@ -15,7 +16,6 @@ package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
-package require stackato::term
 package require table
 
 debug level  cmd/orgs
@@ -31,7 +31,8 @@ namespace eval ::stackato::cmd::orgs {
 	set-quota update
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -41,7 +42,6 @@ namespace eval ::stackato::cmd::orgs {
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -65,7 +65,7 @@ proc ::stackato::cmd::orgs::update {config} {
 
 	$org $attr set [set newvalue [$config $cattr]]
 	if {!$changes} {
-	    display "Changing '$oname' ..."
+	    display "Changing '[color name $oname]' ..."
 	}
 
 	if {$transform ne {}} {
@@ -79,9 +79,9 @@ proc ::stackato::cmd::orgs::update {config} {
     if {$changes} {
 	display Committing... false
 	$org commit
-	display [color green OK]
+	display [color good OK]
     } else {
-	display [color blue {No changes}]
+	display [color note {No changes}]
     }
     return
 }
@@ -93,10 +93,10 @@ proc ::stackato::cmd::orgs::set-quota {config} {
     set org [$config @name]
     set qd  [$config @quota]
 
-    display "Setting quota of \"[$org @name]\" to \"[$qd @name]\" ... " false
+    display "Setting quota of \"[color name [$org @name]]\" to \"[color name [$qd @name]]\" ... " false
     $org @quota_definition set $qd
     $org commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -112,7 +112,7 @@ proc ::stackato::cmd::orgs::switch {config} {
     }
 
     if {$org eq {}} {
-	display [color yellow {Unable to switch, no organization specified}]
+	display [color warning {Unable to switch, no organization specified}]
 	return
     }
 
@@ -143,30 +143,28 @@ proc ::stackato::cmd::orgs::create {config} {
 	display "Adding you as developer ... " false
 	set user [v2 deref-type user [[$config @client] user]]
 	$org @users add $user
-	display [color green OK]
+	display [color good OK]
     }
 
     if {[$config @quota set?]} {
 	set thequota [$config @quota]
-	display "Setting quota \"[$thequota @name]\" ... " false
+	display "Setting quota \"[color name [$thequota @name]]\" ... " false
 	$org @quota_definition set $thequota
-	display [color green OK]
+	display [color good OK]
     }
 
-    display "Creating new organization $name ... " false
+    display "Creating new organization [color name $name] ... " false
     $org commit
-    display [color green OK]
+    display [color good OK]
 
     if {[$config @activate]} {
-	display "Switching to organization [$org @name] ... " false
+	display "Switching to organization [color name [$org @name]] ... " false
 	corg set $org
 	corg save
 	cspace reset
 	cspace save
-	display [color green OK]
-
-	display [color red {No spaces available. Please create some with }][color green create-space]
-
+	display [color good OK]
+	display [color bad {No spaces available. Please create some with }][color prompt create-space]
 	display [context format-large]
     }
 
@@ -188,8 +186,8 @@ proc ::stackato::cmd::orgs::delete {config} {
     }
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
-	      "\nReally delete \"[$org @name]\"$suffix ? " \
+	![ask yn \
+	      "\nReally delete \"[color name [$org @name]]\"$suffix ? " \
 	      no]} return
 
     if {$recursive} {
@@ -198,14 +196,14 @@ proc ::stackato::cmd::orgs::delete {config} {
 	$org delete
     }
 
-    display "Deleting organization [$org @name] ... " false
+    display "Deleting organization [color name [$org @name]] ... " false
     $org commit
-    display [color green OK]
+    display [color good OK]
 
     # Update (remove) the current org (and its space, if that is the
     # org we just deleted.
     if {$iscurrent} {
-	display "Dropped removed organization as current organization."
+	display [color warning "Dropped removed organization as current organization."]
 
 	corg reset
 	corg save
@@ -233,9 +231,9 @@ proc ::stackato::cmd::orgs::rename {config} {
 
     $org @name set $new
 
-    display "Renaming organization \[$old\] to '$new' ... " false
+    display "Renaming organization \[[color name $old]\] to '[color name $new]' ... " false
     $org commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -244,7 +242,7 @@ proc ::stackato::cmd::orgs::list {config} {
     # No arguments.
 
     if {![$config @json]} {
-	display "In [ctarget get]..."
+	display "In [color name [ctarget get]]..."
     }
     set co [corg get]
 
@@ -282,7 +280,7 @@ proc ::stackato::cmd::orgs::list {config} {
 	    }
 
 	    lappend values [expr {($co ne {}) && [$co == $org] ? "x" : ""}]
-	    lappend values [$org @name]
+	    lappend values [color name [$org @name]]
 	    lappend values $isdef
 	    lappend values [$org @quota_definition @name]
 	    lappend values [join [lsort -dict [$org @spaces  @name]] \n]

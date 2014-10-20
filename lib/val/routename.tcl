@@ -11,6 +11,7 @@
 package require Tcl 8.5
 package require struct::list
 package require lambda
+package require url
 package require dictutil
 package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
@@ -58,14 +59,20 @@ proc ::stackato::validate::routename::validate {p x} {
     # We are not accepting just a domain without host.
 
     # Pre-filter the routes by host (target-side) ...
-    set host [lindex [split $x .] 0]
+    # Accept routes with http(s):// prefix and strip said prefix.
+    set r    [url domain $x]
+    set host [lindex [split $r .] 0]
+
+    debug.validate/routename {r    = $r}
+    debug.validate/routename {host = $host}
+
     set matches [v2 route list-by-host $host 1 {include-relations domain}]
 
     # ... then filter by full name (i.e. including domain),
     # client-side.
     set matches [struct::list filter $matches [lambda {x o} {
 	string equal $x	[$o name]
-    } $x]]
+    } $r]]
 
     if {[llength $matches] == 1} {
 	debug.validate/routename {OK/canon = $x}

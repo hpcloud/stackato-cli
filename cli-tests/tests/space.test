@@ -100,18 +100,18 @@ test space-1.4.1 {space, --json} -constraints s32ge -setup {
     stage-close
 } -match glob -result [string map [list @@@@ [thespace]] {{
     "entity"   : {
-        "app_events_url"        : "/v2/spaces/*/app_events",
-        "apps_url"              : "/v2/spaces/*/apps",
-        "auditors_url"          : "/v2/spaces/*/auditors",
-        "developers_url"        : "/v2/spaces/*/developers",
-        "domains_url"           : "/v2/spaces/*/domains",
-        "events_url"            : "/v2/spaces/*/events",
-        "is_default"            : false,
-        "managers_url"          : "/v2/spaces/*/managers",
-        "name"                  : "@@@@",
-        "organization_guid"     : "*",
-        "organization_url"      : "/v2/organizations/*",
-        "service_instances_url" : "/v2/spaces/*/service_instances"
+        "app_events_url"        *: "/v2/spaces/*/app_events",
+        "apps_url"              *: "/v2/spaces/*/apps",
+        "auditors_url"          *: "/v2/spaces/*/auditors",
+        "developers_url"        *: "/v2/spaces/*/developers",
+        "domains_url"           *: "/v2/spaces/*/domains",
+        "events_url"            *: "/v2/spaces/*/events",
+        "is_default"            *: false,
+        "managers_url"          *: "/v2/spaces/*/managers",
+        "name"                  *: "@@@@",
+        "organization_guid"     *: "*",
+        "organization_url"      *: "/v2/organizations/*",*
+        "service_instances_url" *: "/v2/spaces/*/service_instances"*
     },
     "metadata" : {
         "created_at" : "*",

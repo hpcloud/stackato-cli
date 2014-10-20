@@ -7,13 +7,14 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
-package require stackato::term
 package require stackato::v2
 package require zipfile::encode
 package require fileutil
+package require fileutil::traverse
 package require table
 
 debug level  cmd/buildpacks
@@ -28,13 +29,13 @@ namespace eval ::stackato::cmd::buildpacks {
 	list create lock unlock rename update delete select-for
     namespace ensemble create
 
-    namespace import ::stackato::color
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::log::again+
     namespace import ::stackato::log::clearlast
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -43,31 +44,13 @@ namespace eval ::stackato::cmd::buildpacks {
 proc ::stackato::cmd::buildpacks::create {config} {
     debug.cmd/buildpacks {}
 
-    set zip [$config @zip]
+    set zip       [$config @zip]
     set transient 0
 
     try {
-	if {[file isfile $zip] && ![zipfile::decode::iszip $zip]} {
-	    err "Input \"zip\" expected a zip archive, got \"$zip\""
-	}
-	if {[file isdirectory $zip]} {
-	    # A directory is converted into the zip file to upload.
-	    try {
-		set zip [Pack $zip]
-		set transient 1
-	    } on error {e o} {
-		err $e
-	    }
-	}
-
-	set client [$config @client]
-	lassign    [GetArchive $client $transient $zip] transient zip
-	if {![zipfile::decode::iszip $zip]} {
-	    err "Input \"zip\" expected a zip archive, got \"$zip\""
-	}
+	Ingest $config zip transient
 
 	set buildpack [v2 buildpack new]
-
 	$buildpack @name set [$config @name]
 
 	if {[$config @position set?]} {
@@ -77,13 +60,14 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	    $buildpack @enabled set [$config @enabled]
 	}
 
-	display "Creating new buildpack [$buildpack @name] ... " false
+	display "Creating new buildpack [color name [$buildpack @name]] ... " false
 	$buildpack commit
-	display [color green OK]
+	display [color good OK]
 
 	display "Uploading buildpack bits ... " false
+	Keeping $config $zip $buildpack
 	$buildpack upload! $zip
-	display [color green OK]
+	display [color good OK]
 
 	# A lock request is done last, in case setting the flag as part of
 	# buildpack creation will prevent the upload of the bits.
@@ -91,7 +75,7 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	    display "Locking buildpack ... " false
 	    $buildpack @locked set [$config @locked]
 	    $buildpack commit
-	    display [color green OK]
+	    display [color good OK]
 	}
     } finally {
 	if {$transient} {
@@ -103,30 +87,156 @@ proc ::stackato::cmd::buildpacks::create {config} {
     return
 }
 
-proc ::stackato::cmd::buildpacks::Pack {path} {
+proc ::stackato::cmd::buildpacks::Keeping {config zip buildpack} {
+    debug.cmd/buildpacks {}
+    if {[$config @keep-form set?]} {
+	debug.cmd/buildpacks {form = [$config @keep-form]}
+	$buildpack keep-form [$config @keep-form]
+    }
+    if {[$config @keep-zip set?]} {
+	debug.cmd/buildpacks {zip  = [$config @keep-zip]}
+	file copy -force $zip [$config @keep-zip]
+    }
+    return
+}
+
+proc ::stackato::cmd::buildpacks::Ingest {config zv tv} {
+    debug.cmd/buildpacks {}
+    upvar 1 $zv zip $tv transient
+
+    if {[file isfile $zip]} {
+	if {![zipfile::decode::iszip $zip]} {
+	    err "Input \"zip\" expected a zip archive, got \"$zip\""
+	}
+
+	Rewrite zip transient {*}[ValidateZip $zip]
+	return
+    }
+
+    if {[file isdirectory $zip]} {
+	# A directory is converted into the zip file to upload.
+
+	# Validate - Look for bin/compile - strip as part of pack.
+	set zip [ValidateDir $zip]
+
+	try {
+	    set zip [Pack $zip]
+	    set transient 1
+	} on error {e o} {
+	    err $e
+	}
+
+	return
+    }
+
+    set client [$config @client]
+    lassign    [GetArchive $client $transient $zip] transient zip
+
+    if {![zipfile::decode::iszip $zip]} {
+	err "Input \"zip\" expected a zip archive, got \"$zip\""
+    }
+
+    Rewrite zip transient {*}[ValidateZip $zip]
+    return
+}
+
+
+proc ::stackato::cmd::buildpacks::ValidateDir {path} {
+    debug.cmd/buildpacks {}
+    #set path [file normalize $path]
+    fileutil::traverse T $path
+    T foreach sub {
+	if {![file isdirectory $sub]} continue
+	if {![file exists $sub/bin/compile]} continue
+	T destroy
+
+	if {$sub ne $path} {
+	    #set sub [fileutil::stripPath $path $sub]
+	    display [color note "Found actual buildpack in $sub"]
+	}
+
+	debug.cmd/buildpacks {==> $sub}
+	return $sub
+    }
+    T destroy
+    err "Expected a buildpack, did not find bin/compile under $path"
+}
+
+proc ::stackato::cmd::buildpacks::Rewrite {zv tv zpath prefix} {
+    debug.cmd/buildpacks {}
+    upvar 1 $zv zip $tv transient
+
+    if {$prefix eq {}} return
+    # Rewrite the incoming zip file to strip the prefix from all paths.
+
+    display "Strip path prefix \"$prefix\" ... " false
+
+    set tmpdir [fileutil::tempfile stackato-buildpack-rewrite-]
+    file delete $tmpdir
+    file mkdir  $tmpdir
+
+    zipfile::decode::unzipfile $zpath $tmpdir
+
+    set zip [Pack $tmpdir/$prefix 0]
+    if {$transient} {
+	debug.cmd/buildpacks {Drop old tempfile $zpath}
+	file delete $zpath
+    }
+
+    file delete -force $tmpdir
+    set transient 1
+
+    display [color good OK]
+    debug.cmd/buildpacks {/done}
+    return
+}
+
+proc ::stackato::cmd::buildpacks::ValidateZip {path} {
     debug.cmd/buildpacks {}
 
-    # todo: color 'name' for path.
-    display "Packing directory \"$path\" ... " false
+    zipfile::decode::open $path
+    set zd [zipfile::decode::archive]
+    set f  [dict get $zd files]
+    zipfile::decode::close
+
+    dict for {fname data} $f {
+	if {$fname eq "bin/compile"} {
+	    return [::list $path {}]
+	}
+	if {[regexp {^(.*)/bin/compile$} $fname -> prefix]} {
+	    return [::list $path $prefix]
+	}
+    }
+
+    err "Expected a buildpack, did not find bin/compile inside $path"
+}
+
+proc ::stackato::cmd::buildpacks::Pack {path {log 1}} {
+    debug.cmd/buildpacks {}
+
+    if {$log} { display "Packing directory \"[color name $path]\" ... " false }
 
     set z [zipfile::encode Z]
     foreach f [GetFilesToPack $path] {
-	again+ $f
+	if {$log} { again+ $f }
 
 	debug.cmd/buildpacks {++ $f}
-	$z file: $f 0 $f
+	$z file: $f 0 $path/$f
     }
 
     set zipfile [BPTmp]
-    debug.cmd/buildpacks {Tmp = $zipfile}
 
+    debug.cmd/buildpacks {Tmp = $zipfile}
     debug.cmd/buildpacks {write zip...}
+
     $z write $zipfile
     $z destroy
 
-    again+ {}
-    display [color green OK]
-    clearlast
+    if {$log} {
+	again+ {}
+	display [color good OK]
+	clearlast
+    }
 
     debug.cmd/buildpacks {...done}
     return $zipfile
@@ -175,7 +285,7 @@ proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
     set tmp [BPTmp]
     debug.cmd/buildpacks {Tmp = $tmp}
 
-    display "Downloading $url"
+    display "Downloading [color name $url]"
 
     # Allow redirections (github)
     # Drop stackato/cloudfoundry authorizations
@@ -208,7 +318,7 @@ proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
 	#err "Unable to retrieve $url: $e"
 	err $err
     } finally {
-	display " [color green OK]"
+	display " [color good OK]"
 	clearlast
 
 	# Restore original state (cf auth, no redirections).
@@ -224,8 +334,14 @@ proc ::stackato::cmd::buildpacks::Progress {token total n} {
     # This code assumes that the last say* was the prefix
     # of the upload progress display.
 
-    set p [expr {$n*100/$total}]
-    again+ "${p}% ($n/$total)"
+    # This may happen for a bad url.
+    if {$total eq {}} {
+	set p {}
+	set total ??
+    } else {
+	set p "[expr {$n*100/$total}]% "
+    }
+    again+ "${p}($n/$total)"
     return
 }
 
@@ -247,9 +363,9 @@ proc ::stackato::cmd::buildpacks::rename {config} {
 
     $buildpack @name set $new
 
-    display "Renaming buildpack \[$old\] to '$new' ... " false
+    display "Renaming buildpack \[[color name $old]\] to '[color name $new]' ... " false
     $buildpack commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -260,9 +376,9 @@ proc ::stackato::cmd::buildpacks::lock {config} {
 
     $buildpack @locked set 1
 
-    display "Locking buildpack \[[$buildpack @name]\] ... " false
+    display "Locking buildpack \[[color name [$buildpack @name]]\] ... " false
     $buildpack commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -273,9 +389,9 @@ proc ::stackato::cmd::buildpacks::unlock {config} {
 
     $buildpack @locked set 0
 
-    display "Unlocking buildpack \[[$buildpack @name]\] ... " false
+    display "Unlocking buildpack \[[color name [$buildpack @name]]\] ... " false
     $buildpack commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -285,7 +401,7 @@ proc ::stackato::cmd::buildpacks::update {config} {
     set buildpack [$config @name]
     debug.cmd/buildpacks {buildpack = $buildpack ([$buildpack @name])}
 
-    display "Updating buildpack \[[$buildpack @name]\] ..."
+    display "Updating buildpack \[[color name [$buildpack @name]]\] ..."
 
     set changes 0
     foreach {attr label} {
@@ -295,7 +411,7 @@ proc ::stackato::cmd::buildpacks::update {config} {
     } {
 	display "  $label ... " false
 	if {![$config $attr set?]} {
-	    display [color blue Unchanged]
+	    display [color note Unchanged]
 	    continue
 	}
 	display "Changed to [$config $attr]"
@@ -305,13 +421,28 @@ proc ::stackato::cmd::buildpacks::update {config} {
 
     if {$changes} {
 	$buildpack commit
-	display [color green OK]
+	display [color good OK]
     }
 
     if {[$config @zip set?]} {
 	display "Uploading new buildpack bits ... " false
-	$buildpack upload! [$config @zip]
-	display [color green OK]
+
+	set zip       [$config @zip]
+	set transient 0
+
+	try {
+	    Ingest $config zip transient
+
+	    Keeping $config $zip $buildpack
+	    $buildpack upload! $zip
+	    display [color good OK]
+
+	} finally {
+	    if {$transient} {
+		debug.cmd/buildpacks {deleting $zip}
+		file delete $zip
+	    }
+	}
     }
     return
 }
@@ -324,15 +455,15 @@ proc ::stackato::cmd::buildpacks::delete {config} {
     debug.cmd/buildpacks {buildpack = $buildpack ([$buildpack @name])}
 
     if {[cmdr interactive?] &&
-	![term ask/yn \
+	![ask yn \
 	      "\nReally delete \"[$buildpack @name]\" ? " \
 	      no]} return
 
     $buildpack delete
 
-    display "Deleting buildpack [$buildpack @name] ... " false
+    display "Deleting buildpack [color name [$buildpack @name]] ... " false
     $buildpack commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -372,7 +503,7 @@ proc ::stackato::cmd::buildpacks::list {config} {
 	    }
 	    $t add \
 		[$buildpack @position] \
-		[$buildpack @name] \
+		[color name [$buildpack @name]] \
 		$fn \
 		$enabled $locked
 	}
@@ -401,7 +532,7 @@ proc ::stackato::cmd::buildpacks::select-for {what p {mode noauto}} {
 
     if {([llength $choices] == 1) && ($mode eq "auto")} {
 	::set newpack [lindex $choices 0]
-	display "Choosing the one available buildpack: \"[$newpack @name]\""
+	display "Choosing the one available buildpack: \"[color name [$newpack @name]]\""
 	return $newpack
     }
 
@@ -419,7 +550,7 @@ proc ::stackato::cmd::buildpacks::select-for {what p {mode noauto}} {
 	dict set map [$o @name] $o
     }
     ::set choices [lsort -dict [dict keys $map]]
-    ::set name [term ask/menu "" \
+    ::set name [ask menu "" \
 		    "Which buildpack to $what ? " \
 		    $choices]
 

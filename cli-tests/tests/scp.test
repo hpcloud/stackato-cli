@@ -79,6 +79,20 @@ test scp-1.4 {scp, retrieve file} -setup {
     stage-close
 } -match glob -result [viewFile data/scp14.txt]
 
+test scp-1.5 {scp, retrieve file, explicit --instance} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run scp -a node-env --instance 0 :README.md [thehome]/View
+    tcltest::viewFile [thehome]/View
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/scp14.txt]
+
 TODO scp --target, --group, multiple dependent apps.
 
 # # ## ### ##### ######## ############# #####################

@@ -8,11 +8,12 @@
 
 package require Tcl 8.5
 package require dictutil
+package require cmdr::ask
+package require cmdr::color
 package require stackato::cmd::admin
 package require stackato::cmd::cgroup
 package require stackato::cmd::groups
 package require stackato::cmd::orgs
-package require stackato::color
 package require stackato::client
 package require stackato::jmap
 package require stackato::log
@@ -31,7 +32,6 @@ package require stackato::misc
 package require stackato::validate::orgname
 package require stackato::validate::spacename
 package require stackato::validate::username
-package require stackato::term
 package require stackato::v2
 package require table
 package require textutil::adjust
@@ -51,13 +51,14 @@ namespace eval ::stackato::cmd::usermgr {
 	org-list space-list
     namespace ensemble create
 
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::cmd::admin
     namespace import ::stackato::cmd::cgroup
     rename cgroup cgroupcmd
 
     namespace import ::stackato::cmd::groups
     namespace import ::stackato::cmd::orgs
-    namespace import ::stackato::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -82,7 +83,6 @@ namespace eval ::stackato::cmd::usermgr {
     namespace import ::stackato::validate::orgname
     namespace import ::stackato::validate::spacename
     namespace import ::stackato::validate::username
-    namespace import ::stackato::term
     namespace import ::stackato::v2
 }
 
@@ -111,7 +111,7 @@ proc ::stackato::cmd::usermgr::link-org {config} {
 	#$theuser $attru add $theorg
 	$theorg  $attro add $theuser
 
-	display [color green OK]
+	display [color good OK]
     }
     return
 }
@@ -133,7 +133,7 @@ proc ::stackato::cmd::usermgr::link-space {config} {
 	#$theuser  $attru add $thespace
 	$thespace $attrs add $theuser
 
-	display [color green OK]
+	display [color good OK]
     }
     return
 }
@@ -156,7 +156,7 @@ proc ::stackato::cmd::usermgr::unlink-org {config} {
 	#$theuser $attru remove $theorg
 	$theorg  $attro remove $theuser
 
-	display [color green OK]
+	display [color good OK]
     }
     return
 }
@@ -176,7 +176,7 @@ proc ::stackato::cmd::usermgr::unlink-space {config} {
 	#$theuser  $attru remove $thespace
 	$thespace $attrs remove $theuser
 
-	display [color green OK]
+	display [color good OK]
     }
     return
 }
@@ -249,15 +249,15 @@ proc ::stackato::cmd::usermgr::add {config} {
     set email [$config @email]
     if {[$client isv2] && ![$config @email set?]} {
 	if {$promptok} {
-	    set email [term ask/string "Email: "]
+	    set email [ask string "Email: "]
 	}
     }
 
     set password [$config @password] ;# default: empty
     if {![$config @password set?]} {
 	if {$promptok} {
-	    set password  [term ask/string* "Password: "]
-	    set password2 [term ask/string* "Verify Password: "]
+	    set password  [ask string* "Password: "]
+	    set password2 [ask string* "Verify Password: "]
 	    if {$password ne $password2} {
 		err "Passwords did not match, try again"
 	    }
@@ -296,7 +296,7 @@ proc ::stackato::cmd::usermgr::add {config} {
 	$client add_user $username $password
 	set theuser $username ;# for grant-core
     }
-    display [color green OK]
+    display [color good OK]
 
     # # ## ### Check and process group-specific information.
 
@@ -308,23 +308,27 @@ proc ::stackato::cmd::usermgr::add {config} {
     }
 
     if {[$client isv2]} {
-	set org [$config @organization]
+	if {[$config @no-organization]} {
+	    display [color warning "The new user is kept out of all organizations."]
+	} else {
+	    set org [$config @organization]
 
-	display "Adding new user to [$org @name] ..."
+	    display "Adding new user to [$org @name] ..."
 
-	display "  as user ..."
-	$theuser @organizations         add $org
+	    display "  as user ..."
+	    $theuser @organizations         add $org
 
-	if {[$config @manager]} {
-	    display "  as manager ..."
-	    $theuser @managed_organizations add $org
+	    if {[$config @manager]} {
+		display "  as manager ..."
+		$theuser @managed_organizations add $org
+	    }
+	    if {[$config @auditor]} {
+		display "  as auditor ..."
+		$theuser @audited_organizations add $org
+	    }
+
+	    display [color warning OK]
 	}
-	if {[$config @auditor]} {
-	    display "  as auditor ..."
-	    $theuser @audited_organizations add $org
-	}
-
-	display [color green OK]
     }
 
     # II. Apply limits to the user (as group)
@@ -367,18 +371,18 @@ proc ::stackato::cmd::usermgr::delete-by-uuid {config} {
 	display "Deleting in AOK: $uuid ... " false
 	$client uaa_delete_user $uuid
     } on error {e o} {
-	display [color red "ERR: $e"]
+	display [color bad "ERR: $e"]
     } on ok {e o} {
-	display [color green OK]
+	display [color good OK]
     }
 
     try {
 	display "Deleting in CC:  $uuid ... " false
 	$client delete-by-url /v2/users/$uuid
     } on error {e o} {
-	display [color red "ERR: $e"]
+	display [color bad "ERR: $e"]
     } on ok {e o} {
-	display [color green OK]
+	display [color good OK]
     }
 
     return
@@ -414,7 +418,7 @@ proc ::stackato::cmd::usermgr::DeleteV2 {config client} {
 
     $theuser delete!
     # implied commit
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -433,7 +437,7 @@ proc ::stackato::cmd::usermgr::DeleteV1 {config client} {
 	    # but no apps, no question is asked.
 	    if {$promptok} {
 		set proceed \
-		    [term ask/yn \
+		    [ask yn \
 			 "\nDeployed applications and associated services will be DELETED, continue ? " \
 			 no]
 		if {!$proceed} {
@@ -456,7 +460,7 @@ proc ::stackato::cmd::usermgr::DeleteV1 {config client} {
 
     display {Deleting User ... } false
     $client delete_user $email
-    display [color green OK]
+    display [color good OK]
     return
 }
 
@@ -669,12 +673,18 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
     lappend headings Email
     if {$osa} { lappend headings Organizations Spaces Applications }
 
+    set footnotes {}
     table::do t $headings {
 	foreach u $users {
 	    debug.cmd/usermgr {  process [$u url] = [$u @name] / [$u email] }
 
 	    set email [$u email]
 	    if {[string match {(legacy-api)} $email]} continue
+
+	    if {[$u uaaerror] ne {}} {
+		set email "Error ([llength $footnotes])"
+		lappend footnotes "(Ad [llength $footnotes]): [$u uaaerror]"
+	    }
 
 	    set row {}
 
@@ -726,11 +736,13 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 		$t add {} "$g ($n)" {} {} {} {} {} {}
 	    }
 	}
-
     }
 
     debug.cmd/usermgr {done_ table @@@@@@@@@@@@@@@@@@@@@@@@@@@}
     $t show display
+
+    if {![llength $footnotes]} return
+    display [join $footnotes \n]
     return
 }
 
@@ -854,7 +866,7 @@ proc ::stackato::cmd::usermgr::token {config} {
 
     say "Get your login token at $target/login?print_token=1"
 
-    set token [term ask/string* "Enter your token: "]
+    set token [ask string* "Enter your token: "]
 
     if {$token eq {}} {
 	err "Need a proper token."
@@ -878,7 +890,7 @@ proc ::stackato::cmd::usermgr::token {config} {
     # NOTE: Any adjunct information (org, space) we may still have for
     # the target is not touched (not removed, not changed).
 
-    say [color green "Successfully logged into \[$target\]"]
+    say [color good "Successfully logged into \[$target\]"]
     return
 }
 
@@ -939,7 +951,7 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    # Note: The addition of adjunct information is handled by
 	    # the PostLogin* procedures, if any.
 
-	    say [color green "Successfully logged into \[$target\]"]
+	    say [color good "Successfully logged into \[$target\]"]
 
 	    set client [Regenerate $config]
 
@@ -949,7 +961,7 @@ proc ::stackato::cmd::usermgr::login {config} {
 	    return
 
 	} trap {STACKATO CLIENT TARGETERROR} e {
-	    display [color red "Problem with login, invalid account or password while attempting to login to '$target'. $e"]
+	    display [color bad "Problem with login, invalid account or password while attempting to login to '$target'. $e"]
 
 	    incr tries
 	    if {($tries < 3) && $promptok && ![HasPassword $config]} continue
@@ -1061,11 +1073,11 @@ proc ::stackato::cmd::usermgr::LoginV2 {client config} {
 }
 
 proc ::stackato::cmd::usermgr::Get-text {label} {
-    return [term ask/string "$label: "] 
+    return [ask string "$label: "] 
 }
 
 proc ::stackato::cmd::usermgr::Get-password {label} {
-    return [term ask/string* "$label: "] 
+    return [ask string* "$label: "] 
 }
 
 proc ::stackato::cmd::usermgr::GetName {config} {
@@ -1073,7 +1085,7 @@ proc ::stackato::cmd::usermgr::GetName {config} {
     debug.cmd/usermgr {}
 
     if {![$config @email set?] && [cmdr interactive?]} {
-	$config @email set [term ask/string "Email: "] 
+	$config @email set [ask string "Email: "] 
     }
 
     set email [$config @email]
@@ -1120,7 +1132,7 @@ proc ::stackato::cmd::usermgr::GetPassword {client config} {
     # command line or through interaction.
 
     if {![$config @password set?] && [cmdr interactive?]} {
-	$config @password set [string trim [term ask/string* "Password: "]]
+	$config @password set [string trim [ask string* "Password: "]]
     }
 
     set password [string trim [$config @password]]
@@ -1216,7 +1228,7 @@ proc ::stackato::cmd::usermgr::logout {config} {
 
 	targets  remove-all
 	tadjunct remove-all
-	say [color green "Successfully logged out of all known targets"]
+	say [color good "Successfully logged out of all known targets"]
 	return
     }
 
@@ -1231,7 +1243,7 @@ proc ::stackato::cmd::usermgr::logout {config} {
     # MUST destroy refresh, to prevent auto-relogin.
     tadjunct remove $target refresh
 
-    say [color green "Successfully logged out of \[$target\]"]
+    say [color good "Successfully logged out of \[$target\]"]
     return
 }
 
@@ -1264,7 +1276,7 @@ proc ::stackato::cmd::usermgr::password {config} {
 
     set email [$client current_user] ;#v1 - user email, v2 - user name
     if {$email eq {}} {
-	set email [term ask/string "[string totitle $label]: "] 
+	set email [ask string "[string totitle $label]: "] 
 	#err "Need to be logged in to change password."
     }
 
@@ -1276,7 +1288,7 @@ proc ::stackato::cmd::usermgr::password {config} {
 
 	set tries 0
 	while {1} {
-	    set oldpassword [string trim [term ask/string* "Old Password: "]]
+	    set oldpassword [string trim [ask string* "Old Password: "]]
 
 	    # Verify that the old password is valid.
 	    try {
@@ -1286,7 +1298,7 @@ proc ::stackato::cmd::usermgr::password {config} {
 		set client [Regenerate $config]
 
 	    } trap {STACKATO CLIENT TARGETERROR} e {
-		display [color red "Bad password"]
+		display [color bad "Bad password"]
 		incr tries
 		if {$tries < 3} continue
 		exit fail
@@ -1313,13 +1325,13 @@ proc ::stackato::cmd::usermgr::password {config} {
 	# happens with the new change_password REST call of the v2
 	# client. No separate verification by re-login.
 
-	set oldpassword [string trim [term ask/string* "Old Password: "]]
+	set oldpassword [string trim [ask string* "Old Password: "]]
     }
 
     set password [$config @password] ;# default: empty
     if {![$config @password set?] && $promptok} {
-	set password  [string trim [term ask/string* "New Password: "]]
-	set password2 [string trim [term ask/string* "Verify Password: "]]
+	set password  [string trim [ask string* "New Password: "]]
+	set password2 [string trim [ask string* "Verify Password: "]]
 	if {$password ne $password2} {
 	    err "Passwords did not match, try again"
 	}
@@ -1334,7 +1346,7 @@ proc ::stackato::cmd::usermgr::password {config} {
     # our own.
 
     $client change_password [string trim $password] $oldpassword
-    say [color green "\nSuccessfully changed password"]
+    say [color good "\nSuccessfully changed password"]
     return
 }
 

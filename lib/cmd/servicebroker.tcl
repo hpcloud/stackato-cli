@@ -7,11 +7,11 @@
 ## Requisites
 
 package require Tcl 8.5
-package require stackato::color
+package require cmdr::ask
+package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::v2
-package require stackato::term
 package require table
 
 debug level  cmd/servicebroker
@@ -25,8 +25,8 @@ namespace eval ::stackato::cmd::servicebroker {
     namespace export list add update remove
     namespace ensemble create
 
-    namespace import ::stackato::color
-    namespace import ::stackato::term
+    namespace import ::cmdr::ask
+    namespace import ::cmdr::color
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
@@ -124,7 +124,7 @@ proc ::stackato::cmd::servicebroker::add {config} {
     display "Creating new service broker \[[$config @name]\] ... " false
 
     $broker commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/servicebroker {/done}
     return
@@ -145,7 +145,7 @@ proc ::stackato::cmd::servicebroker::remove {config} {
     display "Deleting service broker \[[$broker @name]\] ... " false
     $broker delete
     $broker commit
-    display [color green OK]
+    display [color good OK]
 
     debug.cmd/servicebroker {/done}
     return
@@ -188,12 +188,12 @@ proc ::stackato::cmd::servicebroker::update {config} {
 
 		if {[$broker $attre defined?]} {
 		    set current [$broker $attre]
-		    set prompt  "[string totitle [string trim $label]] ($current): "
-		    set new [term ask/string $prompt $current]
+		    set prompt  "[string totitle [string trim $label]] ([color yes $current]): "
+		    set new [ask string $prompt $current]
 		    if {$new eq $current} continue
 		} else {
 		    set prompt  "[string totitle [string trim $label]]: "
-		    set new [term ask/string $prompt]
+		    set new [ask string $prompt]
 		}
 
 		$config $attrc set $new
@@ -217,7 +217,7 @@ proc ::stackato::cmd::servicebroker::update {config} {
     if {$changes} {
 	display [join $lines \n]
 	$broker commit
-	display [color green OK]
+	display [color good OK]
     } else {
 	display "No changes made."
     }

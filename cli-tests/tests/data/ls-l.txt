@@ -1,4 +1,4 @@
-total *
+*total *
 -* 1 stackato * app.js*
 -* 1 stackato * manifest.yml*
 -* 1 stackato * package.json*
