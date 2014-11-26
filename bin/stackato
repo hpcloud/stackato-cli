@@ -118,8 +118,13 @@ try {
   trap {CMDR ACTION BAD} {e o} - \
   trap {CMDR VALIDATE} {e o} - \
   trap {CMDR CONFIG BAD OPTION} {e o} - \
+  trap {CMDR CONFIG WRONG-ARGS} {e o} - \
   trap {CMDR DO UNKNOWN} {e o} {
       puts [cmdr color bad $e]
       stackato::mgr exit fail
+} on error {e o} {
+    package require stackato::mgr::exit
+    stackato::mgr::exit::ProcessInternalError $e $::errorCode $::errorInfo
+    stackato::mgr exit fail
 }
 stackato::mgr exit done

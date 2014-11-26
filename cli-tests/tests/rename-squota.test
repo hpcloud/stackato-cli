@@ -1,0 +1,115 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## rename-space-quota
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test rename-space-quota-1.0 {rename-space-quota, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run rename-space-quota Q NQ X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test rename-space-quota-1.1 {rename-space-quota, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-space-quota -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test rename-space-quota-1.2 {rename-space-quota, wrong args, not enough} -constraints s342ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-space-quota -n Q
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test rename-space-quota-1.4 {rename-space-quota, not logged in} -setup {
+    stage-open
+    ref-target
+} -body {
+    run rename-space-quota testquota testquota2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test rename-space-quota-1.5 {rename-space-quota, non-admin login is ok} -constraints s342ge -setup {
+    # IOW being an org admin is good enough
+    stage-open
+    ref-target
+    go-admin
+    run create-space-quota -n [thespacequota]
+    go-non-admin
+} -body {
+    run rename-space-quota -n [thespacequota] [thespacequota]-2
+} -cleanup {
+    go-admin
+    run delete-space-quota -n [thespacequota]-2
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test rename-space-quota-1.6 {rename-space-quota, unknown source quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run rename-space-quota -n [thespacequota] [thespacequota]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input name {space quota plan} [thespacequota]]
+
+test rename-space-quota-1.7 {rename-space-quota, duplicate destination quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota -n [thespacequota]
+    run create-space-quota -n [thespacequota]-2
+} -body {
+    run rename-space-quota -n [thespacequota] [thespacequota]-2
+} -cleanup {
+    run delete-space-quota -n [thespacequota]-2
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -returnCodes error -result [already input newname {space quota plan} [thespacequota]-2]
+
+test rename-space-quota-1.8 {rename-space-quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota -n [thespacequota]
+} -body {
+    run rename-space-quota -n [thespacequota] [thespacequota]-2
+} -cleanup {
+    run delete-space-quota -n [thespacequota]-2
+    stage-close
+} -result [map [viewFile data/sq/rename.txt] \
+	       @sq@ [thespacequota]]
+
+test rename-space-quota-1.9 {rename-space-quota, persists} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota -n [thespacequota]
+} -body {
+    run rename-space-quota -n [thespacequota] [thespacequota]-2
+    run space-quota [thespacequota]-2
+} -cleanup {
+    run delete-space-quota -n [thespacequota]-2
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

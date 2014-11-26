@@ -1,0 +1,110 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## create-space-quota
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-space-quota-1.0.1 {create-space-quota, wrong args, not enough} -constraints s342ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-space-quota -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test create-space-quota-1.0.2 {create-space-quota, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-space-quota S X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test create-space-quota-1.1.0 {create-space-quota, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run create-space-quota [thespacequota]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-space-quota-1.1.1 {create-space-quota, non-admin login is ok} -constraints s342ge -setup {
+    # IOW being an org admin is good enough
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-space-quota [thespacequota]
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test create-space-quota-1.3 {create-space-quota, persists} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space-quota [thespacequota]
+    run space-quotas
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result "* [thespacequota] *|*"
+
+test create-space-quota-1.4 {create-space-quota, duplicate space-quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run create-space-quota [thespacequota]
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -returnCodes error -result [already input name "space quota plan" [thespacequota]]
+
+test create-space-quota-1.5.0 {create-space-quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space-quota [thespacequota] \
+	--no-paid-services-allowed -s 99 -r 999 -m 1024 -i unlimited
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -result [map [viewFile data/sq/create.txt] \
+	       @org@ [theorg] \
+	       @sq@  [thespacequota]]
+
+test create-space-quota-1.5.1 {create-space-quota, unicode name} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space-quota [thespacequota]\u4e00 \
+	--no-paid-services-allowed -s 99 -r 999 -m 1024 -i unlimited
+} -cleanup {
+    run delete-space-quota -n [thespacequota]\u4e00
+    stage-close
+} -result [map [viewFile data/sq/create.txt] \
+	       @org@ [theorg] \
+	       @sq@  [thespacequota]\u4e00]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

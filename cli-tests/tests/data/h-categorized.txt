@@ -18,6 +18,12 @@ Applications
     stackato versions [<application>]    Show the list of versions for the
                                          specified application
 
+    Control
+        stackato migrate <application> <destination>    Move the application to
+                                                        a different space
+        stackato restage [<application>]                Restage an application,
+                                                        regenerate its droplet
+
     Information
         stackato crashes [<application>]         List recent application
                                                  crashes
@@ -168,11 +174,13 @@ Applications
                                                               its current
                                                               placement zone
 
-Introspection
-    Command history
-        stackato history clear          Clear the saved history
-        stackato history limit [<n>]    Limit the size of the history
-        stackato history list [<n>]     Show the saved history of commands
+Feature Flags
+    stackato disable-feature-flag <name>    Deactivate the specified feature
+    stackato enable-feature-flag <name>     Activate the specified feature
+    stackato feature-flag <name>            Show the details of the specified
+                                            feature flag
+    stackato feature-flags                  Show all known feature flags and
+                                            their stati
 
 Services
     stackato marketplace                          List the supported service
@@ -326,6 +334,12 @@ Services
                                                               named service
                                                               plan
 
+Introspection
+    Command history
+        stackato history clear          Clear the saved history
+        stackato history limit [<n>]    Limit the size of the history
+        stackato history list [<n>]     Show the saved history of commands
+
 Organizations
     stackato create-org [<name>]                Create a new organization
     stackato delete-org [<name>]                Delete the named organization
@@ -350,6 +364,40 @@ Organizations
                                                 of an organization in a single
                                                 call
 
+Security Groups
+    stackato bind-security-group <security_group>              Bind the named
+                                                               security group
+                                                               to either the
+                                                               current or
+                                                               specified space,
+                                                               or the running
+                                                               and staging
+                                                               phases
+    stackato create-security-group <security_group> <rules>    Create a new
+                                                               security group
+    stackato delete-security-group <security_group>            Delete the named
+                                                               security group
+    stackato security-group <security_group>                   Show the details
+                                                               of the named
+                                                               security group
+    stackato security-groups                                   Show the known
+                                                               security groups,
+                                                               either all, or
+                                                               just those
+                                                               assigned to the
+                                                               running and
+                                                               staging phases
+    stackato unbind-security-group <security_group>            Drop the named
+                                                               security group
+                                                               from either the
+                                                               current or
+                                                               specified space,
+                                                               or the running
+                                                               and staging
+                                                               phases
+    stackato update-security-group <security_group> <rules>    Modify the named
+                                                               security group
+
 Spaces
     stackato create-space [<name>]                 Create a new space
     stackato delete-space [<name>]                 Delete the named space
@@ -373,8 +421,9 @@ Spaces
                                                    single call
 
 Routes
-    stackato delete-route <name>    Delete the named route
-    stackato routes                 List all available routes
+    stackato delete-route [<name>...]    Delete the named route
+    stackato routes                      List all available routes in the
+                                         specified space, or all
 
 Domains
     stackato create-domain <name>    Create a new domain
@@ -393,8 +442,6 @@ Administration
     stackato admin list                      Show a list of the administrators
                                              for the current or specified
                                              target
-    stackato admin patch <patch>             Apply a patch to the current or
-                                             specified target
     stackato admin report [<destination>]    Retrieve a report containing the
                                              logs of the current or specified
                                              target
@@ -492,6 +539,29 @@ Administration
         stackato quotas                             List the available quota
                                                     plans
 
+    Space Quotas
+        stackato create-space-quota [<name>]              Create a new space
+                                                          quota
+        stackato delete-space-quota [<name>]              Delete the named
+                                                          space quota
+        stackato rename-space-quota [<name>] <newname>    Rename the named
+                                                          space quota
+        stackato set-space-quota [<name>]                 Assign the specified
+                                                          space quota to the
+                                                          current or specified
+                                                          space
+        stackato space-quota [<name>]                     Show the details of
+                                                          the named space quota
+        stackato space-quotas                             List the space quotas
+                                                          owned by the current
+                                                          or specified
+                                                          organization, or all
+        stackato unset-space-quota                        Drop the space quota
+                                                          from the current or
+                                                          specified space
+        stackato update-space-quota [<name>]              Modify the named
+                                                          space quota
+
     User Management
         stackato add-user [<name>]      Register a new user in the current or
                                         specified target
@@ -518,7 +588,6 @@ Convenience
     stackato unalias <name>               Remove a shortcut by name
 
 Miscellaneous
-    stackato                                          The command line client
     stackato admin                                    A set of adminstrative
                                                       tasks
     stackato color                                    Management of terminal
@@ -541,3 +610,23 @@ Miscellaneous
     stackato trace                                    Print the saved REST
                                                       trace for the last client
                                                       command to stdout
+
+Global Options
+    --cafile CAFILE             Path to a file containing the CA certificates
+                                to use for validation.
+    --color MODE                Set color mode (always|auto|never) of the
+                                client. Default is auto, which activates color
+                                when in a proper terminal.
+    --help                      Show the main help of the client, and stop.
+    --no-prompt                 Disable interactive queries.
+    --no-skip-ssl-validation    Complementary alias of --skip-ssl-validation.
+    --non-interactive           Alias of --no-prompt.
+    --noprompt                  Alias of --no-prompt.
+    --skip-ssl-validation       Disable SSL certificate validation warnings.
+    --version                   Print the version number of the client, and
+                                stop.
+    -?                          Alias of --help.
+    -h                          Alias of --help.
+    -n                          Alias of --no-prompt.
+    -V                          Alias of --version.
+    -v                          Alias of --version.

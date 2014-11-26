@@ -16,6 +16,7 @@ package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
+package require stackato::mgr::tadjunct
 package require stackato::mgr::exit
 package require stackato::mgr::targets
 package require stackato::validate::orgname
@@ -44,6 +45,7 @@ namespace eval ::stackato::cmd::target {
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::exit
+    namespace import ::stackato::mgr::tadjunct
     namespace import ::stackato::mgr::targets
     namespace import ::stackato::validate::orgname
     namespace import ::stackato::validate::spacename
@@ -179,6 +181,22 @@ proc ::stackato::cmd::target::Set {config} {
 		Switch $config
 		display [context format-large]
 		client license-status $client 0
+	    }
+
+	    debug.cmd/target {skip set = [$config @skip-ssl-validation set?]}
+	    if {[$config @skip-ssl-validation set?]} {
+		# Make explicitly chosen skip setting sticky
+		set value [$config @skip-ssl-validation]
+		debug.cmd/target {skip value = $value}
+
+		if {$value} {
+		    tadjunct add $target skip-ssl-validation 1
+		} else {
+		    # Remove, same as hardwired default.
+		    tadjunct remove $target skip-ssl-validation
+		}
+		# See cmdr global option --skip-ssl-validation for
+		# where this information is queried.
 	    }
 	}
 	2 {

@@ -108,8 +108,6 @@ proc ::stackato::validate::appname::known {client x rv} {
 proc ::stackato::validate::appname::validate {p x} {
     debug.validate/appname {}
 
-    set c [refresh-client $p]
-
     try {
 	# Force setup of context, if not done yet. This can/will
 	# happen for dbshell which does an application argument
@@ -123,6 +121,8 @@ proc ::stackato::validate::appname::validate {p x} {
     } trap {CMDR VALIDATE} {e o} {
 	err $e
     }
+
+    set c [refresh-client $p]
 
     if {[$c isv2] && ([cspace get] eq {})} {
 	debug.validate/appname {FAIL/missing space}

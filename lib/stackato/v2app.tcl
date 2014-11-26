@@ -286,7 +286,7 @@ oo::class create ::stackato::v2::app {
 
     method start! {{mode sync}} {
 	debug.v2/app {}
-	my @state set STARTED
+	my @state   set STARTED
 	my @console set true
 	my commit $mode
     }
@@ -301,6 +301,18 @@ oo::class create ::stackato::v2::app {
 	debug.v2/app {}
 	my stop
 	my start $mode
+    }
+
+    method restage! {} {
+	debug.v2/app {}
+	my = [[authenticated] restage [my url]]
+	return
+    }
+
+    method migrate! {thespace} {
+	debug.v2/app {}
+	[authenticated] migrate [my id] [$thespace id]
+	return
     }
 
     method commit {{mode sync}} {

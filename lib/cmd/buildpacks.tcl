@@ -46,6 +46,7 @@ proc ::stackato::cmd::buildpacks::create {config} {
 
     set zip       [$config @zip]
     set transient 0
+    set fname     [Name $zip]
 
     try {
 	Ingest $config zip transient
@@ -64,9 +65,9 @@ proc ::stackato::cmd::buildpacks::create {config} {
 	$buildpack commit
 	display [color good OK]
 
-	display "Uploading buildpack bits ... " false
+	display "Uploading buildpack bits ([color name $fname]) ... " false
 	Keeping $config $zip $buildpack
-	$buildpack upload! $zip
+	$buildpack upload! $zip $fname
 	display [color good OK]
 
 	# A lock request is done last, in case setting the flag as part of
@@ -105,6 +106,8 @@ proc ::stackato::cmd::buildpacks::Ingest {config zv tv} {
     upvar 1 $zv zip $tv transient
 
     if {[file isfile $zip]} {
+	debug.cmd/buildpacks {file = $zip}
+
 	if {![zipfile::decode::iszip $zip]} {
 	    err "Input \"zip\" expected a zip archive, got \"$zip\""
 	}
@@ -114,6 +117,7 @@ proc ::stackato::cmd::buildpacks::Ingest {config zv tv} {
     }
 
     if {[file isdirectory $zip]} {
+	debug.cmd/buildpacks {dir = $zip}
 	# A directory is converted into the zip file to upload.
 
 	# Validate - Look for bin/compile - strip as part of pack.
@@ -140,6 +144,13 @@ proc ::stackato::cmd::buildpacks::Ingest {config zv tv} {
     return
 }
 
+proc ::stackato::cmd::buildpacks::Name {zip} {
+    set fname [lindex [split $zip /] end]
+    if {$fname eq "."} { set fname [file tail [pwd]] }
+
+    if {[file extension $fname] ne ".zip"} { append fname .zip }
+    return $fname
+}
 
 proc ::stackato::cmd::buildpacks::ValidateDir {path} {
     debug.cmd/buildpacks {}
@@ -425,16 +436,16 @@ proc ::stackato::cmd::buildpacks::update {config} {
     }
 
     if {[$config @zip set?]} {
-	display "Uploading new buildpack bits ... " false
-
 	set zip       [$config @zip]
 	set transient 0
+	set fname [Name $zip]
 
 	try {
 	    Ingest $config zip transient
 
+	    display "Uploading new buildpack bits ([color name $fname]) ... " false
 	    Keeping $config $zip $buildpack
-	    $buildpack upload! $zip
+	    $buildpack upload! $zip $fname
 	    display [color good OK]
 
 	} finally {

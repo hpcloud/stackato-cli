@@ -209,7 +209,8 @@ proc ::stackato::mgr::cspace::get {} {
 		# the current organization.
 		if {($store < 2) && !([corg get] == [$current @organization])} {
 		    debug.mgr/cspace {space not within the current org}
-		    Discard $store $uuid {outside of current org}
+		    Discard $store $uuid \
+			"outside of current org [color name [[corg get] @name]]"
 		}
 	    }
 	} else {
@@ -256,6 +257,12 @@ proc ::stackato::mgr::cspace::get-auto {p} {
     debug.mgr/cspace {}
     # get, and if that fails, automagically determine and save a
     # suitable space.
+
+    # Check for and handle disabled automatic.
+    if {[$p config has @space_auto] && ![$p config @space_auto]} {
+	debug.mgr/cspace {disabled}
+	return {}
+    }
 
     # 1b1. Test for and re-validate a cached current space.
     # 1b2. Keep a valid cached space.

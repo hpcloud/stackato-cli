@@ -61,11 +61,11 @@ node-env
 +-*-+-*-+-*-+-*-+-*-+} \
     "Using manifest file \"stackato.yml\"
 [thetarget] -> [theorg] -> [thespace] -> node-env
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| Instance *| CPU (Cores) *| Memory (limit) *| Disk (limit) *| Started *| Crashed *| Uptime *|
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| 0 *| RUNNING *| * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+"]
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
+| Instance *| State *| CPU *| Memory (limit) *| Disk (limit) *| Started *| Crashed *| Uptime *|
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
+| 0 *| RUNNING *| * | * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+"]
 
 test stats-1.3 {stats, explicit app} -setup {
     stage-open
@@ -86,11 +86,11 @@ test stats-1.3 {stats, explicit app} -setup {
 | 0        | *% (*) *| * (256M) *| * (*) *| 0d:0h:0m:*s |
 +-*-+-*-+-*-+-*-+-*-+} \
     "[thetarget] -> [theorg] -> [thespace] -> node-env
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| Instance | CPU (Cores) | Memory (limit) | Disk (limit) | Started                   | Crashed | Uptime       |
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
-| 0        | RUNNING     | * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+"]
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
+| Instance *| State *| CPU *| Memory (limit) | Disk (limit) | Started                   | Crashed | Uptime       |
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+
+| 0        | RUNNING *| * | * (256*M) *| * (*) | * | * | *d:*h:*m:*s |
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+-*-+"]
 
 TODO stats --target, --group, multiple dependent apps.
 

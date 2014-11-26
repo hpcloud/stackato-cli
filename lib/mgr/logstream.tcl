@@ -94,6 +94,8 @@ proc ::stackato::mgr::logstream::start {config theapp {mode fast}} {
 
 	set newer [GetLast $client $theapp]
 
+	set sysname [dict get' [$client info] name stackato]
+
 	# See also ::stackato::cmd::app::LogsStream (consolidate)
 	dict set mconfig _config   $config
 	dict set mconfig client    $client
@@ -106,6 +108,7 @@ proc ::stackato::mgr::logstream::start {config theapp {mode fast}} {
 	dict set mconfig plogtext  *
 	dict set mconfig max       100
 	dict set mconfig appname   $theapp ;# name or entity, per CF version
+	dict set mconfig sysname   $sysname
 
 	if {[isws $mconfig]} {
 	    dict set mconfig max 0
@@ -535,6 +538,7 @@ proc ::stackato::mgr::logstream::show1-poll {config} {
     # - appname:   v1: string      - application name
     #              v2: obj command - application entity
     # - follow:    presence - tail mode, filter control
+    # - sysname:   name to distinguish system from app entries
     #
     # Filter keys:
     # - json:      bool   - json mode
@@ -628,7 +632,7 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	dict set record nodeid    [dict get $record node_id       ]
     }
 
-    dict with config {} ;# --> follow, client, json, nosts, p*, max, appname
+    dict with config {} ;# --> follow, client, json, nosts, p*, max, appname, sysname
 
     if {[Filter $record]} return
 
@@ -652,7 +656,7 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	# The color of stackato.* (source) messages differ from
 	# app messages.
 	# colors: red green yellow white blue cyan bold
-	if {[string match "stackato*" $source]} {
+	if {[string match "${sysname}*" $source]} {
 	    set linecolor log-sys
 	} else {
 	    set linecolor log-app

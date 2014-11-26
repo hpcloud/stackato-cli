@@ -56,11 +56,11 @@ proc ::stackato::validate::instance::default {p}   {
 	}
 
 	manifest user_1app_do theapp {
-	    if {$theapp ne "api"} {
+	    if {$theapp ni {api {}}} {
 		set imap [$theapp instances]
 	    }
 	} keep
-	if {$theapp eq "api"} { return 0 }
+	if {$theapp in {api {}}} { return 0 }
 
 	debug.validate/instance {$theapp ([$theapp @name]) ==> ($imap)}
 

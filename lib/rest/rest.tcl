@@ -11,9 +11,24 @@ package require Tcl 8.5
 package require s-http ;# local copy of http with our hacks, and much more placed Log'ging activity.
 package require TclOO
 package require ooutil
+package require fileutil
+package require url
+package require exec
+
+# # ## ### ##### ######## ############# #####################
+## TLS setup, general place.
+
+package require cmdr::color
+package require autoproxy 1.5.3 ; # Contains the https fixes.
+package require tls
+
+http::register https 443 autoproxy::tls_socket ; # proxy aware TLS/SSL.
+
+# # ## ### ##### ######## ############# #####################
 
 debug level  rest
 debug prefix rest {[debug caller] | }
+debug.rest {[package ifneeded autoproxy [package require autoproxy]]}
 
 # RESTful service core
 package provide restclient 0.1
@@ -22,7 +37,6 @@ package provide restclient 0.1
 # package to make everything appear nicer.
 
 oo::class create ::REST {
-
 	variable mybase mywadls myacceptedmimetypestack myoptions \
 		mycounter mymap mycookie
 
@@ -122,6 +136,15 @@ oo::class create ::REST {
 
 		if {$myoptions(-follow-redirections)} {
 			http::cleanup $tok
+
+			if {$myoptions(-channel) ne {}} {
+				# Clear the channel, in case the redirection itself
+				# had a response body. That body is not wanted. Only
+				# the badoy of the last request not doing a
+				# redirection is wanted.
+				seek $myoptions(-channel) 0
+				chan truncate $myoptions(-channel) 0
+			}
 			return 1
 		}
 
@@ -417,6 +440,7 @@ oo::class create ::REST {
 
 	method Invoke {url cookie request} {
 		debug.rest {}
+		REST::initialize
 		my ShowTime $cookie
 
 		if {[catch {
@@ -425,7 +449,13 @@ oo::class create ::REST {
 			::http::Log {REST START}
 			set reqstart [clock clicks -milliseconds]
 
+			REST::host [url domain [join [lrange [split $url /] 0 2] /]]
+
+			# SNI processing.
+			http::register https 443 [list autoproxy::tls_socket -servername [REST::host]]
 			set tok [http::geturl $url {*}$request]
+
+			http::register https 443 autoproxy::tls_socket
 
 			my StateSet $tok x:rest:start  $reqstart
 			my StateSet $tok x:rest:binary [dict exists $request -binary]
@@ -440,10 +470,11 @@ oo::class create ::REST {
 			debug.rest {get error = ($e)}
 
 			if {[string match *handshake* $e]} {
-				set host [join [lrange [split $url /] 0 2] /]
+				set detail [REST::status]
+				set host   [REST::host]
 				return -code error \
 					-errorcode {REST SSL} \
-					"SSL/TLS problem with \"$host\": $e."
+					"SSL problem with \"$host\": $e, $detail."
 
 			} elseif {[string match *refused* $e]} {
 				set host [join [lrange [split $url /] 0 2] /]
@@ -709,6 +740,301 @@ oo::class create ::REST {
 
 	# ## #### ######## ################
 }
+
+# # ## ### ##### ######## ############# #####################
+
+# It's a good idea to unset any ::AUTH($chan,*) entries when they are
+# no longer needed -- either after the connection has been
+# established, and the authcode and autherr have been checked, or in
+# the callback for cleanup/closing the socket.  Not doing so is bad
+# bad bad, and should only be done in short-lived applications that
+# exit after one connection.
+
+# See also cmdr/cmdr.tcl, various debug options.
+global shpre
+set    shpre [http::Now]
+
+namespace eval ::REST {
+	variable acode  1
+	variable amsg   ""
+	variable cafile {}
+	variable cadir  {}
+	variable debug  off
+	variable skip   off
+	# Per host skipping, to generate only one warning per host, instead of series of it.
+	variable skiph  {}
+}
+
+proc ::REST::initialize {} {
+	debug.rest {}
+	variable cafile
+	# Note: Always have a cafile, even if only the wrapped default.
+
+	if {[file system $cafile] ne "native"} {
+		# Save wrapped certs to disk for TLS, which is not vfs-ready,
+		# to read.
+		#
+		# NOTE: We cannot delete the file until the process ends. The
+		# TLS package actually reads it only on demand, it seems. I.e.
+		# deletion after setting it makes it unavailable again.  So we
+		# only register it with 'exec' to be removed on exit.
+
+		set tmp [fileutil::tempfile stackato_certs_]
+		file copy -force $cafile $tmp
+		exec::clear-on-exit $tmp
+		set cafile $tmp
+	}
+
+	tls::init -tls1 on -command ::REST::verify -cafile $cafile
+
+	proc ::REST::initialize {} {}
+	return
+}
+
+proc ::REST::cafile {path} {
+	variable cafile $path
+	return
+}
+
+proc ::REST::host {{thehost {}}} {
+	variable host
+	if {[llength [info level 0]] == 2} {
+		set host $thehost
+	}
+	return $host
+}
+
+proc ::REST::tlsskipverify {} {
+	debug.rest {}
+	variable skip on
+	return
+}
+
+proc ::REST::tlsdebug {} {
+	debug.rest {}
+	variable debug on
+	return
+}
+
+proc ::REST::status {} {
+	variable acode
+	if {$acode} { return "" }
+	variable amsg
+	return $amsg
+}
+
+proc ::REST::verify {cmd args} {
+	debug.rest {}
+	variable debug
+	variable skip
+
+	if {$debug} {
+		global shpre
+		set n [http::Now]
+		set d [expr {$n - $shpre}]
+		set prefix "[cmdr color bg-red TLS:]  [format %10d $d] [format %15d $n] "
+	}
+
+    # Based on http://wiki.tcl.tk/2630, Melissa Schrumpf.
+    # Check that cmd is proper, and filter info/error.
+    switch -exact -- $cmd {
+		error   -
+		info    {
+			if {$debug} { puts $prefix\t$cmd\t$args }
+			return 1
+		}
+		verify  {}
+		default {
+			if {$debug} { puts $prefix\t$cmd\t$args }
+			return -code error "Bad command \"$cmd\", expected one of error, info, or verify"
+		}
+    }
+
+    # Here the command is 'verify'. Time to perform any (additional checks!).
+    # Extract individual arguments first.
+    lassign $args chan depth cert rc err
+
+    # rc: TLS validation result:
+    #     0 - some failure, details in 'err'.
+    #     1 - validation ok.
+
+	if {$debug} {
+		puts $prefix\t$cmd
+		puts $prefix\t$cmd\tchan\t$chan
+		puts $prefix\t$cmd\tdepth\t$depth
+		puts $prefix\t$cmd\trc\t$rc
+		puts $prefix\t$cmd\terr\t$err
+		# The cert is a dict.
+		dict for {k v} $cert {
+			puts $prefix\t$cmd\tcert\t$k\t=\t$v
+		}
+	}
+
+	variable acode $rc
+	variable amsg  $err
+
+	if 0 {switch -glob $err {
+		{unable to get local issuer cert*} -
+		{cert* not trusted} {
+			# suppress errors about a broken validation chain.
+			set acode 1
+		}
+	}}
+
+    # The information I'm interested in is whether or not the cert
+    # validated.  I include the error message in case the application
+    # wants to take different actions on different errors (for
+    # example, accept an expired cert with a warning, but reject one
+    # for which the chain does not validate.
+
+    # TLS does not verify that the peer certificate is for the host to
+    # whom we are connected:
+
+    if {($depth == 0) &&
+		($acode == 1)} {
+		set subl  [split [dict get $cert subject] ","]
+		set peers [Peers $chan]
+
+		if {$debug} {
+			puts $prefix\t$cmd\tcheck\t($subl)
+			foreach peercn $peers {
+				puts $prefix\t$cmd\tpeercn\t($peercn)
+			}
+		}
+
+		foreach item $subl {
+			if {$debug} { puts $prefix\t$cmd\tat\t$item }
+
+			set iteml [split $item "="]
+			if {[lindex $iteml 0]=="CN"} {
+				if {$debug} { puts $prefix\t$cmd\tCN }
+
+				set certcn   [lindex $iteml 1]
+				set certhost [lindex [split $certcn "."] 0]
+
+				if {$debug} {
+					puts $prefix\t$cmd\tcertcn\t($certcn)
+				}
+				if {![Match $peers $certcn]} {
+                    set acode 0
+                    set amsg  "CN '$certcn' does not match any of '[join $peers "', '"]'"
+				}
+			}
+		}
+    }
+
+	if {$debug} {
+		puts $prefix\t$cmd\tfinal\t$acode
+		puts $prefix\t$cmd\tfinmsg\t$amsg
+		puts $prefix\t$cmd\t___done
+	}
+
+	# In client v3.x simply report issue. With added complexity to
+	# report anything only once per specific host.
+	variable host
+	variable skiph
+	if {!$acode && !$skip && ![dict exists $skiph $host,$amsg]} {
+		puts [cmdr color warning "SSL warning for \"$host\": $amsg"]
+		# Ignore any future warnings for the same host.
+		dict set skiph $host,$amsg .
+	}
+	# In client v4.x actually abort and throw error.
+	#if {$debug} { puts "$prefix\t$cmd\treturn $rc" }
+    #return $rc
+	#  and amsg will be used in method "Invoke" above.
+
+    # By always accepting, even if rc is not 1, the responsibility for
+    # determining the action to take goes to the application
+    # connection handler.
+	if {$debug} { puts "$prefix\t$cmd\treturn 1" }
+    return 1
+}
+
+proc ::REST::Match {peers certcn} {
+	variable debug
+	if {$debug} {
+		upvar 1 prefix prefix cmd cmd
+	}
+
+	if {[string match "*\\**" $certcn]} {
+		if {$debug} { puts $prefix\t$cmd\twild\t$certcn }
+
+		foreach peercn $peers {
+			if {$debug} { puts $prefix\t$cmd\ttrial\t$peercn }
+
+			if {![string match $certcn $peercn]} continue
+
+			if {$debug} { puts $prefix\t$cmd\tmatch }
+			return 1
+		}
+	} else {
+		if {$debug} { puts $prefix\t$cmd\texact\t$certcn }
+
+		foreach peercn $peers {
+			if {$debug} { puts $prefix\t$cmd\ttrial\t$peercn }
+
+			if {$certcn ne $peercn} continue
+
+			if {$debug} { puts $prefix\t$cmd\tmatch }
+			return 1
+		}
+	}
+
+	return 0
+}
+
+proc ::REST::Peers {chan} {
+	lappend peers [LogicalPeer]
+	lappend peers [PhysicalPeer $chan]
+	return $peers
+}
+
+proc ::REST::LogicalPeer {} {
+	# Logical peer host, based on the target url.
+	variable host
+	return [url domain $host]
+}
+
+proc ::REST::PhysicalPeer {chan} {
+	# Physical peer host, straight out of the socket data
+
+	set peerinfo [fconfigure $chan -peername]
+	set peercn   [lindex $peerinfo 1]
+	set peerhost [lindex [split $peercn "."] 0]
+
+	# on some networks -peername host will only be the hostname, not
+	# the full CN.  whether it is the "right" thing to do to accept
+	# these connections is left as an exercise for the reader.  I
+	# decided to allow it here.  But then, I'm doing this on an
+	# intranet.  I doubt I'd allow it in the wild.
+
+	if {$peercn == $peerhost} {
+		# need full cn
+		set mycn      [lindex [fconfigure $chan -sockname] 1]
+		set mydomainl [lrange [split $mycn "."] 1 end]
+		set peercnl   [concat $peercn $mydomainl]
+		set peercn    [join $peercnl "."]
+	}
+
+	return [string trim $peercn]
+}
+
+# # ## ### ##### ######## ############# #####################
+## 0 --> 1 to debug Tcl errors within the callback
+
+if {1} {
+	rename ::REST::verify ::REST::verify_core
+	proc ::REST::verify {args} {
+		try {
+			verify_core {*}$args
+		} on error {e o} {
+			puts $e
+			error $e
+		}
+	}
+}
+
+# # ## ### ##### ######## ############# #####################
 
 # Local Variables:
 # mode: tcl

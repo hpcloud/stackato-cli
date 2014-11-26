@@ -95,12 +95,15 @@ proc ::stackato::form::zipvalue {partv name filename value} {
     return
 }
 
-proc ::stackato::form2::zipfile {partv name path} {
+proc ::stackato::form2::zipfile {partv name path {fname {}}} {
     #puts form2/+zip:$name
-
     upvar 1 $partv form
 
-    set disposition "form-data; name=\"${name}\"; filename=\"[file tail $path]\""
+    if {$fname eq {}} {
+	set fname [file tail $path]
+    }
+
+    set disposition "form-data; name=\"${name}\"; filename=\"$fname\""
 
     AddEOL       form
     AddHeader    form Content-Disposition       $disposition

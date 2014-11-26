@@ -33,9 +33,11 @@ package require stackato::v2::app_event
 package require stackato::v2::app_version
 package require stackato::v2::buildpack
 package require stackato::v2::domain
+package require stackato::v2::feature_flags
 package require stackato::v2::organization
 package require stackato::v2::quota_definition
 package require stackato::v2::route
+package require stackato::v2::security_group
 package require stackato::v2::service
 package require stackato::v2::service_auth_token
 package require stackato::v2::service_broker
@@ -46,6 +48,7 @@ package require stackato::v2::user_provided_service_instance
 package require stackato::v2::service_plan
 package require stackato::v2::service_plan_visibility
 package require stackato::v2::space
+package require stackato::v2::space_quota_definition
 package require stackato::v2::stack
 package require stackato::v2::user
 package require stackato::v2::zone
@@ -426,7 +429,7 @@ oo::class create ::stackato::v2::client {
 	return
     }
 
-    method upload-by-url {url zipfile {resource_manifest {}} {field application} {zero 0}} {
+    method upload-by-url {url zipfile {resource_manifest {}} {field application} {zero 0} {fname {}}} {
 	debug.v2/client {}
 	#@type zipfile = path
 
@@ -454,7 +457,7 @@ oo::class create ::stackato::v2::client {
 	}
 
 	if {$zipfile ne {}} {
-	    form2 zipfile data $field $zipfile
+	    form2 zipfile data $field $zipfile $fname
 	}
 	lassign [form2 compose data] contenttype data dlength
 
@@ -1060,7 +1063,7 @@ oo::class create ::stackato::v2::client {
     ## Entity Listing support
     # # ## ### ##### ######## #############
 
-    method filtered-of {type key value {depth 0} {config {}}} {
+    method filtered-of {classobj type key value {depth 0} {config {}}} {
 	# Note: filtered-of is a canned form of list-of,
 	#       hiding the syntax of the query from users.
 	#
@@ -1079,15 +1082,15 @@ oo::class create ::stackato::v2::client {
 	    dict set config inline-relations-depth $depth
 	}
 	# list-of inlined
-	return [my list-by-url /v2/$type $config]
+	return [my list-by-url $classobj /v2/$type $config]
     }
 
-    method list-of {type {config {}}} {
+    method list-of {classobj type {config {}}} {
 	debug.v2/client {}
-	return [my list-by-url /v2/$type $config]
+	return [my list-by-url $classobj /v2/$type $config]
     }
 
-    method list-by-url {url {config {}}} {
+    method list-by-url {classobj url {config {}}} {
 	debug.v2/client {}
 	debug.v2/memory { LOAD-L $url}
 
@@ -1125,7 +1128,7 @@ oo::class create ::stackato::v2::client {
 
 	while {1} {
 	    debug.v2/client {<== $url}
-	    set page [my json_get $url]
+	    set page [$classobj list-transform [my json_get $url]]
 
 	    if {[dict exists $page relations]} {
 		# Save the relations, if any, into the orphan cache.
@@ -1423,6 +1426,51 @@ oo::class create ::stackato::v2::client {
 	    lappend tmp $item
 	}
 	return $tmp
+    }
+
+    # # ## ### ##### ######## #############
+
+    method restage {url} {
+	debug.v2/client {}
+	append url /restage
+
+	# See also create-for-type, stackato-create-user for the
+	# general case, same highlevel post-processing flow.
+	try {
+	    lassign [my http_post $url {}] _ result _
+	} trap {REST REDIRECT} {e o} {
+	    # Ignore the redirect, and process as if we got 200 OK.
+	    lassign $e code where headers result
+	}
+
+	try {
+	    set response [json::json2dict $result]
+	} on error {e o} {
+	    return -code error -errorcode {STACKATO SERVER DATA ERROR} \
+		"Received invalid JSON from server; Error: $e"
+	}
+
+	return $response
+    }
+
+    # # ## ### ##### ######## #############
+
+    method migrate {appid spaceid} {
+	debug.v2/client {}
+	set url /v2/stackato/apps/$appid/migrate
+
+	set payload [jmap map dict [dict create space_guid $spaceid]]
+
+	# See also create-for-type, stackato-create-user for the
+	# general case, same highlevel post-processing flow.
+	try {
+	    lassign [my http_post $url $payload application/json] _ result _
+	} trap {REST REDIRECT} {e o} {
+	    # Ignore the redirect, and process as if we got 200 OK.
+	    lassign $e code where headers result
+	}
+
+	return
     }
 
     # # ## ### ##### ######## #############

@@ -2,7 +2,7 @@
 # # ## ### ##### ######## ############# #####################
 ## Stackato - Validation Type - Service Type, aka Vendor
 ## Dependency: config @client      (possibilities)
-## Dependency: @provider, @version (filtering)
+## Dependency: @provider, @sversion (filtering)
 
 # # ## ### ##### ######## ############# #####################
 ## Requisites
@@ -104,9 +104,9 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
     }]]
     debug.validate/servicetype {active-match         = $services}
 
-    # config @vendor   - service @label
-    # config @provider - service @provider
-    # config @version  - service @version
+    # config @vendor    - service @label
+    # config @provider  - service @provider
+    # config @sversion  - service @version
 
     # Filter by provider
     if {[$p config @provider set?]} {
@@ -120,8 +120,8 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
     }
 
     # Filter by version
-    if {[$p config @version set?]} {
-	set pattern [$p config @version]
+    if {[$p config @sversion set?]} {
+	set pattern [$p config @sversion]
 	debug.validate/servicetype {version-pattern  = $pattern}
 
 	set services [struct::list filter $services [lambda {p s} {
@@ -137,18 +137,18 @@ proc ::stackato::validate::servicetype::get-candidates {p} {
 proc ::stackato::validate::servicetype::FilterHint {p} {
     if {
 	[$p config @provider set?] &&
-	[$p config @version set?]
+	[$p config @sversion set?]
     } {
 	set p [$p config @provider]
-	set v [$p config @version]
+	set v [$p config @sversion]
 	return "(with provider '$p', and version $v)"
     }
     if {[$p config @provider set?]} {
 	set p [$p config @provider]
 	return " (with provider '$p')"
     }
-    if {[$p config @version set?]} {
-	set v [$p config @version]
+    if {[$p config @sversion set?]} {
+	set v [$p config @sversion]
 	return " (with version $v)"
     }
     return ""

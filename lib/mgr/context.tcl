@@ -20,7 +20,7 @@ namespace eval ::stackato::mgr {
 }
 
 namespace eval ::stackato::mgr::context {
-    namespace export format-org format-short format-large \
+    namespace export format-target format-org format-short format-large \
 	get-name 2org
     namespace ensemble create
 
@@ -69,6 +69,14 @@ proc ::stackato::mgr::context::2org {config theorg} {
 }
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::mgr::context::format-target {{suffix {}}} {
+    debug.mgr/context {}
+    set t [ctarget get]
+
+    debug.mgr/context {/done ==> "$t$suffix"}
+    return "[color name $t]$suffix"
+}
 
 proc ::stackato::mgr::context::format-org {{suffix {}}} {
     debug.mgr/context {}

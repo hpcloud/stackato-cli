@@ -13,6 +13,8 @@ apply {{} {
 	STACKATO_CLI_TEST_TARGET    theplaintarget todo-fallback-target
 	STACKATO_CLI_TEST_USER      theuser        todo-fallback-nonadminusername
 	STACKATO_CLI_TEST_GROUP     thegroup       todo-fallback-groupname
+	STACKATO_CLI_TEST_SECGROUP  thesecgroup    todo-fallback-security-group
+	STACKATO_CLI_TEST_SPACEQ    thespacequota  todo-fallback-space-quota
 	STACKATO_CLI_TEST_DRAIN     thedrain       todo-fallback-drainurl
 	STACKATO_CLI_TEST_ADMIN     adminuser      todo-fallback-adminusername
 	STACKATO_CLI_TEST_APASS     adminpass      todo-fallback-adminpassword
@@ -189,12 +191,14 @@ proc run {args} {
 	file delete $out $err
 	set env(HOME) [thehome]
 	set env(STACKATO_NO_WRAP) 1
+	set env(STACKATO_SKIP_SSL_VALIDATION) 1
 	set fail [catch {
 	    exec > $out 2> $err [Where] {*}$args
 	}]
     } finally {
 	set   env(HOME) $here
 	unset env(STACKATO_NO_WRAP)
+	unset env(STACKATO_SKIP_SSL_VALIDATION)
     }
 
     Capture $out $err $fail
@@ -213,12 +217,14 @@ proc run-any {args} {
 	file delete $out $err
 	set env(HOME) [thehome]
 	set env(STACKATO_NO_WRAP) 1
+	set env(STACKATO_SKIP_SSL_VALIDATION) 1
 	set fail [catch {
 	    exec > $out 2> $err {*}$args
 	}]
     } finally {
 	set   env(HOME) $here
 	unset env(STACKATO_NO_WRAP)
+	unset env(STACKATO_SKIP_SSL_VALIDATION)
     }
 
     Capture $out $err $fail
@@ -471,18 +477,31 @@ apply {{spec} {
 
     set isv1   [expr {[dict get $spec API] <  2}]
     set isv2   [expr {[dict get $spec API] >= 2}]
+
     set post30 [expr {[package vcompare [dict get $spec Version] 3.1] >= 0}]
     set pre32  [expr {[package vcompare [dict get $spec Version] 3.1] < 0}]
 
     set post32 [expr {[package vcompare [dict get $spec Version] 3.3] >= 0}]
     set pre34  [expr {[package vcompare [dict get $spec Version] 3.3] < 0}]
 
+    set post34 [expr {[package vcompare [dict get $spec Version] 3.4.1] >= 0}]
+    set pre342 [expr {[package vcompare [dict get $spec Version] 3.4.2] < 0}]
+
+    set post341 [expr {[package vcompare [dict get $spec Version] 3.4.2] >= 0}]
+    set pre343  [expr {[package vcompare [dict get $spec Version] 3.4.3] < 0}]
+
+    tcltest::testConstraint s342ge  [expr {$isv2 && $post341}]
+    tcltest::testConstraint s341ge  [expr {$isv2 && $post34}]
+    tcltest::testConstraint s34le   [expr {$isv2 && $pre342}]
+
     tcltest::testConstraint cfv1    $isv1 ;# target is v1
     tcltest::testConstraint cfv2    $isv2 ;# target is v2
     tcltest::testConstraint s34ge   [expr {$isv2 && $post32}]
-    tcltest::testConstraint s32ge   [expr {$isv2 && $post30}]
-    tcltest::testConstraint s32     [expr {$isv2 && $post30 && $pre34}]
     tcltest::testConstraint s32le   [expr {$isv2 && $pre34}]
+
+    tcltest::testConstraint s32     [expr {$isv2 && $post30 && $pre34}]
+
+    tcltest::testConstraint s32ge   [expr {$isv2 && $post30}]
     tcltest::testConstraint s30le   [expr {$isv2 && $pre32}]
 
 }} [run debug-target --target [thetarget]]
@@ -493,10 +512,13 @@ NOTE
 NOTE "cfv1  = [tcltest::testConstraint cfv1]"
 NOTE "cfv2  = [tcltest::testConstraint cfv2]"
 NOTE "s30le = [tcltest::testConstraint s30le]"
-NOTE "s32ge = [tcltest::testConstraint s32ge]"
 NOTE "s32le = [tcltest::testConstraint s32le]"
 NOTE "s32   = [tcltest::testConstraint s32]"
+NOTE "s32ge = [tcltest::testConstraint s32ge]"
+NOTE "s34le = [tcltest::testConstraint s34le]"
 NOTE "s34ge = [tcltest::testConstraint s34ge]"
+NOTE "s341ge = [tcltest::testConstraint s341ge]"
+NOTE "s342ge = [tcltest::testConstraint s342ge]"
 
 # # ## ### ##### ######## ############# #####################
 return

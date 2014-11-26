@@ -200,6 +200,21 @@ proc ::stackato::v2::get-for {json} {
     set type  [dict get' $json entity type [TypeOf $url]]
     set id    [id-of $url]
 
+    # ATTENTION :: HACK :: The endpoints for retrieving the lists of
+    # sec-groups associated with staging and running phases deliver a
+    # bogus url based on the endpoint instead of on the proper type of
+    # the entity. It further omits the 'spaces' attribute of the
+    # entity. Instead of coding around this in the higher layers we
+    # hack things here to provide the proper type, and a synthetic
+    # attribute.
+
+    if {$type in {staging_security_group running_security_group}} {
+	debug.v2 {Fix security-groups staging/running}
+	set type security_group
+	# Fake the spaces attribute, not delivered by the target.
+	dict set json entity spaces_url /v2/security_groups/$id/spaces
+    }
+
     set obj [deref-type $type $id]
 
     # ATTENTION :: HACK :: If the type found above is

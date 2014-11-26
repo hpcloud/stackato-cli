@@ -1,0 +1,34 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client migrate
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+return
+# TODO
+
+test version-1.0 {client version, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run version X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test version-1.1 {client version} -setup {
+    stage-open
+} -body {
+    run version
+} -cleanup {
+    stage-close
+} -match glob -result {stackato *}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

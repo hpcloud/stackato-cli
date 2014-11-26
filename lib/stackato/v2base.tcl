@@ -19,6 +19,7 @@
 
 package require Tcl 8.5
 package require lambda
+package require json
 package require TclOO
 package require struct::list
 package require oo::util 1.2
@@ -229,6 +230,7 @@ oo::class create ::stackato::v2::base {
     ## Debug helpers.
 
     method as-json {} {
+	debug.v2/base {}
 	# Main entry point. Clear dict of seen entities.
 	my ResolvePhantom as-json
 	jmap seen-clear
@@ -238,6 +240,7 @@ oo::class create ::stackato::v2::base {
     }
 
     method as-json-map {} {
+	debug.v2/base {}
 	# Secondary entry point from within 'jmap map' (1ref handling).
 	# Keep knowledge of seen entities to block run-away recursion.
 	my ResolvePhantom as-json
@@ -245,14 +248,17 @@ oo::class create ::stackato::v2::base {
     }
 
     method delta {} {
-	jmap map $mymap $mydiff
+	debug.v2/base {}
+	debug.v2/base {map =($mymap)}
+	debug.v2/base {diff=($mydiff)}
+	return [jmap map $mymap $mydiff]
     }
 
     classmethod show {} { self }
     method show {} {
 	# Inlined 'typeof' and 'id' methods.
-	# Do not use debug narrative, prevent infinite recursion.
-	# See debugging section at top for use.
+	# We CANNOT use debug narrative here. Doing so causes infinite recursion.
+	# See the debugging section at the top for use of this method.
 
 	set type [namespace tail [info object class [self]]]
 	if {[info exists myjson]} {
@@ -267,6 +273,7 @@ oo::class create ::stackato::v2::base {
     ## Identity
 
     method == {other} {
+	debug.v2/base {}
 	if {$other eq {}} { return 0 }
 	string equal [my url] [$other url]
     }
@@ -281,6 +288,11 @@ oo::class create ::stackato::v2::base {
     # Dependencies
     # find-by --> list-filter --> C/filtered-of <canned list-of>
     # list    --> C/list-of
+
+    classmethod list-transform {json} {
+	debug.v2/base
+	return $json
+    }
 
     classmethod list {{depth 0} args} {
 	# args = config
@@ -297,7 +309,7 @@ oo::class create ::stackato::v2::base {
 	if {$depth > 0} {
 	    lappend args depth $depth
 	}
-	stackato::v2 deref* [$client list-of $type $args]
+	stackato::v2 deref* [$client list-of [self] $type $args]
     }
 
     classmethod list-filter {key value {depth 0} {config {}}} {
@@ -311,7 +323,7 @@ oo::class create ::stackato::v2::base {
 	    append type s
 	}
 	set client [stackato::mgr client authenticated]
-	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
+	stackato::v2 deref* [$client filtered-of [self] $type $key $value $depth $config]
     }
 
     classmethod find-by {key value {depth 0} {config {}}} {
@@ -794,7 +806,7 @@ oo::class create ::stackato::v2::base {
     # # ## ### ##### ######## #############
     ## Attribute access
 
-    method Access {name jname type nullable args} {
+    method Access {name jname type atype nullable args} {
 	debug.v2/base {}
 
 	# - Get      : |args|=0
@@ -807,11 +819,11 @@ oo::class create ::stackato::v2::base {
 	# compatible.
 
 	if {![llength $args]} {
-	    return [my Aget $name $jname $type $nullable]
+	    return [my Aget $name $jname $type $atype $nullable]
 	}
 
 	set args [lassign $args method]
-	return [my A$method $name $jname $type $nullable {*}$args]
+	return [my A$method $name $jname $type $atype $nullable {*}$args]
     }
 
     method Access1 {name jname type args} {
@@ -830,7 +842,7 @@ oo::class create ::stackato::v2::base {
 	}
 
 	set args [lassign $args method]
-	if {$method in {set unset defined? inlined?}} {
+	if {$method in {set unset label defined? inlined?}} {
 	    return [my A1$method $name $jname $type {*}$args]
 	}
 
@@ -890,12 +902,12 @@ oo::class create ::stackato::v2::base {
     ## Attribute access, internals - Regular
     ## Aget, Aset, Aunset
 
-    method Alabel {name jname type nullable} {
+    method Alabel {name jname type atype nullable} {
 	debug.v2/base {}
 	return [dict get $mylabel $name]
     }
 
-    method Adefined? {name jname type nullable} {
+    method Adefined? {name jname type atype nullable} {
 	# Cached, yes.
 	if {[dict exists $mydata $name]} { return 1 }
 
@@ -911,7 +923,7 @@ oo::class create ::stackato::v2::base {
 	return 0
     }
 
-    method Aget {name jname type nullable} {
+    method Aget {name jname type atype nullable} {
 	debug.v2/base {}
 
 	# Take from cache.
@@ -950,11 +962,20 @@ oo::class create ::stackato::v2::base {
 	    set value {}
 	}
 
+	if {$atype eq "json"} {
+	    # json fields were converted into a tcl structure on
+	    # ingestion. For display we have to regenerate their
+	    # json-formatting.  The structure definition is part of
+	    # the type and was saved in the hints. Remember that the
+	    # final hints were wrapped into an outer 'dict'.
+	    set value [jmap map [dict get $mymap dict $jname] $value]
+	}
+
 	dict set mydata $name $value
 	return $value
     }
 
-    method Aset {name jname type nullable newvalue} {
+    method Aset {name jname type atype nullable newvalue} {
 	debug.v2/base {}
 
 	# Validate and canonicalize before even trying to record the
@@ -969,7 +990,7 @@ oo::class create ::stackato::v2::base {
 	# Get current value.
 	try {
 	    set olddefined 1
-	    set oldvalue   [my Aget $name $jname $type $nullable]
+	    set oldvalue   [my Aget $name $jname $type $atype $nullable]
 	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
 	    set olddefined 0
 	    set oldvalue   {}
@@ -993,6 +1014,20 @@ oo::class create ::stackato::v2::base {
 	# Note: We are not checking if the new value is the same as
 	# stored in the log. IOW implicit, user-performed rollbacks
 	# are neither registered, nor reacted upon.
+
+	if {$atype eq "json"} {
+	    # json field values have to be down-converted to a Tcl
+	    # structure in the delta, for the final delta to make a
+	    # proper json-element again. This could likely all be
+	    # removed again with a proper validation-type.
+	    try {
+		set newvalue [json::json2dict $newvalue]
+	    } trap {JSON} {e o} {
+		my InternalError "Bad json data for attribute \"$name\"" \
+		    ATTRIBUTE BAD-VALUE $name
+	    }
+	}
+
 	my change $jname $newvalue
 
 	if {[dict exists $mylog $name]} return
@@ -1003,13 +1038,13 @@ oo::class create ::stackato::v2::base {
 	return
     }
 
-    method Aunset {name jname type nullable} {
+    method Aunset {name jname type atype nullable} {
 	debug.v2/base {}
 
 	# Get current value for saving to log.
 	try {
 	    set olddefined 1
-	    set oldvalue   [my Aget $name $jname $type $nullable]
+	    set oldvalue   [my Aget $name $jname $type $atype $nullable]
 	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
 	    set olddefined 0
 	    set oldvalue   {}
@@ -1042,6 +1077,11 @@ oo::class create ::stackato::v2::base {
     # # ## ### ##### ######## #############
     ## Attribute access, internals - To1
     ## A1get, A1set, A1unset
+
+    method A1label {name jname type} {
+	debug.v2/base {}
+	return [dict get $mylabel $name]
+    }
 
     method A1defined? {name jname type} {
 	# Cached, yes.
@@ -1347,7 +1387,7 @@ oo::class create ::stackato::v2::base {
 	    if {$depth > 0} {
 		dict set config depth $depth
 	    }
-	    set urllist [[authenticated] list-by-url $url $config]
+	    set urllist [[authenticated] list-by-url [info object class [self]] $url $config]
 
 	    if {$type eq "service_instance"} {
 		# HACK to support MSI|UPSI. Preload the objects. We
@@ -1449,14 +1489,14 @@ oo::class create ::stackato::v2::base {
 		set url [dict get $myjson entity ${jname}_url]
 		debug.v2/base {origin = $url}
 
-		set urllist [[authenticated] list-by-url $url $config]
+		set urllist [[authenticated] list-by-url [info object class [self]] $url $config]
 		set objlist [deref* $urllist]
 	    } elseif {[dict exists $myfake $name]} {
 
 		set url [my url]/$name
 		dict set myjson entity ${jname}_url $url
 
-		set urllist [[authenticated] list-by-url $url $config]
+		set urllist [[authenticated] list-by-url [info object class [self]] $url $config]
 		set objlist [deref* $urllist]
 
 	    } else {
@@ -1845,8 +1885,16 @@ oo::class create ::stackato::v2::base {
 		set nullable 1
 	    }
 
+	    if {[regexp {^json<(.*)>$} $type -> hint]} {
+		set type json ; # hint already separated
+	    } elseif {[regexp {^json} $type]} {
+		my InternalError "Bad attribute \"$name\", json type is missing the required structure" \
+		    ATTRIBUTE BAD-TYPE JSON    
+	    }
+
 	    # types = dict integer url string boolean
 	    switch -exact -- $type {
+		json        { }
 		boolean     { set hint nbool   }
 		double      { set hint nnumber }
 		integer     { set hint nnumber }
@@ -1870,10 +1918,10 @@ oo::class create ::stackato::v2::base {
 	    dict set myattr  $name $type
 	    dict set myjname $name $jsonname
 
-	    set type [my ValidatorOf $type]
+	    set vtype [my ValidatorOf $type]
 
-	    debug.v2/base {validate = ($type)}
-	    oo::objdefine [self] forward @$name my Access $name $jsonname $type $nullable
+	    debug.v2/base {validate = ($vtype)}
+	    oo::objdefine [self] forward @$name my Access $name $jsonname $vtype $type $nullable
 	    oo::objdefine [self] export  @$name
 	}
 	return
@@ -1975,12 +2023,14 @@ oo::class create ::stackato::v2::base {
 	# Special mappings.
 
 	switch -exact -- $type {
+	    json   -
 	    string -
 	    dict   -
 	    list-string {
 		debug.v2/base { special: $type /rewrite}
 		# TODO: Proper type for dict attr in the future
 		# TODO: Proper type for list-of-string attr in the future
+		# TODO: Proper type for json-string in the future
 		return ::cmdr::validate::identity
 	    }
 	    double {

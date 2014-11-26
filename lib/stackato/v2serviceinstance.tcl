@@ -32,28 +32,33 @@ oo::class create ::stackato::v2::service_instance {
     # find-by --> list-filter --> C/filtered-of <canned list-of>
     # list    --> C/list-of
 
+    classmethod list-transform {json} {
+	debug.v2/service_instance
+	return $json
+    }
+
     classmethod list {{depth 0} args} {
 	# args = config
-	debug.v2/base {}
+	debug.v2/service_instance {}
 	set type   [namespace tail [self]]s
 	# s pluralization, fixed
 	set client [stackato::mgr client authenticated]
 	if {$depth > 0} {
 	    lappend args depth $depth
 	}
-	stackato::v2 deref* [$client list-of $type $args]
+	stackato::v2 deref* [$client list-of [self] $type $args]
     }
 
     classmethod list-filter {key value {depth 0} {config {}}} {
-	debug.v2/base {}
+	debug.v2/service_instance {}
 	set type   [namespace tail [self]]s
 	# s pluralization, fixed
 	set client [stackato::mgr client authenticated]
-	stackato::v2 deref* [$client filtered-of $type $key $value $depth $config]
+	stackato::v2 deref* [$client filtered-of [self] $type $key $value $depth $config]
     }
 
     classmethod find-by {key value {depth 0} {config {}}} {
-	debug.v2/base {}
+	debug.v2/service_instance {}
 	set matches [my list-filter $key $value $depth $config]
 	switch -exact -- [llength $matches] {
 	    0       { my NotFound  $key $value }

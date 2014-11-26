@@ -1,0 +1,134 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## set-space-quota
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test set-space-quota-1.0.1 {set-space-quota, wrong args, not enough} -constraints s342ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run set-space-quota -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test set-space-quota-1.0.2 {set-space-quota, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run set-space-quota S X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test space-quotas-1.0.3 {set-space-quota, bad option} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run set-space-quota -n S --bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "Unknown option --bogus*"
+
+test set-space-quota-1.1.0 {set-space-quota, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run set-space-quota [thespacequota]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test set-space-quota-1.1.1 {set-space-quota, non-admin login is ok} -constraints s342ge -setup {
+    # IOW being a an org admin is good enough
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+    go-non-admin
+} -body {
+    run set-space-quota -n [thespacequota]
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test set-space-quota-1.3 {set-space-quota, persists} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run set-space-quota [thespacequota] --org [theorg] --space [thespace]
+    run space-quota     [thespacequota]
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result "*| Using Spaces           | [theorg]::[thespace] *|\n*"
+
+test set-space-quota-1.4 {set-space-quota, unknown space-quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run set-space-quota [thespacequota]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [unexpected input name "space quota plan" [thespacequota]]
+
+test set-space-quota-1.5.0 {set-space-quota, space} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run set-space-quota [thespacequota] --org [theorg] --space [thespace]
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -result [map [viewFile data/sq/set.txt] \
+	       @sp@ [thespace] \
+	       @sq@ [thespacequota]]
+
+test set-space-quota-1.5.1 {set-space-quota, double set same} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run set-space-quota [thespacequota]
+    run set-space-quota [thespacequota]
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -result {No change}
+
+test set-space-quota-1.5.2 {set-space-quota, double set other} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+    run create-space-quota [thespacequota]-2
+} -body {
+    run set-space-quota [thespacequota]
+    run set-space-quota [thespacequota]-2
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    run delete-space-quota -n [thespacequota]-2
+    stage-close
+} -returnCodes error -result \
+    "Error: The space \"[thespace]\" already has an assigned space quota: [thespacequota]"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

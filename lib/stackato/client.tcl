@@ -23,16 +23,9 @@ package require struct::list
 package require debug
 package require url
 
-package require autoproxy 1.5.3 ; # Contains the https fixes.
-package require tls
-
-tls::init -tls1 on
-http::register https 443 autoproxy::tls_socket ; # proxy aware TLS/SSL.
-
 debug level  client
 debug prefix client {[debug caller] | }
 debug.client {[package ifneeded autoproxy [package require autoproxy]]}
-
 
 namespace eval ::stackato::client {}
 namespace eval ::stackato {

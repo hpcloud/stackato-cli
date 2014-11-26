@@ -17,7 +17,6 @@ package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::ctarget
-package require stackato::mgr::ssh
 package require struct::list
 package require table
 
@@ -26,7 +25,7 @@ namespace eval ::stackato::cmd {
     namespace ensemble create
 }
 namespace eval ::stackato::cmd::admin {
-    namespace export patch report grant revoke list \
+    namespace export report grant revoke list \
 	default-report grant-core
     namespace ensemble create
 
@@ -36,7 +35,6 @@ namespace eval ::stackato::cmd::admin {
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::ctarget
-    namespace import ::stackato::mgr::ssh
     namespace import ::stackato::v2
 }
 
@@ -45,52 +43,6 @@ debug prefix cmd/admin {[debug caller] | }
 
 # # ## ### ##### ######## ############# #####################
 ## Command implementations.
-
-proc ::stackato::cmd::admin::patch {config} {
-    debug.cmd/admin {}
-
-    set client [$config @client]
-    set patch  [$config @patch]
-
-    lassign [GetPatchFile $client $patch] transient patch
-
-    debug.cmd/admin {File      = $patch}
-    debug.cmd/admin {Transient = $transient}
-
-    try {
-	# Note how we are performing the upload without using a
-	# separate scp command.  The patch file is made the stdin of
-	# the ssh, and written to the destination by the 'cat' with
-	# output redirection.
-
-	# Note further that this method of uploading disables all
-	# interaction with the user when the patch application is
-	# run. The application must be fully automatic.
-
-	set patchdir "\$HOME/patches"
-	set dst      $patchdir/[file tail $patch]
-
-	# Convert from file to in-memory base64 encoded string.
-	set patch [base64::encode -maxlen 0 \
-		       [fileutil::cat -translation binary $patch]]
-
-	lappend cmd "echo Uploading..."
-	lappend cmd "mkdir -p \"$patchdir\""
-	lappend cmd "echo '$patch' | base64 -d - > \"$dst\""
-	lappend cmd "chmod u+x \"$dst\""
-	lappend cmd "echo Applying..."
-	lappend cmd "\"$dst\""
-
-	debug.cmd/admin {Command = [join $cmd "\n Command = "]}
-	#return
-
-	ssh cc $config [::list [join $cmd { ; }]]
-
-    } finally {
-	if {$transient} { file delete $patch }
-    }
-    return
-}
 
 proc ::stackato::cmd::admin::report {config} {
     debug.cmd/admin {}
@@ -281,62 +233,6 @@ proc ::stackato::cmd::admin::ListV2 {config} {
 	lappend admins [$theuser email]
     }
     return $admins
-}
-
-# # ## ### ##### ######## ############# #####################
-
-proc ::stackato::cmd::admin::GetPatchFile {client path} {
-    debug.cmd/admin {}
-
-    if {[regexp {^https?://} $path]} {
-	# Argument is url. Retrieve directly.
-
-	return [GetPatchUrl $client $path "Invalid url \"$path\"."]
-    }
-
-    if {![file exists $path]} {
-	debug.cmd/admin {HTTP}
-	# Do http retrieval, construct the url
-	# to the AS patch server.
-
-	set version [$client server-version]
-	debug.cmd/admin {Server = $version}
-
-	lassign [split $version .] major minor
-	set version $major.$minor
-
-	set url http://get.stackato.com/patch/$version/$path
-	debug.cmd/admin {Url = $url}
-
-	return [GetPatchUrl $client $url "Unknown $version patch \"$path\"."]
-    }
-
-    if {![file readable $path]} {
-	err "Path $path is not readable."
-    }
-    if {![file isfile $path]} {
-	err "Path $path is not a file."
-    }
-
-    return [::list 0 $path]
-}
-
-proc ::stackato::cmd::admin::GetPatchUrl {client url err} {
-    set tmp [fileutil::tempfile stackato-patch-]
-    debug.cmd/admin {Tmp = $tmp}
-
-    try {
-	fileutil::writeFile -translation binary $tmp \
-	    [lindex [$client http_get_raw $url application/octet-stream] 1]
-    } on error {e o} {
-	# Ensure removal of the now unused tempfile
-	file delete $tmp
-	# Note: Exposes constructed url
-	#err "Unable to retrieve $url: $e"
-	err $err
-    }
-
-    return [::list 1 $tmp]
 }
 
 # # ## ### ##### ######## ############# #####################

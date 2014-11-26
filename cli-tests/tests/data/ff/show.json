@@ -1,0 +1,13 @@
+{
+    "entity"   : {
+        "default_value" : false,
+        "enabled"       : false,
+        "error_message" : null,
+        "name"          : "user_org_creation",
+        "overridden"    : *
+    },
+    "metadata" : {
+        "guid" : "user_org_creation",
+        "url"  : "/v2/config/feature_flags/user_org_creation"
+    }
+}

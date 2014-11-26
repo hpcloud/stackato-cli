@@ -476,6 +476,16 @@ proc ::stackato::cmd::usermgr::org-list {config} {
     set bil [join [lsort -dict [$theorg @billing_managers the_name]] \n]
     set aud [join [lsort -dict [$theorg @auditors         the_name]] \n]
 
+    if {[$config @json]} {
+	display [jmap map {dict {* array}} \
+		     [dict create \
+			  user            $usr \
+			  manager         $mgr \
+			  billing-manager $bil \
+			  auditor         $aud]]
+	return
+    }
+
     display "Organization [$theorg @name] ..."
     [table::do t {User Manager {Billing Manager} Auditor} {
 	$t add $usr $mgr $bil $aud
@@ -492,10 +502,20 @@ proc ::stackato::cmd::usermgr::space-list {config} {
     set mgr [join [lsort -dict [$thespace @managers   the_name]] \n]
     set aud [join [lsort -dict [$thespace @auditors   the_name]] \n]
 
+    if {[$config @json]} {
+	display [jmap map {dict {* array}} \
+		     [dict create \
+			  developer $dev \
+			  manager   $mgr \
+			  auditor   $aud]]
+	return
+    }
+
     display "Space [$thespace full-name] ..."
     [table::do t {Developer Manager Auditor} {
 	$t add $dev $mgr $aud
     }] show display
+    return
 }
 
 # # ## ### ##### ######## ############# #####################

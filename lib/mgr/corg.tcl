@@ -210,6 +210,12 @@ proc ::stackato::mgr::corg::get-auto {p} {
     # get, and if that fails, automagically determine and save a
     # suitable organization.
 
+    # Check for and handle disabled automatic.
+    if {[$p config has @org_auto] && ![$p config @org_auto]} {
+	debug.mgr/corg {disabled}
+	return {}
+    }
+
     # 1b1. Test for and re-validate a cached current org.
     # 1b2. Keep a valid cached org.
     # 1b3. Choose a current when none found, or invalid.

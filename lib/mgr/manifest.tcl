@@ -1437,6 +1437,7 @@ proc ::stackato::mgr::manifest::select_apps {{panic 1}} {
     }
 
     if {$where ne [NormPath {}]} {
+	variable rootfile
 	err "The path '$wbase' is not known to the manifest '$rootfile'."
     }
 

@@ -246,7 +246,7 @@ proc ::stackato::cmd::orgs::list {config} {
     }
     set co [corg get]
 
-    set titles {{} Name Default Quota Spaces Domains}
+    set titles {{} Name Default Quota {Space Quota} Spaces Domains}
     set full [$config @full]
     set depth 1
     set ir quota_definition,spaces,domains
@@ -283,6 +283,13 @@ proc ::stackato::cmd::orgs::list {config} {
 	    lappend values [color name [$org @name]]
 	    lappend values $isdef
 	    lappend values [$org @quota_definition @name]
+
+	    if {[$org @space_quota_definitions defined?]} {
+		lappend values [join [lsort -dict [$org @space_quota_definitions @name]] \n]
+	    } else {
+		lappend values {}
+	    }
+
 	    lappend values [join [lsort -dict [$org @spaces  @name]] \n]
 	    lappend values [join [lsort -dict [$org @domains @name]] \n]
 
@@ -344,6 +351,14 @@ proc ::stackato::cmd::orgs::show {config} {
 	    $t add "- Trial Databases" [$org @quota_definition @trial_db_allowed]
 	    $t add "- Allow Sudo"      [$org @quota_definition @allow_sudo]
 	}
+
+	if {[$org @space_quota_definitions defined?]} {
+	   set sqlist [join [lsort -dict [$org @space_quota_definitions @name]] \n]
+	} else {
+	    set sqlist {}
+	}
+	$t add {Space Quotas} $sqlist
+
     }] show display
     return
 }

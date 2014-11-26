@@ -1,0 +1,25 @@
+\[{
+    "entity"   : {
+        "default_value" : false,
+        "enabled"       : false,
+        "error_message" : null,
+        "name"          : "user_org_creation",
+        "overridden"    : *
+    },
+    "metadata" : {
+        "guid" : "user_org_creation",
+        "url"  : "/v2/config/feature_flags/user_org_creation"
+    }
+},{
+    "entity"   : {
+        "default_value" : true,
+        "enabled"       : true,
+        "error_message" : null,
+        "name"          : "private_domain_creation",
+        "overridden"    : *
+    },
+    "metadata" : {
+        "guid" : "private_domain_creation",
+        "url"  : "/v2/config/feature_flags/private_domain_creation"
+    }
+}\]

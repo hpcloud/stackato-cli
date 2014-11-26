@@ -40,6 +40,9 @@ oo::class create ::stackato::v2::organization {
 	my Many billing_managers user
 	my Many auditors         user
 
+	# Stackato v3.6 attribute
+	my Many space_quota_definitions
+
 	my SearchableOn space
 	my SearchableOn user
 	my SearchableOn manager

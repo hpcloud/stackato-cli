@@ -12,6 +12,7 @@ package require fileutil
 package require json
 package require url
 package require stackato::mgr::cfile
+package require stackato::log
 
 namespace eval ::stackato::mgr {
     namespace export targets
@@ -24,6 +25,7 @@ namespace eval ::stackato::mgr::targets {
     namespace ensemble create
 
     namespace import ::stackato::mgr::cfile
+    namespace import ::stackato::log::err
 }
 
 debug level  mgr/targets
@@ -126,9 +128,22 @@ proc ::stackato::mgr::targets::known {} {
     }
 
     # @todo@ cache json parse result ?
-    return [json::json2dict \
-		[string trim \
-		     [fileutil::cat $path]]]
+
+    try {
+	set data [fileutil::cat $path]
+	debug.mgr/targets {data = ($data)}
+
+	set map [json::json2dict [string trim $data]]
+	debug.mgr/targets {map = ($map)}
+    } trap {JSON} {e o} {
+	err "JSON error reading token-file \"$path\": $e"
+    }
+    try {
+	dict size $map
+    } on error {e o} {
+	err "General error reading token-file \"$path\": Expected json object not found"
+    }
+    return $map
 }
 
 # # ## ### ##### ######## ############# #####################

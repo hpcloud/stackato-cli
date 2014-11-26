@@ -40,9 +40,9 @@ oo::class create ::stackato::v2::buildpack {
 	return
     }
 
-    method upload! {zip} {
+    method upload! {zip {fname {}}} {
 	debug.v2/buildpack {}
-	[authenticated] upload-by-url [my url]/bits $zip {} buildpack
+	[authenticated] upload-by-url [my url]/bits $zip {} buildpack 0 $fname
 	return
     }
 

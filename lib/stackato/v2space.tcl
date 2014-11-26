@@ -47,6 +47,11 @@ oo::class create ::stackato::v2::space {
 	my Summary \
 	    services [mymethod S.services]
 
+	# Security settings applied to a space.
+	my Many security_groups
+
+	my Attribute space_quota_definition &space_quota_definition
+
 	# TODO scoped_to_organization
 
 	next $url

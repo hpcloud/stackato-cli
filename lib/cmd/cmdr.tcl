@@ -9,6 +9,7 @@ package require lambda
 package require try
 package require cmdr::tty
 package require cmdr::color
+package require cmdr::parameter 1.4 ;# disallow, touch, multiple when-set
 package require stackato::log
 package require stackato::mgr::alias
 package require stackato::mgr::exit
@@ -79,164 +80,254 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     ehandler ::stackato::mgr::exit::attempt
 
     # # ## ### ##### ######## ############# #####################
-    ## The -debug option is provided to and handled by all commands.
+    ## Global options and state shared with all commands.
 
-    common *all* {
-	state motd {
-	    Check version of the client for being a devbuild and note
-	    that in a warning message. Exception is under @json existing
-	    and set.
-	} {
-	    immediate
-	    generate [lambda p {
-		::stackato-cli set (cc) [$p config]
-
-		# Block multiple calls from within the process
-		# (=> recursion through cmdr (f.e: aliases))
-		# Using an app-specific "common" block "(motd)" as signal.
-		if {[::stackato-cli exists (motd)]} return
-		::stackato-cli set (motd) {}
-
-		# Block message when command explicitly denies it.
-		if {[$p config has @nomotd]} return
-		# Block message to prevent interference with --json output
-		if {[$p config has @json] && [$p config @json]} return
-
-		# Block message for released builds (not alpha, nor beta)
-		set v [package present stackato::cmdr]
-		if {![string match {*[ab]*} $v]} return
-		puts "*** DEV BUILD VERSION $v, FOR TESTING ONLY ***"
-	    }]
-	}
-	# Note: By dint of being in *all* this option is declared
-	#       before anything else, ensuring that the debug levels
-	#       are set before all other parameters too.
-	option debug {
-	    Activate client internal tracing.
-	} {
-	    undocumented
-	    list
-	    validate [call@vtype debug]
-	    when-complete [lambda {p tags} {
-		foreach t $tags { debug on $t }
-	    }]
-	}
-	option no-prompt {
-	    Disable interactive queries.
-	} {
-	    presence
-	    alias n
-	    alias non-interactive
-	    alias noprompt
-	    # Note: Global disabling of all interactivity. Use first
-	    # to affect all other input. Also the reason for when-set
-	    # instead of when-complete. Must be handled early to cut off
-	    # interactive entry in cmdr::private, where possible.
-	    when-set [lambda {p x} {
-		cmdr interactive [expr {!$x}]
-	    }]
-	}
-	option show-stacktrace {
-	    Show stack traces of internal errors on stdout.
-	} {
-	    undocumented
-	    presence
-	    when-set [call@mgr exit dump-stderr]
-	}
-	option debug-tls-handshake {
-	    Activate tracing of the TLS handshake
-	} {
-	    undocumented
-	    presence
-	    when-set [lambda {p x} {
-		package require s-http
-		global shpre
-		set    shpre [http::Now]
-		package require tls
-		tls::init -tls1 on -command [lambda {c args} {
-		    global shpre
-		    set n [http::Now]
-		    set d [expr {$n - $shpre}]
-		    set prefix "[cmdr color bg-red TLS:]  [format %10d $d] [format %15d $n] "
-		    puts $prefix\t$c\t$args
-		    if {$c eq "verify"} { return 1 }
-		    return
-		}] ;# tls::callback
-	    }]
-	}
-	option debug-http-log {
-	    Activate tracing inside of the http package itself.
-	} {
-	    undocumented
-	    presence
-	    when-set [lambda {p x} {
-		package require s-http
-		global shpre
-		set    shpre [http::Now]
-		proc ::http::Log {args} {
-		    global shpre
-		    set n [Now]
-		    set d [expr {$n - $shpre}]
-		    set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
-		    set text $prefix[join [split [join $args] \n] "\n$prefix"]
-		    puts $text
-		    set shpre [Now]
+    option colormode {
+	Set color mode (always|auto|never) of the client.
+	Default is auto, which activates color when in a proper terminal.
+    } {
+	argument mode
+	label color
+	validate  [call@vtype colormode]
+	# React early to user settings.
+	when-set [lambda {p x} {
+	    switch -exact -- $x {
+		auto   {
+		    # Nothing to do, system default, already in place.
 		}
-	    }]
-	}
-	option debug-http-data {
-	    Activate tracing of wire data inside of the http package itself.
-	} {
-	    undocumented
-	    presence
-	    when-set [lambda {p x} {
-		package require s-http
-		global shpre shdsep
-		set    shpre [http::Now]
-		set shdsep "---- | [string repeat --- 16] |[string repeat - 16]|"
-		proc ::http::LogData {args} {
-		    global shpre shdsep
-		    set n [Now]
-		    set d [expr {$n - $shpre}]
-		    set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
-		    puts "$prefix$shdsep"
-		    puts -nonewline [Hexl $prefix [join $args]]
-		    puts "$prefix$shdsep"
-		    set shpre [Now]
-		}
-	    }]
-	}
-	option debug-http-token {
-	    Track all state changes of http token arrays
-	} {
-	    undocumented
-	    presence
-	    when-set [lambda {p x} {
-		package require s-http
-		proc ::http::LogToken {token} {
-		    set local [string map {:: _} $token]
-		    upvar #0 $token $local
-		    set text [Parray $local]
-		    set prefix "[cmdr color trace HTTP:] "
-		    set text $prefix[join [split $text \n] "\n$prefix"]
-		    puts $text
-
-		    trace add variable $token {write unset} [lambda {var local index op} {
-			upvar 1 $local here
-			if {$index ni {{} body meta}} {
-			    set v $here($index)
-			} else {
-			    set v {}
-			}
-			puts "[cmdr color trace "TOK: "] $var $op ($index) @ ($v)"
-			if {($index eq "state") && ($op eq "unset")} {
-			    ::error STATE-UNSET
-			}
-		    } $token]
-		}
-	    }]
-	}
+		always { cmdr color activate 1 }
+		never  { cmdr color activate 0 }
+	    }
+	}]
     }
+
+    option version {
+	Print the version number of the client, and stop.
+    } {
+	alias v ; alias V ; presence
+	when-set [lambda {p x} {
+	    [$p config context root] do version
+	    stackato::mgr::exit quit
+	}]
+    }
+
+    option help {
+	Show the main help of the client, and stop.
+    } {
+	alias h ; alias ? ; presence
+	when-set [lambda {p x} {
+	    [$p config context root] do help
+	    stackato::mgr::exit quit
+	}]
+    }
+
+    state motd {
+	Check version of the client for being a devbuild and note
+	that in a warning message. Exception is under @json existing
+	and set.
+    } {
+	immediate
+	generate [lambda p {
+	    ::stackato-cli set (cc) [$p config]
+
+	    # Block multiple calls from within the process
+	    # (=> recursion through cmdr (f.e: aliases))
+	    # Using an app-specific "common" block "(motd)" as signal.
+	    if {[::stackato-cli exists (motd)]} return
+	    ::stackato-cli set (motd) {}
+
+	    # Block message when command explicitly denies it.
+	    if {[$p config has @nomotd]} return
+	    # Block message to prevent interference with --json output
+	    if {[$p config has @json] && [$p config @json]} return
+
+	    # Block message for released builds (not alpha, nor beta)
+	    set v [package present stackato::cmdr]
+	    if {![string match {*[ab]*} $v]} return
+	    puts "*** DEV BUILD VERSION $v, FOR TESTING ONLY ***"
+	}]
+    }
+
+    # Note: As a global option debug levels can be set before all other parameters.
+    option debug {
+	Activate client internal tracing.
+    } {
+	argument tag
+	undocumented
+	list
+	validate [call@vtype debug]
+	when-complete [lambda {p tags} {
+	    foreach t $tags { debug on $t }
+	}]
+    }
+
+    option no-prompt {
+	Disable interactive queries.
+    } {
+	presence
+	alias n
+	alias non-interactive
+	alias noprompt
+	# Note: Global disabling of all interactivity. Use first
+	# to affect all other input. Also the reason for when-set
+	# instead of when-complete. Must be handled early to cut off
+	# interactive entry in cmdr::private, where possible.
+	when-set [lambda {p x} {
+	    cmdr interactive [expr {!$x}]
+	}]
+    }
+
+    option show-stacktrace {
+	Show stack traces of internal errors on stdout.
+    } {
+	undocumented
+	presence
+	when-set [call@mgr exit dump-stderr]
+    }
+
+    option debug-http-log {
+	Activate tracing inside of the http package itself.
+    } {
+	undocumented
+	presence
+	when-set [lambda {p x} {
+	    package require s-http
+	    global shpre
+	    set    shpre [http::Now]
+	    proc ::http::Log {args} {
+		global shpre
+		set n [Now]
+		set d [expr {$n - $shpre}]
+		set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
+		set text $prefix[join [split [join $args] \n] "\n$prefix"]
+		puts $text
+		set shpre [Now]
+	    }
+	}]
+    }
+
+    option debug-http-data {
+	Activate tracing of wire data inside of the http package itself.
+    } {
+	undocumented
+	presence
+	when-set [lambda {p x} {
+	    package require s-http
+	    global shpre shdsep
+	    set    shpre [http::Now]
+	    set shdsep "---- | [string repeat --- 16] |[string repeat - 16]|"
+	    proc ::http::LogData {args} {
+		global shpre shdsep
+		set n [Now]
+		set d [expr {$n - $shpre}]
+		set prefix "[cmdr color trace HTTP:] [format %10d $d] [format %15d $n] "
+		puts "$prefix$shdsep"
+		puts -nonewline [Hexl $prefix [join $args]]
+		puts "$prefix$shdsep"
+		set shpre [Now]
+	    }
+	}]
+    }
+
+    option debug-http-token {
+	Track all state changes of http token arrays
+    } {
+	undocumented
+	presence
+	when-set [lambda {p x} {
+	    package require s-http
+	    proc ::http::LogToken {token} {
+		set local [string map {:: _} $token]
+		upvar #0 $token $local
+		set text [Parray $local]
+		set prefix "[cmdr color trace HTTP:] "
+		set text $prefix[join [split $text \n] "\n$prefix"]
+		puts $text
+
+		trace add variable $token {write unset} [lambda {var local index op} {
+		    upvar 1 $local here
+		    if {$index ni {{} body meta}} {
+			set v $here($index)
+		    } else {
+			set v {}
+		    }
+		    puts "[cmdr color trace "TOK: "] $var $op ($index) @ ($v)"
+		    if {($index eq "state") && ($op eq "unset")} {
+			::error STATE-UNSET
+		    }
+		} $token]
+	    }
+	}]
+    }
+
+    # # ## ### ##### ######## ############# #####################
+    ## Still global options, security-related
+
+    option cafile {
+	Path to a file containing the CA certificates to use for validation.
+    } {
+	validate rfile
+	when-set      [lambda {p path} { REST::cafile $path }]
+	when-complete [lambda {p path} { REST::cafile $path }]
+	generate      [lambda p {
+	    package require stackato::mgr::self
+	    return [file join [stackato::mgr::self topdir] config ca-certificates.pem]
+	}]
+    }
+
+    option skip-ssl-validation {
+	Disable SSL certificate validation warnings.
+    } {
+	validate boolean
+	when-set      [lambda {p x} { if {$x} REST::tlsskipverify }]
+	when-complete [lambda {p x} { if {$x} REST::tlsskipverify }]
+	generate      [lambda p {
+	    global env
+
+	    # Note:
+	    # - p = imported parameter.
+	    # - p config = container holding p's definition.
+	    # - We have to find the config p is imported into however,
+	    #   if we wish to look directly for @target.
+	    # For now we use 'ctarget' and assume that @target got
+	    # processed before ourselves (seems to bear out).
+
+	    # 0. Use option (not coming here if it is (un)set explicitly).
+	    # 1. Check the environment - STACKATO_SKIP_SSL_VALIDATION.
+	    # 2. Check the config of the current target (sticky setting)
+	    #    See cmd/target.tcl, 'Set' (Ok/Save branch) for where
+	    #    the information was set (target command).
+	    # 3. Hardwired last line - No skip.
+
+	    if {[info exists env(STACKATO_SKIP_SSL_VALIDATION)] &&
+		[string is boolean -strict $env(STACKATO_SKIP_SSL_VALIDATION)]
+	    } {
+		return $env(STACKATO_SKIP_SSL_VALIDATION)
+	    }
+
+	    package require stackato::mgr::ctarget
+	    package require stackato::mgr::tadjunct
+
+	    set target [stackato::mgr::ctarget get]
+	    set skip   [stackato::mgr::tadjunct get' $target \
+			    skip-ssl-validation {}]
+	    if {[string is boolean -strict $skip]} {
+		return $skip
+	    }
+
+	    return no
+	}]
+    }
+
+    option debug-tls-handshake {
+	Activate tracing of the TLS handshake
+    } {
+	undocumented
+	presence
+	when-set [lambda {p x} { REST::tlsdebug }]
+    }
+
+    # # ## ### ##### ######## ############# #####################
 
     common .nomotd {
 	state nomotd {
@@ -245,6 +336,22 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    This is used by internal commands which should not show MotD,
 	    or where MotD may interfere with operation.
 	} { default 0 }
+    }
+
+    # DEV AID - Insert 'use .show-parameters' at the end of the
+    # specification for a private P to see the full set of parameters
+    # (and their state) of P, when using P. This aborts P before it
+    # reaches the execution stage.
+    common .show-parameters {
+	state show-parameters {
+	} {
+	    immediate
+	    generate [lambda {p} {
+		$p set {} ;# prevent infinite recursive entry through itself when display below asks for its value.
+		puts [$p config dump]
+		::exit
+	    }]
+	}
     }
 
     # # ## ### ##### ######## ############# #####################
@@ -296,13 +403,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     }
 
     # # ## ### ##### ######## ############# #####################
-    ## Common option for commands allowing interactive input, to
-    ## disable this possibility. Made available to all users through
-    ## the cmdr framework flag.
-
-    common .prompt {
-	# Moved to *all*
-    }
+    ## Common options for groups of commands.
 
     common .dry {
 	option dry {
@@ -350,7 +451,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Note: Requires proper client arguments coming before it.
 	} { immediate ; generate [call@mgr client max-version 3.0] }
     }
+    # The post checks are for release points.
     common .post30 {
+	# Release 3.0 (Holophonor) was followed by 3.1dev/3.2 (Iggy)
 	state checkpost30 {
 	    Invisible state argument checking that the chosen target
 	    is after version 3.0
@@ -358,11 +461,20 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	} { immediate ; generate [call@mgr client min-version 3.1] }
     }
     common .post32 {
+	# Release 3.2 (Iggy) was followed by 3.3dev/3.4 (JukeBox)
 	state checkpost32 {
 	    Invisible state argument checking that the chosen target
 	    is after version 3.2
 	    Note: Requires proper client arguments coming before it.
 	} { immediate ; generate [call@mgr client min-version 3.3] }
+    }
+    common .post34 {
+	# Release 3.4/3.4.1 (both Jukebox) was followed by 3.4.2 (Kraftwerk)
+	state checkpost34 {
+	    Invisible state argument checking that the chosen target
+	    is after version 3.4/3.4.1
+	    Note: Requires proper client arguments coming before it.
+	} { immediate ; generate [call@mgr client min-version 3.4.2] }
     }
 
     # # ## ### ##### ######## ############# #####################
@@ -375,6 +487,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Path to an existing and readable file containing
 	    the targets and authorization tokens.
 	} {
+	    argument path
 	    validate      [call@vtype path    rwfile]
 	    generate      [call@mgr   cfile   getc token]
 	    when-complete [call@mgr   targets set-path]
@@ -386,6 +499,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	option target {
 	    The once-off target to use for the current operation.
 	} {
+	    argument target-url
 	    validate      [call@vtype target]
 	    generate      [call@mgr ctarget getc]
 	    when-complete [call@mgr ctarget setc]
@@ -406,6 +520,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    The once-off group to use for the current operation.
 	    This is a Stackato 2 option.
 	} {
+	    argument name
 	    generate [call@mgr cgroup getc]
 	    when-set [call@mgr cgroup setc]
 	    # NOTE: when-set to be early, before target, token, etc, generating the client.
@@ -420,6 +535,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    The once-off organization to use for the current operation.
 	    This is a Stackato 3 option.
 	} {
+	    argument name
 	    # int.rep = v2org entity
 	    alias o
 	    validate      [call@vtype orgname]
@@ -436,7 +552,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    by name. This is a Stackato 3 option.
 	    Cannot be used together with --space-guid.
 	} {
-	    when-set      [exclude space-guid --space]
+	    argument name
+	    when-set      [disallow @space-guid]
 	    validate      [call@vtype spacename]
 	    generate      [call@mgr cspace getc]
 	    when-complete [call@mgr cspace setc]
@@ -452,7 +569,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    by guid. This is a Stackato 3 option.
 	    Cannot be used together with --space.
 	} {
-	    when-set      [exclude space --space-guid]
+	    when-set      [disallow @space]
 	    validate      [call@vtype spaceuuid]
 	    generate      [call@mgr cspace getc]
 	    when-complete [call@mgr cspace setc]
@@ -590,6 +707,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Path of the manifest file to use.
 	    If not specified a search is done.
 	} {
+	    argument path
 	    validate [call@vtype path rfile]
 	    default {}
 	    # Using 'generate' here instead of 'default' because the
@@ -644,15 +762,24 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     common .limits {
 	option apps {
 	    Limit for the number of applications in the group.
-	} { validate [call@vtype integer0] }
+	} {
+	    argument num
+	    validate [call@vtype integer0]
+	}
 
 	option appuris {
 	    Limit for the number of mapped uris per application.
-	} { validate [call@vtype integer0] }
+	} {
+	    argument num
+	    validate [call@vtype integer0]
+	}
 
 	option services {
 	    Limit for the number of services in the group.
-	} { validate [call@vtype integer0] }
+	} {
+	    argument num
+	    validate [call@vtype integer0]
+	}
 
 	option sudo {
 	    Applications can use sudo (or not).
@@ -660,7 +787,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	option drains {
 	    Limit for the number of drains in the group.
-	} { validate [call@vtype integer0] }
+	} {
+	    argument num
+	    validate [call@vtype integer0]
+	}
 
 	option mem {
 	    Amount of memory applications can use.
@@ -691,6 +821,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    either by taking the one organization the user belongs to, or
 	    asking the user to choose among the possibilities.
 	} {
+	    argument name
 	    # int.rep = v2org entity
 	    alias o
 	    validate      [call@vtype orgname]
@@ -698,6 +829,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    when-complete [call@mgr corg setc]
 	    #Note: automatic definition of a current org when not defined.
 	}
+	state org_auto {
+	    State queried by get-auto to discern if the automatic is temporarily disabled.
+	} { validate boolean ; default true }
     }
 
     common .autocurrentspace {
@@ -712,10 +846,17 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    either by taking the one space the user has, or
 	    asking the user to choose among the possibilities.
 	} {
+	    argument name
 	    validate      [call@vtype spacename]
 	    generate      [call@mgr cspace get-auto]
 	    when-complete [call@mgr cspace setc]
 	    #Note: automatic definition of a current space when not defined.
+	}
+	state space_auto {
+	    State queried by get-auto to discern if the automatic is temporarily disabled.
+	} {
+	    validate boolean ; default true
+	    when-set [touch @org_auto off]
 	}
     }
 
@@ -728,6 +869,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    specification of minutes, hours, and days. The optional
 	    suffix 's' stands for seconds.
 	} {
+	    argument interval
 	    default {}
 	    validate [call@vtype interval]
 	}
@@ -747,6 +889,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    specification of minutes, hours, and days. The optional
 	    suffix 's' stands for seconds.
 	} {
+	    argument interval
 	    default 120
 	    validate [call@vtype interval]
 	}
@@ -869,7 +1012,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Show the internal representation for the
 		application's manifest.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .manifest
 	} [jump@cmd query manifest]
@@ -881,11 +1023,13 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		application's manifest as it would be
 		generated and uploaded to a target on push.
 	    }
-	    use .prompt
 	    use .manifest
-	    input version {
+	    input tversion {
 		The version of the target to generate the manifest for.
-	    } { validate integer }
+	    } {
+		label version
+		validate integer
+	    }
 	    input application {
 		The name of the application to generate the manifest for.
 	    } { validate str }
@@ -916,7 +1060,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
-	    use .prompt
 	    use .target
 	    use .client
 	    use .v2
@@ -968,6 +1111,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		A value of "-" or "stdin" causes the client to write
 		the data to stdout.
 	    } {
+		argument path
 		alias o
 		alias O
 		validate str
@@ -977,6 +1121,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Zero or more form fields to be added to the base url.
 		Data is in the form of "key: value".
 	    } {
+		argument key:value
 		list
 		validate [call@vtype http-header]
 	    }
@@ -997,6 +1142,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The port to use for the request.
 		Only relevant to websocket operation.
 	    } {
+		argument num
 		default {}
 		validate [call@vtype integer0]
 	    }
@@ -1070,7 +1216,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Create a shortcut for a command (prefix).
 	    }
-	    use .prompt
 	    input name {
 		The name of the new shortcut.
 	    } {
@@ -1086,7 +1231,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Remove a shortcut by name.
 	    }
-	    use .prompt
 	    input name {
 		The name of the shortcut to remove.
 	    } { validate [call@vtype alias] }
@@ -1105,6 +1249,215 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     alias aliases = aliasmgr list
 
     # # ## ### ##### ######## ############# #####################
+    ##
+
+    officer flagmgr {
+	undocumented
+	description {
+	    Management of feature flags
+	}
+
+	private list {
+	    section {Feature Flags}
+	    description {
+		Show all known feature flags and their stati.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .json
+	} [jump@cmd features list]
+
+	private show {
+	    section {Feature Flags}
+	    description {
+		Show the details of the specified feature flag.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .json
+	    input name {
+		The name of the feature flag to show.
+	    } { validate [call@vtype featureflag] }
+	} [jump@cmd features show]
+
+	common .mod {
+	    input name {
+		The name of the feature flag to modify
+	    } { validate [call@vtype featureflag] }
+	}
+
+	private enable {
+	    section {Feature Flags}
+	    description {
+		Activate the specified feature.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .mod
+	} [jump@cmd features enable]
+
+	private disable {
+	    section {Feature Flags}
+	    description {
+		Deactivate the specified feature.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .mod
+	} [jump@cmd features disable]
+    }
+    alias feature-flags        = flagmgr list
+    alias feature-flag         = flagmgr show
+    alias enable-feature-flag  = flagmgr enable
+    alias disable-feature-flag = flagmgr disable
+
+    # # ## ### ##### ######## ############# #####################
+    ## security groups
+
+    officer secgroupmgr {
+	undocumented
+	description {
+	    Management of security groups, i.e. in-system firewalling.
+	}
+	common .rules {
+	    input rules {
+		Path to the file holding the security rules, json formatted.
+	    } { validate [call@vtype path rfile] }
+	}
+	common .staging-or-running {
+	    option staging {
+		Switch operation to work on the security groups for staging applications.
+	    } {
+		presence
+		when-set [disallow @running]
+		when-set [touch? @space_auto off]
+	    }
+	    option running {
+		Switch operation to work on the security groups for running applications.
+	    } {
+		presence
+		when-set [disallow @staging]
+		when-set [touch? @space_auto off]
+	    }
+	}
+	private show {
+	    section {Security Groups}
+	    description {
+		Show the details of the named security group.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .json
+	    input security_group {
+		The name of the security group to show.
+		This is a Stackato 3.4.2 command.
+	    } { validate [call@vtype securitygroup] }
+	} [jump@cmd secgroups show]
+
+	private list {
+	    section {Security Groups}
+	    description {
+		Show the known security groups, either
+		all, or just those assigned to the running
+		and staging phases.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .json
+	    use .staging-or-running
+	} [jump@cmd secgroups list]
+
+	private create {
+	    section {Security Groups}
+	    description {
+		Create a new security group.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    input security_group {
+		The name of the new security group.
+	    } { validate [call@vtype notsecuritygroup] }
+	    use .rules
+	} [jump@cmd secgroups create]
+
+	private update {
+	    section {Security Groups}
+	    description {
+		Modify the named security group. I.e.
+		replace the set of rules with a new set.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    input security_group {
+		The name of the security group to modify.
+	    } { validate [call@vtype securitygroup] }
+	    use .rules
+	} [jump@cmd secgroups update]
+
+	private delete {
+	    section {Security Groups}
+	    description {
+		Delete the named security group.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    input security_group {
+		The name of the security group to delete.
+	    } { validate [call@vtype securitygroup] }
+	} [jump@cmd secgroups delete]
+
+	private bind {
+	    section {Security Groups}
+	    description {
+		Bind the named security group to either the
+		current or specified space, or the running
+		and staging phases.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .autocurrentspace
+	    use .staging-or-running
+	    input security_group {
+		The name of the security group to bind.
+	    } { validate [call@vtype securitygroup] }
+	} [jump@cmd secgroups bind]
+
+	private unbind {
+	    section {Security Groups}
+	    description {
+		Drop the named security group from either the
+		current or specified space, or the running
+		and staging phases.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .login
+	    use .post34
+	    use .autocurrentspace
+	    use .staging-or-running
+	    input security_group {
+		The name of the security group to unbind.
+	    } { validate [call@vtype securitygroup] }
+	} [jump@cmd secgroups unbind]
+    }
+    alias security-group        = secgroupmgr show
+    alias security-groups       = secgroupmgr list
+    alias create-security-group = secgroupmgr create
+    alias update-security-group = secgroupmgr update
+    alias delete-security-group = secgroupmgr delete
+    alias bind-security-group   = secgroupmgr bind
+    alias unbind-security-group = secgroupmgr unbind
+
+    # # ## ### ##### ######## ############# #####################
     ## /etc/host management
 
     if 0 {officer host {
@@ -1119,6 +1472,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The host file to manipulate.
 		The defaults are platform specific.
 	    } {
+		argument path
 		undocumented
 		validate [call@vtype path rfile]
 		generate [call@cmd   host default-hostfile]
@@ -1131,7 +1485,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Add an IP address with its host
 		names to the system's host file.
 	    }
-	    use .prompt
 	    use .dry
 	    use .hostfile
 	    input ipaddress {
@@ -1169,7 +1522,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Update the entry for the IP address
 		with a new set of hostnames.
 	    }
-	    use .prompt
 	    use .dry
 	    use .hostfile
 	    input ipaddress {
@@ -1198,14 +1550,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Cannot be used together with name.
 	} {
 	    presence
-	    when-set [exclude name --reset]
+	    when-set [disallow @name]
 	}
 	input name {
 	    Name of the current group to use from now on.
 	    Cannot be used together with --reset.
 	} {
 	    optional
-	    when-set [exclude reset name]
+	    when-set [disallow @reset]
 	}
     } [jump@cmd cgroup getorset]
 
@@ -1238,7 +1590,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Set the target API endpoint for the client,
 	    or report the current target.
 	}
-	use .prompt
 	use .json
 	use .verbose
 	use .allow-http
@@ -1247,6 +1598,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    The organization to set as current for this target.
 	    This is a Stackato 3 specific option.
 	} {
+	    argument name
 	    alias o
 	    #when-set [call@mgr client isv2]
 	    #unable to check, no client here.
@@ -1258,6 +1610,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    The space to set as current for this target.
 	    This is a Stackato 3 specific option.
 	} {
+	    argument name
 	    alias s
 	    #when-set [call@mgr client isv2]
 	    #unable to check, no client here.
@@ -1354,7 +1707,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with userOrGroup.
 	    } {
 		presence
-		when-set [exclude userOrGroup --all]
+		when-set [disallow @userOrGroup]
 	    }
 	    input userOrGroup {
 		For a Stackato 2 target the name of the group to query the data for.
@@ -1366,7 +1719,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		For a Stackato 3 target it defaults to the current space.
 	    } {
 		optional
-		when-set [exclude all userOrGroup]
+		when-set [disallow @all]
 	    }
 	} [jump@cmd query usage]
 
@@ -1415,7 +1768,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Add the named user to the specified group.
 		This is a Stackato 2 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v1
 	    input group { The name of the group to add the user to. }
@@ -1429,7 +1781,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Remove the named user from the specified group.
 		This is a Stackato 2 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v1
 	    input group { The name of the group to remove the user from. }
@@ -1443,7 +1794,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Create a new group with the specified name.
 		This is a Stackato 2 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v1
 	    input name { The name of the group to create. }
@@ -1456,7 +1806,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named group.
 		This is a Stackato 2 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v1
 	    input name { The name of the group to delete. }
@@ -1533,7 +1882,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	common .password {
 	    option password {
 		The password to use.
-	    } { alias passwd ; validate str }
+	    } {
+		argument text
+		alias passwd
+		validate str
+	    }
 	}
 
 	common .add {
@@ -1544,7 +1897,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		if "allow_registration" is set server-side. This exception
 		is specific to Stackato 2.
 	    }
-	    use .prompt
 	    # ====================================================
 	    use .login-plain
 	    # NOTE: Plain login because on inital setup it is possible
@@ -1560,6 +1912,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The group to put the new user into.
 		This is a Stackato 2 specific option.
 	    } {
+		argument name
 		when-set [call@mgr client notv2]
 		validate str
 	    }
@@ -1571,10 +1924,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific option.
 		Cannot be used together with --no-organization.
 	    } {
+		argument name
 		alias o
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [exclude no-organization --organization]]
+		when-set [call@mgr client isv2]
+		when-set [disallow @no-organization]
 		validate [call@vtype orgname]
 		generate [call@mgr corg get-auto]
 	    }
@@ -1585,7 +1938,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		When used any --manager and --auditor flags are ignored.
 	    } {
 		presence
-		when-set [exclude organization --no-organization]
+		when-set [disallow @organization]
 	    }
 
 	    option manager {
@@ -1619,6 +1972,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The given name of the user. Left empty if not specified.
 		This is a Stackato 3 specific option.
 	    } {
+		argument name
 		validate str
 		when-set [call@mgr client isv2]
 	    }
@@ -1626,6 +1980,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The family name of the user. Left empty if not specified.
 		This is a Stackato 3 specific option.
 	    } {
+		argument name
 		validate str
 		when-set [call@mgr client isv2]
 	    }
@@ -1649,7 +2004,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		and services from the current or specified target.
 		This operation requires administrator privileges.
 	    }
-	    use .prompt
 	    use .login-plain
 	    input email {
 		The name of the user to delete.
@@ -1664,7 +2018,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	private delete-by-uuid {
 	    undocumented
-	    use .prompt
 	    use .login-plain
 	    input uuid {
 		Uuid of the user to delete, in CC and/or AOK.
@@ -1722,14 +2075,13 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Log in to the current or specified target with the named user.
 	    }
-	    use .prompt
 	    use .login-plain
 	    # General ....... ====================================
 	    option password {
 		The password to use. 
 		For Stackato 3 this is a shorthand
 		for --credentials 'password: ...'.
-	    } { alias passwd ; validate str }
+	    } { argument text ; alias passwd ; validate str }
 	    # CF v2 API only. ====================================
 	    option credentials {
 		The credentials to use.
@@ -1737,6 +2089,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		using the form "key: value" for the argument.
 		This is a Stackato 3 specific option.
 	    } {
+		argument key:value
 		list
 		when-set [call@mgr client isv2]
 		validate [call@vtype http-header]
@@ -1752,6 +2105,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		# NOTE: we need a login, which is what we do not have
 		# NOTE: right now and are working on getting with this
 		# NOTE: command. So, defered to the command implementation.
+		argument name
 		when-set [call@mgr client isv2]
 		validate str
 	    }
@@ -1768,6 +2122,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		# NOTE: we need a login, which is what we do not have
 		# NOTE: right now and are working on getting with this
 		# NOTE: command. So, defered to the command implementation.
+		argument name
 		when-set [call@mgr client isv2]
 		validate str
 	    }
@@ -1779,6 +2134,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The group to use for the login.
 		This is a Stackato 2 specific option.
 	    } {
+		argument name
 		when-set [call@mgr client notv2]
 		validate str
 	    }
@@ -1815,7 +2171,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with a target.
 	    } {
 		presence
-		when-set [exclude target --all]
+		when-set [disallow @target]
 	    }
 	    input target {
 		Name of the target to log out of.
@@ -1823,7 +2179,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with --all.
 	    } {
 		optional
-		when-set [exclude all target]
+		when-set [disallow @all]
 		generate [call@mgr ctarget getc]
 	    }
 	} [jump@cmd usermgr logout]
@@ -1834,12 +2190,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Change the password of the current user in the
 		current or specified target.
 	    }
-	    use .prompt
 	    use .login-plain
 	    option password {
 		The new password. If not present it will be interactively
 		asked for.
-	    } { alias passwd ; validate str }
+	    } { argument text ; alias passwd ; validate str }
 	} [jump@cmd usermgr password]
 
 	private who {
@@ -1886,7 +2241,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	common .org-roles {
 	    section Organizations
-	    use .prompt
 	    use .login
 	    use .v2
 	    state developer  { Affect the developer role }       { default no }
@@ -1910,7 +2264,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 	common .space-roles {
 	    section Spaces
-	    use .prompt
 	    use .login
 	    use .v2
 	    option developer { Affect the developer role } { presence }
@@ -1972,7 +2325,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Show the users for the organization, by role.
 	    }
-	    use .prompt
+	    use .json
 	    use .login
 	    use .v2
 	    input org {
@@ -1991,7 +2344,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Show the users for the space, by role.
 	    }
-	    use .prompt
+	    use .json
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -2046,20 +2399,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    A set of adminstrative tasks.
 	}
 
-	private patch {
-	    section Administration
-	    description {
-		Apply a patch to the current or
-		specified target.
-	    }
-	    use .login
-	    use .dry
-	    input patch {
-		Name, path or url referencing the
-		patch (file) to apply.
-	    }
-	} [jump@cmd admin patch]
-
 	private report {
 	    section Administration
 	    description {
@@ -2084,7 +2423,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		privileges for the current or specified
 		target.
 	    }
-	    use .prompt
 	    use .client
 	    input email {
 		Name of the user to grant administrator
@@ -2101,7 +2439,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		the named user at the current or specified
 		target.
 	    }
-	    use .prompt
 	    use .client
 	    input email {
 		Name of the user to revoke administrator
@@ -2136,15 +2473,17 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The service provider. Use this to disambiguate
 		between multiple providers of the same vendor/type.
 	    } {
+		argument name
 		when-set [call@mgr client isv2]
 		validate str
 		# A filter on 'vendor' (see below).
 		# String field in the vendor, no further validation.
 	    }
-	    option version {
+	    option sversion {
 		The service version. Use this to disambiguate
 		between multiple versions of the same vendor/type.
 	    } {
+		label version
 		when-set [call@mgr client isv2]
 		validate str
 		# A general filter on 'vendor' (see below).
@@ -2175,13 +2514,13 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	officer plan {
 	    common .plan-filter {
 		section Services Plans
-		use .prompt
 		use .login
 		use .v2
 		use .type-filter
 		option vendor {
 		    Name of the service type the specified plan belongs to.
 		} {
+		    argument name
 		    validate [call@vtype servicetype]
 		    interact
 		}
@@ -2257,6 +2596,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		option description {
 		    Change the plan's description.
 		} {
+		    argument text
 		    validate str
 		}
 		input newname {
@@ -2315,6 +2655,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    Value of the broker's token.
 		    Note: This option is specific to Stackato 3.0.
 		} {
+		    argument text
 		    immediate
 		    when-set [call@mgr client max-version-opt 3.0]
 		    validate str
@@ -2322,18 +2663,21 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		option url {
 		    Location of the broker.
 		} {
+		    argument location
 		    validate str
 		    interact
 		}
 		option username {
 		    Name of the user to use for access to the broker.
 		} {
+		    argument name
 		    validate str
 		    interact
 		}
 		option password {
 		    The password to use for access to the broker.
 		} {
+		    argument text
 		    validate str
 		    interact
 		}
@@ -2369,6 +2713,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    Value of the broker's token.
 		    Note: This option is specific to Stackato 3.0.
 		} {
+		    argument text
 		    immediate
 		    when-set [call@mgr client max-version-opt 3.0]
 		    validate str
@@ -2376,16 +2721,19 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		option url {
 		    New location of the broker.
 		} {
+		    argument location
 		    validate str
 		}
 		option username {
 		    Name of the user to use for access to the broker.
 		} {
+		    argument name
 		    validate str
 		}
 		option password {
 		    The password to use for access to the broker.
 		} {
+		    argument text
 		    validate str
 		}
 		input newname {
@@ -2445,6 +2793,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		option auth-token {
 		    Value of the new token.
 		} {
+		    argument text
 		    validate str
 		    interact "Authentication Token: "
 		}
@@ -2468,6 +2817,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		option auth-token {
 		    New value of the specified token.
 		} {
+		    argument text
 		    validate str
 		    interact "Authentication Token: "
 		}
@@ -2508,7 +2858,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Bind the named service to the specified
 		application.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .manifest
 	    use .start
@@ -2542,7 +2891,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Disconnect the named service from the specified
 		application.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .manifest
 	    use .start
@@ -2576,7 +2924,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Copy the service bindings of the source
 		application to the destination application.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .start
 	    input source {
@@ -2593,7 +2940,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Create a new provisioned service, and optionally bind it
 		to an application.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .start
 
@@ -2604,16 +2950,18 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		between multiple providers of the same vendor/type.
 		This is a Stackato 3 specific option.
 	    } {
+		argument name
 		when-set [call@mgr client isv2]
 		validate str
 		# A filter on 'vendor' (see below).
 		# String field in the vendor, no further validation.
 	    }
-	    option version {
+	    option sversion {
 		The service version. Use this to disambiguate
 		between multiple versions of the same vendor/type.
 		This is a Stackato 3 specific option.
 	    } {
+		label version
 		when-set [call@mgr client isv2]
 		validate str
 		# A general filter on 'vendor' (see below).
@@ -2638,6 +2986,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The service plan to use.
 		This is a Stackato 3 specific option.
 	    } {
+		argument name
 		when-set [call@mgr client isv2]
 		# Dependency: vendor (validate, generate)
 		generate [call@cmd servicemgr select-plan-for-create]
@@ -2650,6 +2999,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific option.
 		This is restricted to user-provided services.
 	    } {
+		argument key:value
 		list
 		when-set [call@mgr client isv2]
 		validate [call@vtype http-header]
@@ -2687,14 +3037,13 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Delete the named provisioned service.
 	    }
-	    use .prompt
 	    use .login-with-group
 	    option all {
 		Delete all services.
 		Cannot be used together with named service instances.
 	    } {
 		presence
-		when-set [exclude service --all]
+		when-set [disallow @service]
 	    }
 	    option unbind {
 		Unbind service from applications before deleting.
@@ -2710,7 +3059,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		optional
 		list
-		when-set [exclude all service]
+		when-set [disallow @all]
 		# We cannot use 'interact' as the interaction is more
 		# complex than a simple prompt.  Conditional, and a
 		# menu of choices.
@@ -2734,7 +3083,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Update the credentials of a user provided service.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .start
 	    use .v2
@@ -2744,6 +3092,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Each use of the option declares a single element,
 		using the form "key: value" for the argument.
 	    } {
+		argument key:value
 		list
 		when-set [call@mgr client isv2]
 		validate [call@vtype http-header]
@@ -2765,7 +3114,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Show the information about the named service.
 	    }
-	    use .prompt
 	    use .json
 	    use .login-with-group
 	    input name {
@@ -2782,7 +3130,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Rename the specified service instance.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .v2
 	    use .login-with-group
 	    input service {
@@ -2837,6 +3184,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option port {
 		Port used for the tunnel.
 	    } {
+		argument num
 		default 10000
 		validate [call@vtype integer0]
 	    }
@@ -2850,14 +3198,17 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option keep-zip {
 		Path to a file to keep the upload zip under after upload, for inspection.
 	    } {
+		argument path
 		undocumented
 		validate [call@vtype path rwfile]
 		default {}
 	    }
+	    # See also create-buildpack
 	    option keep-form {
 		Path to a file to keep the whole uploaded multipart/formdata
 		under after upload, for inspection.
 	    } {
+		argument path
 		undocumented
 		validate [call@vtype path rwfile]
 		default {}
@@ -3015,6 +3366,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option application {
 		Name of the application to operate on.
 	    } {
+		argument name
 		alias a
 		validate [call@vtype appname]
 		# Dependency on @client (via .application-core)
@@ -3027,6 +3379,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Name of the application to operate on, or
 		"api" to talk to the cloud controller node.
 	    } {
+		argument name
 		alias a
 		validate [call@vtype appname-api]
 		# Dependency on @client (via .application-core)
@@ -3038,6 +3391,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The instance to access with the command.
 		Defaults to 0.
 	    } {
+		argument num
 		validate [call@vtype instance]
 		generate [call@vtype instance default]
 	    }
@@ -3049,6 +3403,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Defaults to 0.
 		Cannot be used together with --all.
 	    } {
+		argument num
 		validate [call@vtype instance]
 		generate [call@vtype instance default]
 		when-set [disallow @all]
@@ -3064,7 +3419,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with --instance.
 	    } {
 		presence
-		when-set [exclude instance --all]
+		when-set [disallow @instance]
 	    }
 	    option banner {
 		Show the leading and trailing banner to separate
@@ -3098,17 +3453,17 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The id of the instance to filter the log stream for,
 		or (before 2.3), to retrieve the logs of.
 	    } {
+		argument num
 		validate [call@vtype integer0]
-		when-set [exclude all --instance]
+		when-set [disallow @all]
 	    }
 	    # pre 2.3 only ========================================
 	    option all {
 		Retrieve the logs from all instances. Before 2.3 only.
 	    } {
 		presence
-		when-set [combine \
-		      [call@mgr logstream needslow] \
-		      [exclude install all]]
+		when-set [call@mgr logstream needslow]
+		when-set [disallow @install]
 	    }
 	    option prefix {
 		Put instance information before each line of a
@@ -3150,6 +3505,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Filter the log stream by origin stage (glob pattern).
 		Target version 2.4+ only.
 	    } {
+		argument glob-pattern
 		default *
 		when-set [call@mgr logstream needfast]
 	    }
@@ -3157,6 +3513,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Filter the log stream by origin file (glob pattern).
 		Target version 2.4+ only.
 	    } {
+		argument glob-pattern
 		default *
 		when-set [call@mgr logstream needfast]
 	    }
@@ -3164,6 +3521,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Filter the log stream by time, only entries after
 		the specified epoch. Target version 2.4+ only.
 	    } {
+		argument epoch
 		undocumented ; # internal
 		default 0
 		validate [call@vtype integer0]
@@ -3173,6 +3531,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Filter the log stream by log entry text (glob pattern).
 		Target version 2.4+ only.
 	    } {
+		argument glob-pattern
 		default *
 		when-set [call@mgr logstream needfast]
 	    }
@@ -3194,6 +3553,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		by a stackato.yml.
 		This is a Stackato 2 specific option.
 	    } {
+		argument name
 		validate str
 		when-set [call@mgr client notv2]
 		#generate [call@mgr manifest runtime]
@@ -3204,9 +3564,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 2 specific option.
 	    } {
 		presence
-		when-set [combine \
-			      [call@mgr client notv2] \
-			      [exclude framework --no-framework]]
+		when-set [call@mgr client notv2]
+		when-set [disallow @framework]
  	    }
 	    option framework {
 		Specify the framework to use.
@@ -3215,10 +3574,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		not specified, and none for --no-framework.
 		This is a Stackato 2 specific option.
 	    } {
+		argument name
 		validate str
-		when-set [combine \
-			      [call@mgr client notv2] \
-			      [exclude no-framework --framework]]
+		when-set [call@mgr client notv2]
+		when-set [disallow @no-framework]
 	    }
 	    # CF v2 API only. ====================================
 	    ## Stack, Buildpack ...
@@ -3226,6 +3585,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The OS foundation the application will run on.
 		This is a Stackato 3 specific option.
 	    } {
+		argument name
 		when-set [call@mgr client isv2]
 		validate [call@vtype stackname]
 	    }
@@ -3233,6 +3593,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Url of a custom buildpack.
 		This is a Stackato 3 specific option.
 	    } {
+		argument url
 		when-set [call@mgr client isv2]
 		validate str ; # url
 	    }
@@ -3240,6 +3601,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The placement zone associated with the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument name
 		alias zone
 		when-set [call@mgr client isv2]
 		validate [call@vtype zonename]
@@ -3250,22 +3612,22 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The minimal number of instances for the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 1
 		validate [call@vtype integer1]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option max-instances {
 		Auto-scale support.
 		The maximal number of instances for the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default {} ;# <=> nil, no max
 		validate [call@vtype integer1]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option min-cpu {
 		Auto-scale support.
@@ -3274,11 +3636,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		not been reached yet.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 0
 		validate [call@vtype percent-int]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option max-cpu {
 		Auto-scale support.
@@ -3287,11 +3649,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		reached yet.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 100
 		validate [call@vtype percent-int]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option autoscale {
 		Autoscaling support.
@@ -3300,14 +3662,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3.2 specific option.
 	    } {
 		validate boolean
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option description {
 		The description associated with the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument text
 		when-set [call@mgr client isv2]
 		validate str
 	    }
@@ -3325,6 +3687,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The number of application instances to create.
 		Defaults to 1, if not specified by a stackato.yml.
 	    } {
+		argument num
 		validate [call@vtype integer0]
 		#generate [call@mgr manifest instances]
 	    }
@@ -3342,6 +3705,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This information is only used if no urls are specified by
 		neither command line nor manifest.
 	    } {
+		argument name
 		validate str
 	    }
 	    option mem {
@@ -3375,6 +3739,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Defaults to a framework-specific value if required
 		and not specified by stackato.yml.
 	    } {
+		argument text
 		validate str
 	    }
 	    option env {
@@ -3382,6 +3747,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		regardless of --env-mode. The mode is restricted to the
 		variable declarations found in the manifest.
 	    } {
+		argument key=value
 		validate [call@vtype envassign]
 		list
 	    }
@@ -3395,6 +3761,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		# Note: There is also 'append', which is not documented.
 		#default preserve - dynamically chosen in the action callback
+		argument mode
 		validate [call@vtype envmode]
 		when-set [lambda {p x} {
 		    if {$x ne "replace"} return
@@ -3419,6 +3786,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		host:port of the Komodo debugger listener to inject
 		into the application as environment variables.
 	    } {
+		argument host:port
 		validate [call@vtype hostport]
 	    }
 	}
@@ -3430,7 +3798,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3.4 specific command.
 	    }
 	    section Applications
-	    use .prompt
 	    use .json
 	    use .application-k	
 	    use .v2
@@ -3443,7 +3810,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Show the information of the specified application.
 	    }
 	    section Applications
-	    use .prompt
 	    use .json
 	    use .application-k
 	} [jump@cmd query appinfo]
@@ -3487,9 +3853,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .application
 	    use .v2
 	    use .post32
-	    input version {
+	    input appversion {
 		The application version to switch to and activate.
 	    } {
+		label version
 		validate [call@vtype appversion]
 	    }
 	    option code-only {
@@ -3522,13 +3889,49 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .fakelogs
 	} [jump@cmd app restart]
 
+	private restage {
+	    section Applications Control
+	    description {
+		Restage an application, regenerate its droplet.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .application
+	    use .post34
+	    use .start
+	    use .fakelogs
+	} [jump@cmd app restage]
+
+	private migrate {
+	    section Applications Control
+	    description {
+		Move the application to a different space.
+		This is a Stackato 3.4.2 command.
+	    }
+	    use .application-dot
+	    use .post34
+	    option destination-organization {
+		The organization of the destination space, if not the current org.
+	    } {
+		alias D
+		alias dest-org
+		argument name
+		# int.rep = v2org entity
+		validate      [call@vtype orgname]
+		generate      [call@mgr corg getc]
+	    }
+	    input destination {
+		Name of the space to migrate the application to.
+	    } {
+		validate [call@vtype otherspacename @destination-organization]
+	    }
+	} [jump@cmd app migrate]
+
 	private map {
 	    section Applications Management
 	    description {
 		Make the application accessible through the
 		specified URL (a route consisting of host and domain)
 	    }
-	    use .prompt
 	    use .application
 	    input url {
 		One or more urls to route to the application.
@@ -3538,7 +3941,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private unmap {
 	    section Applications Management
 	    description { Unregister the application from a URL. }
-	    use .prompt
 	    use .application
 	    input url {
 		The url to remove from the application routing.
@@ -3588,7 +3990,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		disk reservation and/or autoscaling settings
 		for a deployed application.
 	    }
-	    use .prompt
 	    use .application
 	    use .start
 
@@ -3618,6 +4019,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Absolute number of instances to scale to, or
 		relative change.
 	    } {
+		argument num
 		alias i
 		validate integer
 	    }
@@ -3627,22 +4029,22 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The minimal number of instances for the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 1
 		validate [call@vtype integer1]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option max-instances {
 		Auto-scale support.
 		The maximal number of instances for the application.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default {} ;# <=> nil, no max
 		validate [call@vtype integer1]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option min-cpu {
 		Auto-scale support.
@@ -3651,11 +4053,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		not been reached yet.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 0
 		validate [call@vtype percent-int]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option max-cpu {
 		Auto-scale support.
@@ -3664,11 +4066,11 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		reached yet.
 		This is a Stackato 3.2 specific option.
 	    } {
+		argument num
 		default 100
 		validate [call@vtype percent-int]
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	    option autoscale {
 		Autoscaling support.
@@ -3677,9 +4079,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3.2 specific option.
 	    } {
 		validate boolean
-		when-set [combine \
-			      [call@mgr client isv2] \
-			      [call@mgr client is-stackato-opt]]
+		when-set [call@mgr client isv2]
+		when-set [call@mgr client is-stackato-opt]
 	    }
 	} [jump@cmd app scale]
 
@@ -3691,13 +4092,13 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Without path it defaults to $STACKATO_APP_ROOT on the target.
 	    }
 	    use .mquiet
-	    use .prompt
+	    use .application-dot
 	    option all {
 		When present, access all instances for the file or directory.
 		Cannot be used together with --instance.
 	    } {
 		presence
-		when-set [exclude instance --all]
+		when-set [disallow @instance]
 	    }
 	    option prefix {
 		Put instance information before each line of a
@@ -3713,7 +4114,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with --all.
 		Defaults to 0 (except when --all is present).
 	    } {
-		when-set [exclude all --instance]
+		argument num
+		when-set [disallow @all]
 		validate [call@vtype instance]
 		generate [call@vtype instance default]
 		# Small trick here. Using the VT's default method as
@@ -3721,7 +4123,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		# instead of running it when parsing the spec, which
 		# is too early.
 	    }
-	    use .application-dot
 	    input apath {
 		The path to list or download.
 	    } {
@@ -3736,13 +4137,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Monitor file for changes and stream them.
 	    }
 	    use .mquiet
-	    use .prompt
+	    use .application-dot
 	    option instance {
 		When present the instance to query.
 		Cannot be used together with --all.
 		Defaults to 0 (except when --all is present).
 	    } {
-		when-set [exclude all --instance]
+		argument num
+		when-set [disallow @all]
 		validate [call@vtype instance]
 		generate [call@vtype instance default]
 		# Small trick here. Using the VT's default method as
@@ -3750,7 +4152,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		# instead of running it when parsing the spec, which
 		# is too early.
 	    }
-	    use .application-dot
 	    input apath {
 		The path to list or download.
 	    } {
@@ -3764,7 +4165,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private crashes {
 	    section Applications Information
 	    description { List recent application crashes. }
-	    use .prompt
 	    use .json
 	    use .application
 	} [jump@cmd app crashes]
@@ -3772,7 +4172,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private crashlogs {
 	    section Applications Information
 	    description { Display log information for the application. An alias of 'logs'. }
-	    use .prompt
 	    use .application
 	    use .logs
 	} [jump@cmd app crashlogs]
@@ -3780,7 +4179,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	private logs {
 	    section Applications Information
 	    description { Display the application log stream. }
-	    use .prompt
 	    use .application
 	    use .logs
 	} [jump@cmd app logs]
@@ -3790,7 +4188,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Create an empty application with the specified configuration.
 	    }
-	    use .prompt
 	    use .json
 	    use .application-core
 	    input application {
@@ -3808,15 +4205,14 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Delete the specified application(s).
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .manifest
 	    option all {
-		Delete all applications.
+		Delete all applications (in the current/specified space).
 		Cannot be used together with application names.
 	    } {
 		presence
-		when-set [exclude application --all]
+		when-set [disallow @application]
 	    }
 	    option force {
 		Force deletion.
@@ -3832,7 +4228,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		optional
 		list
-		when-set [exclude all application]
+		when-set [disallow @all]
 		validate [call@vtype appname]
 	    }
 	    #
@@ -3846,7 +4242,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Report the health of the specified application(s).
 	    }
-	    use .prompt
 	    use .login-with-group
 	    use .manifest
 	    option all {
@@ -3854,7 +4249,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Cannot be used together with application names.
 	    } {
 		presence
-		when-set [exclude application --all]
+		when-set [disallow @application]
 	    }
 	    input application {
 		Name of the application(s) to report on.
@@ -3862,7 +4257,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		optional
 		list
-		when-set [exclude all application]
+		when-set [disallow @all]
 		validate [call@vtype appname]
 	    }
 	} [jump@cmd app health]
@@ -3884,6 +4279,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option keep-zip {
 		Path to a file to keep the upload zip under after upload, for inspection.
 	    } {
+		argument path
 		undocumented
 		validate [call@vtype path rwfile]
 		default {}
@@ -3892,15 +4288,15 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Path to a file to keep the whole uploaded multipart/formdata
 		under after upload, for inspection.
 	    } {
+		argument path
 		undocumented
 		validate [call@vtype path rwfile]
 		default {}
 	    }
 	    option force-war-unpacking {
-		When true perform the special .war file handling of Stackato 2.x
-		even against a Stackato 3.x target. Alternative when reset disable
-		the special .war handling for a Stackato 2.x target. The default is
-		target dependent.
+		When true, unpack .war and .jar files and upload contents as
+		application root. Defaults to true for Stackato 2.x targets.
+		Defaults to false for Stackato 3.x targets. 
 	    } {	validate boolean }
 	}
 
@@ -3909,7 +4305,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Configure, create, push, map, and start a new application.
 	    }
-	    use .prompt
 	    use .application-push
 	    use .fakelogs
 	    option no-start {
@@ -3933,8 +4328,12 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The name of the application to push/update the selected application as.
 		Possible only if a single application is pushed or updated.
 	    } {
+		argument name
 		validate [call@vtype appname-lex]
 	    }
+	    option no-create {
+		TODO: check when/where it was removed and why.
+	    } { undocumented ; presence }
 	} [jump@cmd app push]
 
 	private update {
@@ -3943,7 +4342,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Deprecated. Disabled.
 		Use push to update an existing application.
 	    }
-	    use .prompt
 	    use .application
 	    use .fakelogs
 	    use .push-update
@@ -3951,6 +4349,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Environment replacement mode. One of preserve, or replace.
 		Preserve is default.
 	    } {
+		argument mode
 		# Note: There is also 'append', which is not documented.
 		default preserve
 		validate [call@vtype envmode]
@@ -3997,10 +4396,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Run an arbitrary command on a running instance.
 	    }
-	    use .prompt
 	    use .mquiet
-	    use .ssh
 	    use .application-as-option
+	    use .ssh
 	    input command {
 		The command to run.
 	    } { no-promotion ; list }
@@ -4022,9 +4420,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		state dry {
 		    Fake dry setting
 		} { validate integer ; default 0 }
-		use .prompt
-		use .instance
 		use .application-as-option
+		use .instance
 		input paths {
 		    The source paths, and the destination path (last).
 		    The colon ":" character preceding a specified source
@@ -4042,8 +4439,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    or run an arbitrary command.
 		}
 		use .mquiet
-		use .ssh
 		use .application-api
+		use .ssh
 		input command {
 		    The command to run.
 		} {
@@ -4117,7 +4514,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    Add the specified environment variable to the
 		    named application.
 		}
-		use .prompt
 		use .application
 		use .start
 		input varname {
@@ -4134,7 +4530,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		    Remove the specified environment variable from the
 		    named application.
 		}
-		use .prompt
 		use .application
 		use .start
 		input varname {
@@ -4154,7 +4549,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		description {
 		    Attach a new named drain to the application.
 		}
-		use .prompt
 		option json {
 		    The drain target takes raw json log entries.
 		} { presence }
@@ -4174,7 +4568,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		description {
 		    Remove the named drain from the application.
 		}
-		use .prompt
 		use .application
 		use .hasdrains
 		input drain {
@@ -4293,6 +4686,8 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     alias open       = application open_browser
     alias push       = application push
     alias restart    = application restart
+    alias restage    = application restage
+    alias migrate    = application migrate
     alias run        = application run
     alias rename     = application rename
     alias start      = application start
@@ -4335,7 +4730,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Create a new organization.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    option add-self {
@@ -4359,6 +4753,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		The named quota of the new organization.
 		Default is the target's choice.
 	    } {
+		argument name
 		validate [call@vtype quotaname]
 	    }
 	    input name {
@@ -4377,7 +4772,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named organization.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .recursive
@@ -4403,12 +4797,12 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Change one or more attributes of an organization in a single call.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    option quota {
 		Name of the quota plan to use in the organization.
 	    } {
+		argument name
 		validate [call@vtype quotaname]
 	    }
 	    option default {
@@ -4419,6 +4813,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option newname {
 		A new name to give to the organization.
 	    } {
+		argument name
 		validate [call@vtype notorgname]
 	    }
 	    input name {
@@ -4437,7 +4832,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Set the quotas for the current or named organization.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -4462,7 +4856,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This invalidates the current space.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -4485,7 +4878,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
-	    use .prompt
 	    use .login
 	    use .v2
 	    option full {
@@ -4524,7 +4916,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Rename the named organization.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -4578,13 +4969,235 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    Management of spaces.
 	}
 
+	officer quota {
+	    undocumented
+	    description { Management of the space quotas }
+
+	    # General space quota options.
+	    common .sqd {
+		option paid-services-allowed {
+		    Applications can use non-free services.
+		} { default true } ;# boolean
+
+		option services {
+		    Limit for the number of services in the quota.
+		} {
+		    alias s
+		    argument num
+		    default 100
+		    validate [call@vtype integer0]
+		}
+
+		option routes {
+		    Limit for the number of routes in the quota.
+		} {
+		    alias r
+		    argument num
+		    default 1000
+		    validate [call@vtype integer0]
+		}
+
+		option mem {
+		    Amount of memory applications can use.
+
+		    Use the suffices 'M' and 'G' for the convenient specification
+		    of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		    assumed. As the base-unit megabytes must specified as integers.
+		    Gigabytes can be specified as fractions.
+
+		    Also accepts -1 and "unlimited" for unlimited memory.
+		} {
+		    alias m
+		    default 2048
+		    validate [call@vtype memspecplus]
+		}
+
+		option instance-mem {
+		    Amount of memory application instances can use.
+
+		    Use the suffices 'M' and 'G' for the convenient specification
+		    of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		    assumed. As the base-unit megabytes must specified as integers.
+		    Gigabytes can be specified as fractions.
+
+		    Also accepts -1 and "unlimited" for unlimited memory.
+		} {
+		    alias i
+		    default 2048
+		    validate [call@vtype memspecplus]
+		}
+	    }
+
+	    private list {
+		section Administration {Space Quotas}
+		description {
+		    List the space quotas owned by the current or
+		    specified organization, or all.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .json
+		use .autocurrentorg
+		option all {
+		    Show all space quotas instead
+		} {
+		    presence
+		    # combine - exclude --organisation
+		    when-set [touch? @space_auto off]
+		}
+		option full {
+		    Show all information about the space-quota.
+		} { presence }
+	    } [jump@cmd spacequotas list]
+
+	    private show {
+		section Administration {Space Quotas}
+		description {
+		    Show the details of the named space quota.
+		    If not specified it will be asked for interactively (menu).
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .json
+		input name {
+		    Name of the quota plan to display.
+		} {
+		    # int.rep = v2/space_quota_definition entity
+		    optional
+		    validate      [call@vtype spacequota]
+		    generate      [call@cmd spacequotas select-for display]
+		}
+	    } [jump@cmd spacequotas show]
+
+	    private create {
+		section Administration {Space Quotas}
+		description {
+		    Create a new space quota. It will be owned by
+		    the current or specified organization.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .autocurrentorg
+		use .sqd
+		input name {
+		    The name of the new space quota.
+		    If not specified it will be asked for interactively.
+		} {
+		    optional
+		    validate [call@vtype notspacequota]
+		    interact
+		}
+	    } [jump@cmd spacequotas create]
+
+	    private update {
+		section Administration {Space Quotas}
+		description {
+		    Modify the named space quota.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .sqd
+		input name {
+		    The name of the space quota to modify
+		    If not specified it will be asked for interactively (menu).
+		} {
+		    optional
+		    validate [call@vtype spacequota]
+		    generate [call@cmd spacequotas select-for update]
+		    # Interaction in generate, interact not complex
+		    # enough for menu.
+		}
+	    } [jump@cmd spacequotas update]
+
+	    private delete {
+		section Administration {Space Quotas}
+		description {
+		    Delete the named space quota.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		input name {
+		    Name of the space quota to delete.
+		    If not specified it will be asked for interactively (menu).
+		} {
+		    # int.rep = v2/space_quota_definition entity
+		    optional
+		    validate [call@vtype spacequota]
+		    generate [call@cmd spacequotas select-for delete]
+		    # Interaction in generate, interact not complex
+		    # enough for menu.
+		}
+	    } [jump@cmd spacequotas delete]
+
+	    private rename {
+		section Administration {Space Quotas}
+		description {
+		    Rename the named space quota.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		input name {
+		    Name of the space quota to rename.
+		    If not specified it will be asked for interactively (menu).
+		} {
+		    # int.rep = v2/space_quota_definition entity
+		    optional
+		    validate [call@vtype spacequota]
+		    generate [call@cmd spacequotas select-for rename]
+		    # Interaction in generate, interact not complex
+		    # enough for menu.
+		}
+		input newname {
+		    The new name to give to the space quota.
+		} {
+		    #optional
+		    validate [call@vtype notspacequota]
+		    #interact "Enter new name: "
+		}
+	    } [jump@cmd spacequotas rename]
+
+	    private setq {
+		section Administration {Space Quotas}
+		description {
+		    Assign the specified space quota to the current or
+		    specified space. This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .autocurrentspace
+		input name {
+		    Name of the space quota to assign to the space.
+		} {
+		    optional
+		    validate [call@vtype spacequota]
+		    generate [call@cmd spacequotas select-for add]
+		}
+	    } [jump@cmd spacequotas setq]
+
+	    private unsetq {
+		section Administration {Space Quotas}
+		description {
+		    Drop the space quota from the current or specified space.
+		    This is a Stackato 3.4.2 command.
+		}
+		use .login
+		use .post34
+		use .autocurrentspace
+	    } [jump@cmd spacequotas unsetq]
+	}
+
 	private create {
 	    section Spaces
 	    description {
 		Create a new space.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4633,7 +5246,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named space.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4660,7 +5272,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This may switch the organization as well.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4681,7 +5292,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4708,10 +5318,40 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .json
 	    use .login
 	    use .v2
-	    use .autocurrentorg
+	    # # ## ### ##### ######## inlined .autocurrentorg - slightly changed help, spec
+	    option organization {
+		The name of the organization to use as context.
+
+		Defaults to the current organization.
+
+		A current organization is automatically set if there is none,
+		either by taking the one organization the user has, or
+		asking the user to choose among the possibilities.
+
+		Cannot be used together with --all.
+	    } {
+		argument name
+		alias o
+		when-set      [disallow @all]
+		validate      [call@vtype orgname]
+		generate      [call@mgr corg get-auto]
+		when-complete [call@mgr corg setc]
+		#Note: automatic definition of a current org when not defined.
+	    }
+	    state org_auto {
+		State queried by get-auto to discern if the automatic is temporarily disabled.
+	    } { validate boolean ; default true }
+	    # # ## ### ##### ########
 	    option full {
 		Show more details.
 	    } { presence }
+	    option all {
+		Show all spaces across all organizations.
+	    } {
+		presence
+		when-set [disallow @organization]
+		when-set [touch @org_auto off]
+	    }
 	} [jump@cmd spaces list]
 
 	private rename {
@@ -4720,7 +5360,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Rename the named space.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4747,7 +5386,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    description {
 		Change one or more attributes of a space in a single call.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentorg
@@ -4761,6 +5399,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option newname {
 		A new name to give to the space.
 	    } {
+		argument name
 		validate [call@vtype notspacename]
 	    }
 	    input name {
@@ -4782,6 +5421,15 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     alias switch-space = spacemgr switch
     alias update-space = spacemgr update
 
+    alias space-quotas       = spacemgr quota list
+    alias space-quota        = spacemgr quota show
+    alias create-space-quota = spacemgr quota create
+    alias rename-space-quota = spacemgr quota rename
+    alias update-space-quota = spacemgr quota update
+    alias delete-space-quota = spacemgr quota delete
+    alias set-space-quota    = spacemgr quota setq
+    alias unset-space-quota  = spacemgr quota unsetq
+
     # # ## ### ##### ######## ############# #####################
     ## CF v2 commands III: Routes
     #
@@ -4801,32 +5449,105 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named route.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .autocurrentspace
 	    input name {
 		Name of the route to delete.
 		This is expected to be host + domain.
+		Cannot be used together with --unused, nor --all.
 	    } {
+		list ; optional
 		validate [call@vtype routename]
+		when-set [disallow @unused]
+		when-set [disallow @all]
+	    }
+	    option unused {
+		Delete all routes which are not used by any application.
+		Cannot be used together with named routes.
+	    } {
+		presence
+		when-set [disallow @name]
+	    }
+	    option all {
+		Operate --unused across all domains.
+		Cannot be used together with named routes.
+	    } {
+		presence
+		when-set [disallow @name]
+		when-set [touch @space_auto off]
 	    }
 	} [jump@cmd routes delete]
 
 	private list {
 	    section Routes
 	    description {
-		List all available routes.
+		List all available routes in the specified space, or all.
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
 	    use .login
 	    use .v2
-	    #use .autocurrentspace
-	    # NOTE: TODO: The cf help is wrong. From the trace
-	    # space does not factor here, it shows all routes in the
-	    # system.
+	    # # ## ### ##### ######## inlined .autocurrentorg - slightly changed help.
+	    option organization {
+		The name of the organization to use as context.
+		Defaults to the current organization.
 
+		A current organization is automatically set if there is none,
+		either by taking the one organization the user has, or
+		asking the user to choose among the possibilities.
+
+		Cannot be used together with --all.
+	    } {
+		argument name
+		alias o
+		when-set      [disallow @all]
+		validate      [call@vtype orgname]
+		generate      [call@mgr corg get-auto]
+		when-complete [call@mgr corg setc]
+		#Note: automatic definition of a current org when not defined.
+	    }
+	    state org_auto {
+		State queried by get-auto to discern if the automatic is temporarily disabled.
+	    } { validate boolean ; default true }
+	    # # ## ### ##### ######## inlined .autocurrentspace - slightly changed help.
+	    # Space context (s 3.0)
+	    option space {
+		The name of the space to use as context.
+		Defaults to the current space.
+
+		A current space is automatically set if there is none,
+		either by taking the one space the user has, or
+		asking the user to choose among the possibilities.
+
+		Cannot be used together with --all.
+	    } {
+		argument name
+		when-set      [disallow @all]
+		validate      [call@vtype spacename]
+		generate      [call@mgr cspace get-auto]
+		when-complete [call@mgr cspace setc]
+		#Note: automatic definition of a current space when not defined.
+	    }
+	    state space_auto {
+		State queried by get-auto to discern if the automatic is temporarily disabled.
+	    } {
+		validate boolean ; default true
+		when-set [touch @org_auto off]
+	    }
+	    # # ## ### ##### ######## end inlines
+	    option all {
+		Query information about all domains.
+		Cannot be used together with a space.
+	    } {
+		presence
+		when-set [disallow @space]
+		when-set [disallow @organization]
+		when-set [touch @space_auto off]
+	    }
+	    option unused {
+		Filter output to show only the routes which are not used by any application.
+	    } {	presence }
 	} [jump@cmd routes list]
     }
 
@@ -4853,7 +5574,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 		This command is not supported by Stackato 3.2 or higher.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .pre31
@@ -4875,7 +5595,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 		This command is not supported by Stackato 3.2 or higher.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .pre31
@@ -4896,7 +5615,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Create a new domain.
 		This is a Stackato 3.2+ specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .post30
@@ -4919,7 +5637,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named domain.
 		This is a Stackato 3.2+ specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .post30
@@ -4942,6 +5659,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    use .login
 	    use .v2
 	    use .json
+	    # # ## ### ##### ######## inlined .autocurrentorg - slightly changed help, spec
 	    option organization {
 		The name of the organization to use as context.
 		Defaults to the current organization.
@@ -4953,13 +5671,18 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 		Cannot be used together with --all.
 	    } {
+		argument name
 		alias o
-		when-set      [exclude all --organization]
+		when-set      [disallow @all]
 		validate      [call@vtype orgname]
 		generate      [call@mgr corg get-auto]
 		when-complete [call@mgr corg setc]
 		#Note: automatic definition of a current org when not defined.
 	    }
+	    state org_auto {
+		State queried by get-auto to discern if the automatic is temporarily disabled.
+	    } { validate boolean ; default true }
+	    # # ## ### ##### ######## inlined .autocurrentspace - slightly changed help.
 	    # Space context (s 3.0)
 	    option space {
 		The name of the space to use as context.
@@ -4972,20 +5695,28 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 
 		Cannot be used together with --all.
 	    } {
-		when-set      [exclude all --space]
+		argument name
+		when-set      [disallow @all]
 		validate      [call@vtype spacename]
 		generate      [call@mgr cspace get-auto-s30]
 		when-complete [call@mgr cspace setc]
 		#Note: automatic definition of a current space when not defined.
 	    }
+	    state space_auto {
+		State queried by get-auto to discern if the automatic is temporarily disabled.
+	    } {
+		validate boolean ; default true
+		when-set [touch @org_auto off]
+	    }
+	    # # ## ### ##### ######## end inlines
 	    option all {
 		Query information about all domains.
 		Cannot be used together with a space.
 	    } {
 		presence
-		when-set [combine \
-			      [exclude space --all] \
-			      [exclude organization --all]]
+		when-set [disallow @space]
+		when-set [disallow @organization]
+		when-set [touch @space_auto off]
 	    }
 	} [jump@cmd domains list]
     }
@@ -5023,6 +5754,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option services {
 		Limit for the number of services in the quota.
 	    } {
+		argument num
 		default 100
 		validate [call@vtype integer0]
 	    }
@@ -5031,6 +5763,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Limit for the number of routes in the quota.
 		This is a Stackato 3.2+ specific setting.
 	    } {
+		argument num
 		default 1000
 		validate [call@vtype integer0]
 	    }
@@ -5057,7 +5790,10 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		quota are removed and their associated versions
 		can no longer be restored).
 		This is a Stackato 3.4+ specific setting.
-	    } { validate [call@vtype integer0] }
+	    } {
+		argument num
+		validate [call@vtype integer0]
+	    }
 	}
 
 	private create {
@@ -5066,7 +5802,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Create a new quota plan.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .qd
@@ -5086,7 +5821,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Reconfigure the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .qd
@@ -5108,7 +5842,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Delete the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -5141,7 +5874,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Rename the named quota plan.
 		This is a Stackato 3 specific command.
 	    }
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -5172,7 +5904,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		This is a Stackato 3 specific command.
 	    }
 	    use .json
-	    use .prompt
 	    use .login
 	    use .v2
 	    input name {
@@ -5199,7 +5930,6 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	}
 
 	common .bp {
-	    use .prompt
 	    use .login
 	    use .v2
 	    use .post32
@@ -5222,22 +5952,26 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    option lock {
 		Lock the buildpack against modification.
 	    } { presence
-		when-set [combine [exclude unlock --lock] [lambda {p x} { $p config @locked set yes }]]
+		when-set [disallow @unlock]
+		when-set [touch @locked yes]
 	    }
 	    option unlock {
 		Unlock the buildpack, allow changes again.
 	    } { presence
-		when-set [combine [exclude lock --unlock] [lambda {p x} { $p config @locked set no }]]
+		when-set [disallow @lock]
+		when-set [touch @locked no]
 	    }
 	    option enable {
 		Enable use of the buildback.
 	    } { presence
-		when-set [combine [exclude disable --enable] [lambda {p x} { $p config @enabled set yes }]]
+		when-set [disallow @disable]
+		when-set [touch @enabled yes]
 	    }
 	    option disable {
 		Disable the buildpack, prevent its use.
 	    } { presence
-		when-set [combine [exclude enable --disable] [lambda {p x} { $p config @enabled set no }]]
+		when-set [disallow @enable]
+		when-set [touch @enabled no]
 	    }
 
 	    # API to the backend, driven by the presence options above.
@@ -5358,7 +6092,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Path or url of the new zip file containing the implementation of the buildpack.
 		Accepts the path to a local directory as well, which will become the zip file to upload.
 	    } {
-		#label zip|url|dir
+		argument zip|url|dir
 		validate str
 		#validate [call@vtype path rfile];# validation in backend.
 	    }
@@ -5488,26 +6222,9 @@ proc jump@ {package cmd} {
     } $package $cmd
 }
 
-# Another helper to ease handling of parameter exclusion.
-
-proc exclude {locked by} {
-    lambda {locked by p args} {
-	debug.cmdr {}
-	$p config @$locked lock $by
-    } $locked $by
-}
-
-proc combine {args} {
-    lambda {clist args} {
-	foreach cmd $clist {
-	    {*}$cmd {*}$args
-	}
-    } $args
-}
-
 # # ## ### ##### ######## ############# #####################
 ## Notes:
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.1.2
+package provide stackato::cmdr 3.2.0

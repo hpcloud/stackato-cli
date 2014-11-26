@@ -11,6 +11,7 @@ package require cmdr::ask
 package require cmdr::color
 package require stackato::jmap
 package require stackato::log
+package require stackato::cmd::spacequotas
 package require stackato::mgr::client
 package require stackato::mgr::context
 package require stackato::mgr::corg
@@ -262,36 +263,67 @@ proc ::stackato::cmd::spaces::rename {config} {
 
 proc ::stackato::cmd::spaces::list {config} {
     debug.cmd/spaces {}
-    # No arguments.
+
+    set full [$config @full]
+    set all  [$config @all]
+    set json [$config @json]
+
+    # Retrieve the set of spaces to show, based on flag 'all'.
+    # Modulate the set of related information to pull based on flags
+    # 'json' and 'full'.
+    if {!$json} {
+	if {$full} {
+	    set depth 2
+	    set rel   apps
+	} else {
+	    set depth 1
+	    set rel   apps,developers,managers,auditors
+	    # ,service_instances -- Don't include this.
+	    # Doing so would preempt the 'user-provided=1' below,
+	    # thus listing only managed services instead of all.
+	}
+    }
+    if {$all} {
+	# All spaces, regardless of organization.
+
+	if {$json} {
+	    set thespaces [v2 space list]
+	} else {
+	    set thespaces [v2 space list $depth include-relations $rel]
+	    display "All spaces..."
+	}
+    } else {
+	# Spaces in the current or chosen organization.
+	if {$json} {
+	    set thespaces [[corg get] @spaces get]
+	} else {
+	    dict set sc depth             $depth
+	    dict set sc include-relations $rel
+	    set thespaces [[corg get] @spaces get* $sc]
+	    display "In [color name [[corg get] @name]]..."
+	}
+    }
+
+    # Now show the spaces, either as json or proper table.
 
     if {[$config @json]} {
 	set tmp {}
-	foreach s [[corg get] @spaces get] {
+	foreach s $thespaces {
 	    lappend tmp [$s as-json]
 	}
 	display [json::write array {*}$tmp]
 	return
     }
 
-    display "In [color name [[corg get] @name]]..."
     set cs [cspace get]
 
-    set titles {{} Name Default Apps Services}
-    set full [$config @full]
-
-    dict set sc depth 1
-    dict set sc include-relations apps
-    # ,service_instances -- Don't include this.
-    # Doing so would preempt the 'user-provided=1' below,
-    # thus listing only managed services instead of all.
+    set titles {{} Name Default Apps Services {Space Quota}}
     if {$full} {
 	lappend titles Developers Managers Auditors
-	dict set    sc depth 2
-	dict append sc include-relations ,developers,managers,auditors
     }
 
     [table::do t $titles {
-	set spaces [[corg get] @spaces get* $sc]
+	set spaces $thespaces
 
 	foreach space [v2 sort @name $spaces -dict] {
 	    if {[$space @is_default defined?]} {
@@ -300,12 +332,24 @@ proc ::stackato::cmd::spaces::list {config} {
 		# attribute not supported by target.
 		set isdef "N/A"
 	    }
+	    if {$all} {
+		set sname [$space full-name]
+	    } else {
+		set sname [$space @name]
+	    }
 
 	    lappend values [expr {($cs ne {}) && [$cs == $space] ? "x" : ""}]
-	    lappend values [color name [$space @name]]
+	    lappend values [color name $sname]
 	    lappend values $isdef
 	    lappend values [join [lsort -dict [$space @apps @name]] \n]
 	    lappend values [join [lsort -dict [$space @service_instances get* {user-provided true} @name]] \n]
+
+	    if {[$space @space_quota_definition defined?]} {
+		lappend values [$space @space_quota_definition @name]
+	    } else {
+		# attribute not supported by target.
+		lappend values N/A
+	    }
 
 	    if {$full} {
 		lappend values [join [lsort -dict [$space @developers the_name]] \n]
@@ -357,6 +401,22 @@ proc ::stackato::cmd::spaces::show {config} {
 	    $t add Auditors   [join [lsort -dict [$space @auditors   the_name]] \n]
 	}
 
+	if {[$space @space_quota_definition defined?]} {
+	    set sq [$space @space_quota_definition]
+	    $t add {Space Quota} [$sq @name]
+	    if {[$config @full]} {
+		# TODO: Should use proc/structures from cmd::spacequotas, no updates required
+		$t add {- Owner}         [$sq @organization @name]
+		$t add {- Memory}        [stackato::cmd::spacequotas::MEM       [$sq @memory_limit]]
+		$t add {- Instance Mem}  [stackato::cmd::spacequotas::MEM       [$sq @instance_memory_limit]]
+		$t add {- Paid Services} [stackato::cmd::spacequotas::Permitted [$sq @non_basic_services_allowed]]
+		$t add {- Routes}        [$sq @total_routes]
+		$t add {- Services}      [$sq @total_services]
+	    }
+	} else {
+	    # attribute not supported by target.
+	    $t add {Space Quota} N/A
+	}
     }] show display
     return
 }

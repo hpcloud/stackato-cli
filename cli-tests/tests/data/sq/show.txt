@@ -1,0 +1,12 @@
+@ta@ - @sq@
++------------------------+-*-+
+| Key                    | Value *|
++------------------------+-*-+
+| Owning Organization    | @or@ *|
+| Memory Limit           | 2.0G *|
+| Instance Memory Limit  | 2.0G *|
+| Paid Services Allowed  | allowed *|
+| Max Number of Routes   | 1000 *|
+| Max Number Of Services | 100 *|
+| Using Spaces           | * |
++------------------------+-*-+

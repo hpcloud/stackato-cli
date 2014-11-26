@@ -1,0 +1,1 @@
+Dropping space quota "@sq@" from space @sp@ ... OK

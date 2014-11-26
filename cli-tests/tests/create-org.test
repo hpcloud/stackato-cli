@@ -52,7 +52,7 @@ test create-org-1.3 {create-org, login required} -constraints cfv2 -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test create-org-1.4 {create-org, non-admin login is not ok} -constraints cfv2 -setup {
+test create-org-1.4.0 {create-org, non-admin login is not ok} -constraints s234le -setup {
     stage-open
     go-admin
     go-non-admin
@@ -63,6 +63,18 @@ test create-org-1.4 {create-org, non-admin login is not ok} -constraints cfv2 -s
     remove-non-admin
     stage-close
 } -returnCodes error -result [not-authorized]
+
+test create-org-1.4.1 {create-org, non-admin login is not ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-org [theorg]-2
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 330002: Feature Disabled: user_org_creation (403)}
 
 test create-org-1.5 {create-org, persists} -constraints cfv2 -setup {
     stage-open

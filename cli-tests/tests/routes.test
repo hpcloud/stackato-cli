@@ -53,14 +53,119 @@ test routes-1.3 {routes, non-admin login is ok} -constraints cfv2 -setup {
     stage-close
 } -match glob -result {*}
 
-test routes-1.4 {routes} -constraints cfv2 -setup {
+test routes-1.4 {routes, all, none} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run routes --all
+} -cleanup {
+    stage-close
+} -match glob -result {*No Routes}
+
+test routes-1.5 {routes, current space, none} -constraints cfv2 -setup {
     stage-open
     go-admin
 } -body {
     run routes
 } -cleanup {
     stage-close
-} -match glob -result [viewFile data/routes14.txt]
+} -match glob -result {*No Routes}
 
+test routes-1.6 {routes, explicit space, none} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run routes --space [thespace] --org [theorg]
+} -cleanup {
+    stage-close
+} -match glob -result {*No Routes}
+
+# # ## ### ##### ######## ############# #####################
+
+set expected [map {Routes: *
++-*-+-*-+-*-+
+| Url *| Space *| Applications *|
++-*-+-*-+-*-+*
+| http://xxx.@D@ *| @O@::@S@ *| TEST *|*
++-*-+-*-+-*-+} @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.7 {routes, all, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes --all
+} -cleanup {
+    run delete -n --routes TEST
+    stage-close
+} -match glob -result $expected
+
+test routes-1.8 {routes, current space, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes
+} -cleanup {
+    run delete -n --no-routes TEST
+    stage-close
+} -match glob -result $expected
+
+test routes-1.9 {routes, explicit space, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes --space [thespace] --org [theorg]
+} -cleanup {
+    run delete -n --routes TEST
+    stage-close
+} -match glob -result $expected
+
+set expected [map {Routes: *
++-*-+-*-+-*-+
+| Url *| Space *| Applications *|
++-*-+-*-+-*-+
+| http://xxx.@D@ *| @O@::@S@ *|  *|
++-*-+-*-+-*-+} @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.10 {routes, all, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --all --unused
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result $expected
+
+test routes-1.11 {routes, current space, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --unused
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result $expected
+
+test routes-1.12 {routes, explicit space, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --unused --space [thespace] --org [theorg]
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result $expected
+
+
+unset expected
 # # ## ### ##### ######## ############# #####################
 cleanupTests

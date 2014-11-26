@@ -129,6 +129,8 @@ proc ::stackato::mgr::client::RestLog {} {
 proc ::stackato::mgr::client::rawc {p} {
     debug.mgr/client {}
     $p config @motd
+    $p config @cafile
+    $p config @skip-ssl-validation
 
     return [restlog [client new [ctarget get] [auth get]]]
     # No target redirection.
@@ -139,11 +141,15 @@ proc ::stackato::mgr::client::rawc {p} {
 proc ::stackato::mgr::client::plainc {p} {
     debug.mgr/client {}
     $p config @motd
+    $p config @cafile
+    $p config @skip-ssl-validation
     plain
 }
 proc ::stackato::mgr::client::authenticatedc {p} {
     debug.mgr/client {}
     $p config @motd
+    $p config @cafile
+    $p config @skip-ssl-validation
     authenticated
 }
 
@@ -207,12 +213,16 @@ proc ::stackato::mgr::client::authenticated {} {
 }
 
 proc ::stackato::mgr::client::auth+group {p} {
+    debug.mgr/client {}
     # generate callback
     $p config @motd
+    $p config @cafile
+    $p config @skip-ssl-validation
     confer-group [authenticated]
 }
 
 proc ::stackato::mgr::client::reset {} {
+    debug.mgr/client {}
     plain-reset
     authenticated-reset
     close-restlog

@@ -31,7 +31,7 @@ test push-1.1.1 {push, empty application} -constraints cfv1 -setup {
 } -returnCodes error -match glob -result \
     {Error: The framework \[standalone\] needs a non-empty start command.*Please add a "command" key to your stackato.yml}
 
-test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
+test push-1.1.2.0 {push, empty application} -constraints s34le -setup {
     stage-open
     go-admin
 } -body {
@@ -42,6 +42,18 @@ test push-1.1.2 {push, empty application} -constraints cfv2 -setup {
     remove-appdir
     stage-close
 } -returnCodes error -result {Error: Application failed to stage: Staging error: cannot get instances since staging failed (400)}
+
+test push-1.1.2.1 {push, empty application} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run push -n }
+} -cleanup {
+    # Failed to stage still means that the app was created.
+    catch { remove-test-app appdir }
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 170003: An app was not successfully detected by any available buildpack (400)}
 
 # # ## ### ##### ######## ############# #####################
 

@@ -63,7 +63,7 @@ namespace eval ::stackato::cmd::app {
 	securesh dbshell open_browser env_list env_add env_delete \
 	drain_add drain_delete drain_list rename map-urls \
 	check-app-for-restart upload-files the-upload-manifest \
-	list-events start-single activate
+	list-events start-single activate migrate restage
     namespace ensemble create
 
     namespace import ::cmdr::ask
@@ -125,7 +125,7 @@ proc ::stackato::cmd::app::the-upload-manifest {config} {
     set mcfile [fileutil::tempfile stackato-mc-]
     cfile fix-permissions $mcfile 0644
 
-    manifest currentInfo $mcfile [$config @version]
+    manifest currentInfo $mcfile [$config @tversion]
 
     set mdata [fileutil::cat $mcfile]
     file delete $mcfile
@@ -751,7 +751,7 @@ proc ::stackato::cmd::app::Activate {config theapp} {
     # Support for versioning is checked in the 'appversion' validation
     # type used for the @version validation.
 
-    set theversion [$config @version]
+    set theversion [$config @appversion]
     set codeonly   [$config @code-only]
 
     display "Switching to version [$theversion name] of [$theapp @name] ..." false
@@ -802,9 +802,6 @@ proc ::stackato::cmd::app::StopV2 {config theapp} {
 	return
     }
 
-    # Note: TODO: Wait with full log handling until we know how/if v2
-    # has a different log system.
-
     display "Stopping Application \[$appname\] ... " false
     $theapp stop!
     display [color good OK]
@@ -848,6 +845,104 @@ proc ::stackato::cmd::app::StopV1 {config appname} {
 
     debug.cmd/app {/done, ok}
     return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::app::restage {config} {
+    debug.cmd/app {}
+
+    # Required
+    # config @application (single)
+    # config @client
+
+    # Assert single-ness. Need different code here for multiple apps
+    # chosen by user.
+    if {[$config @application list]} {
+	[$config @client] internal "Unexpected list-type @application"
+    }
+
+    # Notes:
+
+    # - If the user specified the application to operate on then all
+    #   calls of 'user_all' will use exactly that application.
+
+    # - Otherwise the system operates on all applications in the manifest.
+    #   The user will not be asked for a name if no applications are found.
+    #   That is a fail case. Similarly if there apps in the manifest, but
+    #   without name.
+
+    manifest user_all each $config {::stackato::mgr logstream start}
+    try {
+	manifest user_all each $config ::stackato::cmd::app::Restage
+    } finally {
+	manifest user_all each $config {::stackato::mgr logstream stop-m}
+    }
+
+    debug.cmd/app {OK}
+    return
+}
+
+proc ::stackato::cmd::app::Restage {config theapp} {
+    debug.cmd/app {}
+    # client v2 = theapp is entity instance
+
+    set client [$config @client]
+
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set appname [$theapp @name]
+
+    display "Restaging application \[[color name $appname]\] ... " false
+    $theapp restage!
+    display [color good OK]
+
+    debug.cmd/app {/done}
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::app::migrate {config} {
+    debug.cmd/app {}
+
+    # Required
+    # config @application (single)
+    # config @client
+
+    # Assert single-ness. Need different code here for multiple apps
+    # chosen by user.
+    if {[$config @application list]} {
+	[$config @client] internal "Unexpected list-type @application"
+    }
+
+    # See also '::stackato::validate::instance::default'
+    if {[$config @application] eq "."} {
+	# Fake 'undefined' for 'user_all' below.
+	$config @application reset
+    }
+
+    manifest user_all each $config ::stackato::cmd::app::Migrate
+
+    debug.cmd/app {OK}
+    return
+}
+
+proc ::stackato::cmd::app::Migrate {config theapp} {
+    debug.cmd/app {}
+    # client v2 = theapp is entity instance
+
+    set client [$config @client]
+
+    debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
+
+    set appname  [$theapp @name]
+    set dstspace [$config @destination]
+
+    display "Migrating Application \[[color name $appname]\] to '[color name [$dstspace full-name]]' ... " false
+    $theapp migrate! $dstspace
+    display [color good OK]
+
+    debug.cmd/app {/done}
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -966,6 +1061,7 @@ proc ::stackato::cmd::app::LogsStream {config theapp} {
     dict set mconfig plogtext  [$config @text]
     dict set mconfig max       [$config @num]
     dict set mconfig appname   $theapp ;# name or entity, per CF version
+    dict set mconfig sysname   [dict get' [[$config @client] info] name stackato]
 
     if {[$config @follow]} {
 	debug.cmd/app {/follow aka tail}
@@ -1290,14 +1386,24 @@ proc ::stackato::cmd::app::delete {config} {
 
     # Check for and handle deletion of --all applications.
     if {$all} {
+	set thespace      [cspace get]
 	set should_delete [expr {$force || ![cmdr interactive?]}]
 	if {!$should_delete} {
+	    if {[$client isv2]} {
+		if {$thespace eq {}} {
+		    err "Unable to delete apps in the space. No space specified."
+		}
+	    }
 	    set msg "Delete [color note ALL] Applications from \[[color name [Context $client]]\] ? "
 	    set should_delete [ask yn $msg no]
 	}
 	if {$should_delete} {
 	    if {[$client isv2]} {
-		set apps [[cspace get] @apps]
+		if {$thespace eq {}} {
+		    err "Unable to delete apps in the space. No space specified."
+		}
+		set thespace [cspace get]
+		set apps [$thespace @apps]
 		foreach app $apps {
 		    app delete $config $client $app $force
 		}
@@ -3467,6 +3573,14 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	skip {
 	    # The target supports a zero-downtime switchover. A restart is
 	    # not only not required, but contra-indicated. Do nothing.
+	    set url [$theapp uri]
+	    if {$url ne {}} {
+		set label "http://$url/ deployed"
+	    } else {
+		set label "$appname deployed to [ctarget get]"
+	    }
+	    append label ", using a zero-downtime switchover"
+	    display $label
 	}
 	start {
 	    start-single $config $theapp

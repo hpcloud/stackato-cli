@@ -17,8 +17,9 @@ debug level  exec
 debug prefix exec {[debug caller] | }
 
 namespace eval ::exec {
-    variable pids  {}
-    variable files {}
+    variable pids   {}
+    variable files  {}
+    variable cfiles {}
 }
 
 proc ::exec::bgrun {args} {
@@ -86,9 +87,11 @@ proc ::exec::pipe {lv script args} {
 proc ::exec::clear {} {
     variable pids
     variable files
+    variable cfiles
     debug.exec {[info level 0]}
-    debug.exec {pids  = ($pids)}
-    debug.exec {files = ($files)}
+    debug.exec {pids   = ($pids)}
+    debug.exec {files  = ($files)}
+    debug.exec {cfiles = ($cfiles)}
 
     foreach p $pids {
 	catch {
@@ -96,6 +99,12 @@ proc ::exec::clear {} {
 	    kill $p
 	}
     }
+
+    foreach f $cfiles {
+	debug.exec {[info level 0] dele $f}
+	file delete -force $f
+    }
+
     set pids {}
     debug.exec {[info level 0] DONE}
     return
@@ -119,6 +128,13 @@ proc ::exec::drop {pid} {
     return
 }
 
+proc ::exec::clear-on-exit {path} {
+    debug.exec {[info level 0]}
+    variable cfiles
+    lappend  cfiles $path
+    return
+}
+
 proc ::exec::dropf {path} {
     variable files
     debug.exec {[info level 0]}
@@ -138,7 +154,7 @@ proc ::exec::dropf {path} {
 }
 
 namespace eval ::exec {
-    namespace export bgrun run pipe clear drop dropf
+    namespace export bgrun run pipe clear drop dropf clear-on-exit
     #namespace ensemble create
     # No ensemble, would smash builtin ::exec
 }
