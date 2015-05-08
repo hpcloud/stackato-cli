@@ -58,7 +58,7 @@ test service-brokers-1.4 {client service-brokers, standard (empty)} -constraints
     run service-brokers
 } -cleanup {
     stage-close
-} -result {No service brokers available}
+} -match glob -result "Service brokers: *\nNo service brokers"
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

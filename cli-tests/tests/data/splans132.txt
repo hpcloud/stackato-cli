@@ -1,13 +1,13 @@
-+------------+------+------------------------------------------+---------+------+--------+----------+---------+------+
-| Vendor     | Plan | Description                              | Details | Free | Public | Provider | Version | Orgs |
-+------------+------+------------------------------------------+---------+------+--------+----------+---------+------+
-| filesystem | free | Persistent filesystem service            | free    | yes  | yes    | core     | 1.0     |      |
-| harbor     | free | External port mapping service            | free    | yes  | yes    | core     | 1.0     |      |
-| memcached  | free | Memcached in-memory object cache service | free    | yes  | yes    | core     | 1.4     |      |
-| mongodb    | free | MongoDB NoSQL store                      | free    | yes  | yes    | core     | 2.4     |      |
-| mysql      | free | MySQL database service                   | free    | yes  | yes    | core     | 5.5     |      |
-| postgresql | free | PostgreSQL database service              | free    | yes  | yes    | core     | 9.1     |      |
-| rabbitmq   | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 2.8     |      |
-| rabbitmq3  | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 3.1     |      |
-| redis      | free | Redis key-value store service            | free    | yes  | yes    | core     | 2.8     |      |
-+------------+------+------------------------------------------+---------+------+--------+----------+---------+------+
++------------+------+------------------------------------------+---------+------+--------+----------+---------+--------+------+
+| Vendor     | Plan | Description                              | Details | Free | Public | Provider | Version | Broker | Orgs |
++------------+------+------------------------------------------+---------+------+--------+----------+---------+--------+------+
+| filesystem | free | Persistent filesystem service            | free    | yes  | yes    | core     | 1.0     |        |      |
+| harbor     | free | External port mapping service            | free    | yes  | yes    | core     | 1.0     |        |      |
+| memcached  | free | Memcached in-memory object cache service | free    | yes  | yes    | core     | 1.4     |        |      |
+| mongodb    | free | MongoDB NoSQL store                      | free    | yes  | yes    | core     | 2.4     |        |      |
+| mysql      | free | MySQL database service                   | free    | yes  | yes    | core     | 5.5     |        |      |
+| postgresql | free | PostgreSQL database service              | free    | yes  | yes    | core     | 9.1     |        |      |
+| rabbitmq   | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 2.8     |        |      |
+| rabbitmq3  | free | RabbitMQ message queue                   | free    | yes  | yes    | core     | 3.1     |        |      |
+| redis      | free | Redis key-value store service            | free    | yes  | yes    | core     | 2.8     |        |      |
++------------+------+------------------------------------------+---------+------+--------+----------+---------+--------+------+

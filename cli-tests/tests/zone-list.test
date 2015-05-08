@@ -73,7 +73,7 @@ test zone-list-2.1 {placement-zones} -constraints s32ge -setup {
     run placement-zones
 } -cleanup {
     stage-close
-} -match glob -result [map {In @target@...
+} -match glob -result [map {Placement-zones: @target@
 +-*-+-*-+
 | Name *| DEA *|
 +-*-+-*-+

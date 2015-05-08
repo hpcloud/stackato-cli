@@ -313,11 +313,8 @@ oo::class create ::stackato::v2::user {
 	    debug.v2/user {Fill cache}
 	    try {
 		set myuaa [[my client] uaa_get_user [my id]]
-	    } trap {REST HTTP 404} {e o} {
-		#puts |$o|
-		set myuaa {}
-		set myuaa_error $e
-	    } trap {STACKATO CLIENT V2 NOTFOUND} {e o} {
+	    } trap {REST HTTP 404} {e o} - \
+	      trap {STACKATO CLIENT V2 NOTFOUND} {e o} {
 		#puts |$o|
 		set myuaa_error $e
 		set myuaa {}

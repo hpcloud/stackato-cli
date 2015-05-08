@@ -116,7 +116,8 @@ test drain-add-1.7.1 {drain add, persistent} -constraints cfv1 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {+-------+-------+-----------------------------------+
+} -result {Drains: *
++-------+-------+-----------------------------------+
 | Name  | Json  | Url                               |
 +-------+-------+-----------------------------------+
 | DRAIN | false | tcp://flux.activestate.com:11100/ |
@@ -134,7 +135,8 @@ test drain-add-1.7.2 {drain add, persistent} -constraints cfv2 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -match glob -result {+-------+------+-----------------------------------+-*-+
+} -match glob -result {Drains: *
++-------+------+-----------------------------------+-*-+
 | Name  | Json | Url                               | Status *|
 +-------+------+-----------------------------------+-*-+
 | DRAIN | 0    | tcp://flux.activestate.com:11100/ | * |
@@ -165,7 +167,8 @@ test drain-add-1.9.1 {drain add, --json, persistent} -constraints cfv1 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {+-------+-------+-----------------------------------+
+} -result {Drains: *
++-------+-------+-----------------------------------+
 | Name  | Json  | Url                               |
 +-------+-------+-----------------------------------+
 | DRAIN | true  | tcp://flux.activestate.com:11100/ |
@@ -183,7 +186,8 @@ test drain-add-1.9.2 {drain add, --json, persistent} -constraints cfv2 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -match glob -result {+-------+------+-----------------------------------+-*-+
+} -match glob -result {Drains: *
++-------+------+-----------------------------------+-*-+
 | Name  | Json | Url                               | Status *|
 +-------+------+-----------------------------------+-*-+
 | DRAIN | 1    | tcp://flux.activestate.com:11100/ | * |

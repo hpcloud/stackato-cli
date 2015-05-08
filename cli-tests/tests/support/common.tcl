@@ -490,6 +490,10 @@ apply {{spec} {
     set post341 [expr {[package vcompare [dict get $spec Version] 3.4.2] >= 0}]
     set pre343  [expr {[package vcompare [dict get $spec Version] 3.4.3] < 0}]
 
+    set post342 [expr {[package vcompare [dict get $spec Version] 3.5] >= 0}]
+
+    tcltest::testConstraint s36ge   [expr {$isv2 && $post342}]
+
     tcltest::testConstraint s342ge  [expr {$isv2 && $post341}]
     tcltest::testConstraint s341ge  [expr {$isv2 && $post34}]
     tcltest::testConstraint s34le   [expr {$isv2 && $pre342}]

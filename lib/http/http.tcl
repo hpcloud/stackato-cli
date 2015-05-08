@@ -740,7 +740,7 @@ proc http::geturl {url args} {
 	    set state(sock) $sock
 	    Finish $token "" 1
 	    cleanup $token
-	    return -code error -errorcode {HTTP SOCK OPEN} $sock
+	    return -code error -errorcode {HTTP SOCK OPEN} "$url: $sock"
         }
     }
     set state(sock) $sock
@@ -775,7 +775,7 @@ proc http::geturl {url args} {
 	    # exception from here instead.
 	    set err [lindex $state(error) 0]
 	    cleanup $token
-	    return -code error -error {HTTP SOCK OPEN} $err
+	    return -code error -error {HTTP SOCK OPEN} "$url: $err"
 	}
     }
 

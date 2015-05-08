@@ -33,24 +33,25 @@ package require stackato::v2::app_event
 package require stackato::v2::app_version
 package require stackato::v2::buildpack
 package require stackato::v2::domain
+package require stackato::v2::environment_variable_group
 package require stackato::v2::feature_flags
+package require stackato::v2::managed_service_instance
 package require stackato::v2::organization
 package require stackato::v2::quota_definition
 package require stackato::v2::route
 package require stackato::v2::security_group
 package require stackato::v2::service
 package require stackato::v2::service_auth_token
-package require stackato::v2::service_broker
 package require stackato::v2::service_binding
+package require stackato::v2::service_broker
 package require stackato::v2::service_instance
-package require stackato::v2::managed_service_instance
-package require stackato::v2::user_provided_service_instance
 package require stackato::v2::service_plan
 package require stackato::v2::service_plan_visibility
 package require stackato::v2::space
 package require stackato::v2::space_quota_definition
 package require stackato::v2::stack
 package require stackato::v2::user
+package require stackato::v2::user_provided_service_instance
 package require stackato::v2::zone
 
 # # ## ### ##### ######## ############# #####################
@@ -605,7 +606,7 @@ oo::class create ::stackato::v2::client {
 	# of the upload progress display.
 
 	set p [expr {$n*100/$total}]
-	again+ ${p}%
+	again+ "${p}% ($n/$total)"
 
 	if {$n >= $total} {
 	    display " [cmdr color good OK]" false
@@ -735,6 +736,14 @@ oo::class create ::stackato::v2::client {
 	variable mytdata
 	if {![info exists mytdata]} { return N/A }
 	return [dict get' $mytdata email [dict get' $mytdata user_id N/A]]
+    }
+
+    method current_user_id {} {
+	debug.v2/client {}
+	# Expects decoded token data
+	variable mytdata
+	if {![info exists mytdata]} { return {} }
+	return [dict get' $mytdata user_id {}]
     }
 
     # # ## ### ##### ######## #############
@@ -1110,10 +1119,16 @@ oo::class create ::stackato::v2::client {
 
 	if {[dict exists $config inline-relations-depth] &&
 	    [dict get    $config inline-relations-depth]} {
+	    debug.v2/client {depth = [dict get $config inline-relations-depth]}
 	    set force 1
 
 	    if {[my is-stackato]} {
+		debug.v2/client {stackato: activate new format}
 		dict set config orphan-relations 1
+	    } elseif {[dict get $config inline-relations-depth] > 2} {
+		debug.v2/client {cf: depth limit 2 (< [dict get $config inline-relations-depth])}
+		# Non-stackato server (CF), limited to depth 2.
+		dict set config inline-relations-depth 2
 	    }
 	}
 
@@ -1131,11 +1146,23 @@ oo::class create ::stackato::v2::client {
 	    set page [$classobj list-transform [my json_get $url]]
 
 	    if {[dict exists $page relations]} {
+		debug.v2/memory { RELATIONS }
 		# Save the relations, if any, into the orphan cache.
 		# The higher layers use has|get-orphan to retrieve
 		# information at need. get-by-url inspects it as well
 		# and short-circuits requests we can serve from it.
 		dict for {uuid json} [dict get $page relations] {
+		    dict set myorphans $uuid $json
+		}
+	    }
+
+	    if {[dict exists $page orphans]} {
+		debug.v2/memory { ORPHANS }
+		# [301346] Save the relations, if any, into the orphan
+		# cache.  See above for more notes.  It seems that CF
+		# changed the name of the mapping when our PR for this
+		# schem got integrated.
+		dict for {uuid json} [dict get $page orphans] {
 		    dict set myorphans $uuid $json
 		}
 	    }
@@ -1383,6 +1410,11 @@ oo::class create ::stackato::v2::client {
 
 	    lindex [my http_get_raw $new] 1
 	}
+    }
+
+    method restart-instance {url {instance 0}} {
+	debug.v2/client {}
+	return [my http_delete $url/instances/$instance]
     }
 
     ######################################################

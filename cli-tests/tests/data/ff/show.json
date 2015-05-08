@@ -1,10 +1,8 @@
 {
     "entity"   : {
-        "default_value" : false,
-        "enabled"       : false,
+        *"enabled"       : false,
         "error_message" : null,
-        "name"          : "user_org_creation",
-        "overridden"    : *
+        "name"          : "user_org_creation"*
     },
     "metadata" : {
         "guid" : "user_org_creation",

@@ -24,6 +24,7 @@ package require stackato::mgr::client
 package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
+package require stackato::mgr::ctarget
 package require stackato::mgr::exit
 package require stackato::mgr::service
 package require stackato::mgr::tadjunct
@@ -75,6 +76,7 @@ namespace eval ::stackato::cmd::usermgr {
     namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
+    namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::exit
     namespace import ::stackato::mgr::service
     namespace import ::stackato::mgr::tadjunct
@@ -546,7 +548,7 @@ proc ::stackato::cmd::usermgr::ListV1 {config client} {
 
     display ""
     if {![llength $users]} {
-	display "No Users"
+	display [color note "No Users"]
 	return
     }
 
@@ -576,6 +578,10 @@ proc ::stackato::cmd::usermgr::ListV1 {config client} {
 
 proc ::stackato::cmd::usermgr::ListV2 {config client} {
     debug.cmd/usermgr {}
+
+    if {![$config @json]} {
+	display "Users: [context format-target]"
+    }
 
     set mode [$config @mode]
     # derived conditions for groups of headings.
@@ -669,9 +675,8 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	return
     }
 
-    display ""
     if {![llength $users] && ![dict size $map]} {
-	display "No Users"
+	display [color note "No Users"]
 	return
     }
 

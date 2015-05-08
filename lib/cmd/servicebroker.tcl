@@ -10,6 +10,7 @@ package require Tcl 8.5
 package require cmdr::ask
 package require cmdr::color
 package require stackato::jmap
+package require stackato::mgr::context
 package require stackato::log
 package require stackato::v2
 package require table
@@ -22,7 +23,7 @@ namespace eval ::stackato::cmd {
     namespace ensemble create
 }
 namespace eval ::stackato::cmd::servicebroker {
-    namespace export list add update remove
+    namespace export list add update remove show
     namespace ensemble create
 
     namespace import ::cmdr::ask
@@ -30,6 +31,7 @@ namespace eval ::stackato::cmd::servicebroker {
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::v2
 
     # Shared definition for add/update
@@ -51,6 +53,10 @@ proc ::stackato::cmd::servicebroker::list {config} {
 
     set thebrokers [v2 service_broker list]
 
+    if {![$config @json]} {
+	display "\nService brokers: [context format-target]"
+    }
+
     if {[$config @json]} {
 	set tmp {}
 	foreach broker $thebrokers {
@@ -61,7 +67,7 @@ proc ::stackato::cmd::servicebroker::list {config} {
     }
 
     if {![llength $thebrokers]} {
-	display "No service brokers available"
+	display [color note "No service brokers"]
 	debug.cmd/servicebroker {/done NONE}
 	return
     }
@@ -126,8 +132,73 @@ proc ::stackato::cmd::servicebroker::add {config} {
     $broker commit
     display [color good OK]
 
+    if {![$config @public]} return
+
+    # Pull the plans of the new broker and make them public. Prefetch
+    # all brokers to ensure resolution in-client, avoiding a broken CC
+    # endpoint.
+
+    display "Make new plans public ..."
+
+    lappend plans  {}
+    lappend labels Vendor
+    lappend names  Plan
+    lappend sdesc  Description
+    lappend pdesc  Details
+
+    v2 service_broker list
+    foreach plan [v2 service_plan list] {
+	set service [$plan @service]
+
+	if {![$service @service_broker defined?]} continue
+	if {![$broker == [$service @service_broker]]} continue
+
+	lappend plans  $plan
+	lappend labels [$service @label]      
+	lappend names  [$plan    @name]	      
+	lappend sdesc  [$service @description]
+	lappend pdesc  [$plan    @description]
+    }
+
+    if {[llength $plans] < 2} {
+	display [color yellow {  No plans found}]
+	return
+    }
+
+    foreach \
+	plan  $plans  \
+	label [PadR $labels] \
+	name  [PadR $names]  \
+	sd    [PadR $sdesc]  \
+	pd    [PadR $pdesc] {
+
+	display "  | $label | $name | $sd | $pd |" false
+	if {$plan eq {}} { display " --" ; continue }
+
+	display " " false
+
+	$plan @public set yes
+	$plan commit
+	display [color green OK]
+    }
+
     debug.cmd/servicebroker {/done}
     return
+}
+
+proc ::stackato::cmd::servicebroker::PadR {list} {
+    if {[llength $list] <= 1} {
+        return $list
+    }
+    set maxl 0
+    foreach str $list {
+        set l [string length $str]
+        if {$l <= $maxl} continue
+        set maxl $l
+    }
+    set res {}
+    foreach str $list { lappend res [format "%-*s" $maxl $str] }
+    return $res
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -146,6 +217,28 @@ proc ::stackato::cmd::servicebroker::remove {config} {
     $broker delete
     $broker commit
     display [color good OK]
+
+    debug.cmd/servicebroker {/done}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::servicebroker::show {config} {
+    debug.cmd/servicebroker {}
+    # V2 only.
+    # client v2 = @name is entity instance
+
+    set broker [$config @name]
+    if {![$config @name set?]} {
+	$config @name undefined!
+    }
+
+    # Now format and display the table
+    [table::do t {Key Value} {
+	$t add Name     [$broker @name]
+	$t add Location [$broker @broker_url]
+    }] show display
 
     debug.cmd/servicebroker {/done}
     return
@@ -219,7 +312,7 @@ proc ::stackato::cmd::servicebroker::update {config} {
 	$broker commit
 	display [color good OK]
     } else {
-	display "No changes made."
+	display [color note "No changes made"]
     }
 
     debug.cmd/servicebroker {/done}

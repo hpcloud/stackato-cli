@@ -16,7 +16,7 @@ stackato admin
 stackato admin exit
     Exit the shell. No-op if not in a shell.
 
-stackato admin grant <email>
+stackato admin grant <user>
     Grant the named user administrator privileges for the current or specified
     target.
 
@@ -31,7 +31,7 @@ stackato admin report [OPTIONS] [<destination>]
     Retrieve a report containing the logs of the current or specified target.
     This is a stackato-specific command.
 
-stackato admin revoke <email>
+stackato admin revoke <user>
     Revoke administrator privileges for the named user at the current or
     specified target.
 
@@ -55,7 +55,7 @@ stackato bind-service [OPTIONS] [<service>] [<application>]
     Bind the named service to the specified application.
 
 stackato buildpacks [OPTIONS]
-    Show all build-packs known to the target, in the order they are checked in
+    Show all buildpacks known to the target, in the order they are checked in
     during auto-detection.
 
 stackato clone-services [OPTIONS] <source> <application>
@@ -97,7 +97,7 @@ stackato create-app [OPTIONS] [<application>]
     Create an empty application with the specified configuration.
 
 stackato create-buildpack [OPTIONS] <name> <zip|url|dir>
-    Add a build-pack to the target.
+    Add a buildpack to the target.
 
 stackato create-domain [OPTIONS] <name>
     Create a new domain. This is a Stackato 3.2+ specific command.
@@ -137,7 +137,7 @@ stackato delete [OPTIONS] [<application>...]
     Delete the specified application(s).
 
 stackato delete-buildpack [OPTIONS] [<name>]
-    Remove the specified build-back from the target.
+    Remove the specified buildpack from the target.
 
 stackato delete-domain [OPTIONS] <name>
     Delete the named domain. This is a Stackato 3.2+ specific command.
@@ -217,6 +217,10 @@ stackato env-add [OPTIONS] [<application>] <varname> <value>
 stackato env-del [OPTIONS] [<application>] <varname>
     Remove the specified environment variable from the named application.
 
+stackato environment-variable-group [OPTIONS]
+    Show the details of the specified environment variable group. This is a
+    Stackato 3.6 command.
+
 stackato events [OPTIONS] [<application>]
     Show recorded application events, for application or space. Without an
     application given the current or specified space is used, otherwise that
@@ -230,7 +234,7 @@ stackato feature-flag [OPTIONS] <name>
     command.
 
 stackato feature-flags [OPTIONS]
-    Show all known feature flags and their stati. This is a Stackato 3.4.2
+    Show all known feature flags and their status. This is a Stackato 3.4.2
     command.
 
 stackato file [OPTIONS] <application> [<path>]
@@ -468,7 +472,7 @@ stackato rename [OPTIONS] [<application>] [<name>]
     Rename the specified application. This is a Stackato 3 specific command.
 
 stackato rename-buildpack [OPTIONS] [<name>] [<newname>]
-    Change the name of the specified build-pack.
+    Change the name of the specified buildpack.
 
 stackato rename-org [OPTIONS] [<name>] [<newname>]
     Rename the named organization. This is a Stackato 3 specific command.
@@ -489,6 +493,10 @@ stackato restage [OPTIONS] [<application>]
 
 stackato restart [OPTIONS] [<application>]
     Stop and restart a deployed application.
+
+stackato restart-instance [OPTIONS] <application> <instance>
+    Stop and restart a specific instance of a deployed application. This is a
+    Stackato 3.4.2 command.
 
 stackato rollback [OPTIONS] [<application>] <version>
     Switch to a different version of the application. This is a Stackato 3.4
@@ -548,6 +556,10 @@ stackato services [OPTIONS]
 stackato set-env [OPTIONS] [<application>] <varname> <value>
     Add the specified environment variable to the named application.
 
+stackato set-environment-variable-group [OPTIONS]
+    Set the contents of the specified environment variable group. This is a
+    Stackato 3.6 command.
+
 stackato set-placement-zone [OPTIONS] [<application>] <zone>
     Associate the application with a specific placement zone. This is a
     Stackato 3.2+ specific command.
@@ -555,6 +567,10 @@ stackato set-placement-zone [OPTIONS] [<application>] <zone>
 stackato set-space-quota [OPTIONS] [<name>]
     Assign the specified space quota to the current or specified space. This
     is a Stackato 3.4.2 command.
+
+stackato show-service-broker [OPTIONS] [<name>]
+    Show the information of the named service broker from the target. This is
+    a Stackato 3 specific command.
 
 stackato show-service-plan [OPTIONS] <name> [<organization>]
     Make the specified service-plan visible to the named organization. This is
@@ -674,7 +690,7 @@ stackato unset-space-quota [OPTIONS]
     Stackato 3.4.2 command.
 
 stackato update-buildpack [OPTIONS] [<name>]
-    Change the information known about the specified build-pack.
+    Change the information known about the specified buildpack.
 
 stackato update-org [OPTIONS] [<name>]
     Change one or more attributes of an organization in a single call.

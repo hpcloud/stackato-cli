@@ -148,7 +148,7 @@ test clone-services-1.6.2 {clone-services} -constraints cfv2 -setup {
     remove-test-app DEST
     remove-appdir
     stage-close
-} -result {Binding test-service to DEST ... OK}
+} -result {Binding [test-service] to DEST ... OK}
 
 test clone-services-1.7.1 {clone-services, persistent} -constraints cfv1 -setup {
     stage-open

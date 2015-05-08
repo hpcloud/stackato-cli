@@ -8,6 +8,7 @@
 
 package require Tcl 8.5
 package require cmdr::color
+package require cmdr::pager
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::auth
@@ -24,6 +25,7 @@ package require stackato::mgr::self
 package require stackato::mgr::ws
 package require stackato::misc
 package require stackato::v2
+package require stackato::validate::debug
 package require stackato::validate::spacename
 package require stackato::yaml
 package require table
@@ -47,7 +49,8 @@ namespace eval ::stackato::cmd::query {
 	frameworks general runtimes services usage \
 	applications manifest appinfo context stacks \
 	target-version trace map-named-entity \
-	named-entities raw-rest list-packages app-versions
+	named-entities raw-rest list-packages app-versions \
+	list-options
     namespace ensemble create
 
     namespace import ::cmdr::color
@@ -72,6 +75,7 @@ namespace eval ::stackato::cmd::query {
     namespace import ::stackato::mgr::ws
     namespace import ::stackato::misc
     namespace import ::stackato::v2
+    namespace import ::stackato::validate::debug
     namespace import ::stackato::validate::spacename
     namespace import ::stackato::yaml
 }
@@ -323,6 +327,27 @@ proc ::stackato::cmd::query::MaxLen {list} {
 
 # # ## ### ##### ######## ############# #####################
 
+proc ::stackato::cmd::query::list-options {config} {
+    debug.cmd/query {}
+
+    lappend lines "Debug options to inspect cli internals at various levels"
+    lappend lines ""
+
+    lappend lines --debug-http-log
+    lappend lines --debug-http-data
+    lappend lines --debug-http-token
+    lappend lines --debug-tls-handshake
+
+    lappend lines ""
+
+    foreach section [debug levels] {
+	lappend lines "--debug $section"
+    }
+
+    cmdr pager [join $lines \n]
+    return
+}
+
 proc ::stackato::cmd::query::list-packages {config} {
     debug.cmd/query {}
 
@@ -360,6 +385,8 @@ proc ::stackato::cmd::query::named-entities {config} {
     set types [v2 types]
     struct::list delete types managed_service_instance
     struct::list delete types user_provided_service_instance
+    struct::list delete types feature_flag
+    struct::list delete types config/environment_variable_group
 
     if {[$config @json]} {
 	display [jmap map array $types]
@@ -585,19 +612,26 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	    set z "N/A (not supported by target)"
 	}
 
-	foreach {var attr} {
-	    htim health_check_timeout
-	    ssoe sso_enabled
-	    desc description
-	    mini min_instances
-	    maxi max_instances
-	    mint min_cpu_threshold
-	    maxt max_cpu_threshold
-	    auts autoscale_enabled
-	    rere restart_required
+	foreach {var attr hilit} {
+	    bldp buildpack            name
+	    dbld detected_buildpack   name
+	    htim health_check_timeout {}
+	    ssoe sso_enabled          {}
+	    desc description          {}
+	    mini min_instances        {}
+	    maxi max_instances        {}
+	    mint min_cpu_threshold    {}
+	    maxt max_cpu_threshold    {}
+	    auts autoscale_enabled    {}
+	    rere restart_required     {}
+	    dimg docker_image         name
 	} {
 	    if {[$theapp @$attr defined?]} {
-		set $var [$theapp @$attr]
+		upvar 0 $var thevar
+		set thevar [$theapp @$attr]
+		if {($hilit ne {}) && ($thevar ne {})} {
+		    set thevar [color $hilit $thevar]
+		}
 	    } else {
 		# attribute not supported by target.
 		set $var "N/A (not supported by target)"
@@ -609,15 +643,18 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	$t add {Placement Zone} $z
 	$t add {SSO Enabled}    $ssoe
 
-	$t add State              [app state-color [$theapp @state]]
-	$t add {Restart required} [expr {$rere ? "[color note yes]" : "no"}]
-	$t add $htitle            $health
-	$t add {- Check Timeout}  $htim
-	$t add Instances          [$theapp @total_instances]
-	$t add Memory             [psz [MB [$theapp @memory]]]
-	$t add {Disk Quota}       [psz [MB [$theapp @disk_quota]]]
+	$t add State                [app state-color [$theapp @state]]
+	$t add {Restart required}   [expr {$rere ? "[color note yes]" : "no"}]
+	$t add $htitle              $health
+	$t add {- Check Timeout}    $htim
+	$t add Buildpack            $bldp
+	$t add {Detected Buildpack} $dbld
+	$t add {Docker Image}       $dimg
+	$t add Instances            [$theapp @total_instances]
+	$t add Memory               [psz [MB [$theapp @memory]]]
+	$t add {Disk Quota}         [psz [MB [$theapp @disk_quota]]]
 
-	$t add Services         [join [lsort -dict [$theapp services]] \n]
+	$t add Services    [join [lsort -dict [$theapp services]] \n]
 	$t add Environment
 	dict for {k v} [dict sort [$theapp @environment_json]] {
 	    $t add "- $k" $v
@@ -713,6 +750,10 @@ proc ::stackato::cmd::query::stacks {config} {
     # --token, --token-file, --target handled by cmdr framework
     # through when-complete and force.
 
+    if {![$config @json]} {
+	display "\nStacks: [ctx format-target]"
+    }
+
     set client [$config @client]
     set stacks [v2 sort @name [v2 stack list] -dict]
 
@@ -726,11 +767,10 @@ proc ::stackato::cmd::query::stacks {config} {
     }
 
     if {![llength $stacks]} {
-	display "No Stacks"
+	display [color note "No Stacks"]
 	return
     }
 
-    display ""
     [table::do t {Name Description} {
 	foreach s $stacks {
 	    $t add [$s @name] [$s @description]
@@ -753,7 +793,7 @@ proc ::stackato::cmd::query::frameworks {config} {
     }
 
     if {![llength $frameworks]} {
-	display "No Frameworks"
+	display [color note "No Frameworks"]
 	return
     }
 
@@ -885,7 +925,7 @@ proc ::stackato::cmd::query::runtimes {config} {
     }
 
     if {![llength $runtimes]} {
-	display "No Runtimes"
+	display [color note "No Runtimes"]
 	return
     }
 
@@ -915,6 +955,15 @@ proc ::stackato::cmd::query::usage {config} {
 
     if {[$client isv2]} {
 	set info [UsageV2 $client $config $all $userOrGroup]
+	# 3.0.1: s.b, not confirmed
+	# 3.2.1: s.b, not confirmed
+	# 3.4.2: usage:mem is [B], scale/convert down to [KB]!
+	# 3.6:   s.a.
+
+	set um [dict get $info usage mem]
+	set um [expr {$um / 1024.0}]
+	dict set info usage mem $um
+
     } else {
 	set info [UsageV1 $client $config $all $userOrGroup]
     }
@@ -975,6 +1024,10 @@ proc ::stackato::cmd::query::applications {config} {
 proc ::stackato::cmd::query::AppListV2 {config} {
     debug.cmd/query {v2}
 
+    if {![$config @json]} {
+	display "\nApplications: [ctx format-target]"
+    }
+
     set cs [cspace get]
 
     # While we pretty much always have a current space, not having one
@@ -1003,13 +1056,19 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 	return
     }
 
-    display ""
     if {![llength $applications]} {
-	display "No Applications"
+	display [color note "No Applications"]
 	return
     }
 
-    [table::do t {Application \# Mem Health Restart URLs Services Drains} {
+    set full [$config @full]
+    if {$full} {
+	set titles {Application \# Mem Health Restart URLs Services Drains}
+    } else {
+	set titles {Application \# Mem Health URLs Services}
+    }
+
+    [table::do t $titles {
 	foreach app $applications {
 	    try {
 		set health [app health-color [$app health]]
@@ -1019,21 +1078,29 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 		  set health [color bad 0%]
 	    }
 
-	    if {[$app @restart_required defined?] &&
-		[$app @restart_required]} {
-		set restart [color note Required]
-	    } else {
-		set restart ""
+	    set row {}
+	    lappend row  [$app @name]
+	    lappend row  [$app @total_instances]
+	    lappend row  [$app @memory]
+	    lappend row  $health
+
+	    if {$full} {
+		if {[$app @restart_required defined?] &&
+		    [$app @restart_required]} {
+		    set restart [color note Required]
+		} else {
+		    set restart ""
+		}
+		lappend row $restart
 	    }
 
-	    set name         [$app @name]
-	    set numinstances [$app @total_instances]
-	    set mem          [$app @memory]
-	    set uris         [join [Uprefix [lsort -dict [$app uris]]] \n]
-	    set services     [join [lsort -dict [$app services]] \n]
-	    set drains       [join [lsort -dict [DrainListV2 $app]] \n]
+	    lappend row [join [Uprefix [lsort -dict [$app uris]]] \n]
+	    lappend row [join [lsort -dict [$app services]] \n]
+	    if {$full} {
+		lappend row [join [lsort -dict [DrainListV2 $app]] \n]
+	    }
 
-	    $t add $name $numinstances $mem $health $restart $uris $services $drains
+	    $t add {*}$row
 	}
     }] show display
 
@@ -1070,7 +1137,7 @@ proc ::stackato::cmd::query::AppListV1 {config client} {
 
     display ""
     if {![llength $applications]} {
-	display "No Applications"
+	display [color note "No Applications"]
 	return
     }
 

@@ -67,7 +67,7 @@ test create-security-group-1.1.1 {create-security-group, non-admin login is not 
     go-admin
     go-non-admin
 } -body {
-    run create-security-group [thesecgroup] [tmp]/data/sg/empty.json
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
 } -cleanup {
     be-admin
     remove-non-admin

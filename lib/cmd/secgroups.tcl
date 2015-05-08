@@ -9,7 +9,6 @@
 package require Tcl 8.5
 package require cmdr::ask
 package require cmdr::color
-package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client
 package require stackato::mgr::context
@@ -33,7 +32,6 @@ namespace eval ::stackato::cmd::secgroups {
 
     namespace import ::cmdr::ask
     namespace import ::cmdr::color
-    namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::log::wrap
@@ -188,15 +186,23 @@ proc ::stackato::cmd::secgroups::unbind {config} {
 proc ::stackato::cmd::secgroups::list {config} {
     debug.cmd/secgroups {}
 
+    if {![$config @json]} {
+	if {[$config @staging]} {
+	    set ctx [context format-target " ([color name Staging])"]
+	} elseif {[$config @running]} {
+	    set ctx [context format-target " ([color name Running])"]
+	} else {
+	    set ctx [context format-target]
+	}
+	display "\nSecurity-Groups: $ctx"
+    }
+
     if {[$config @staging]} {
 	set thegroups  [v2 security_group stager-defaults]
-	set ctx        [context format-target " ([color name Staging])"]
     } elseif {[$config @running]} {
 	set thegroups  [v2 security_group run-defaults]
-	set ctx        [context format-target " ([color name Running])"]
     } else {
 	set thegroups [v2 security_group list 2]
-	set ctx       [context format-target]
     }
 
     if {[$config @json]} {
@@ -208,7 +214,6 @@ proc ::stackato::cmd::secgroups::list {config} {
 	return
     }
 
-    display "\nSecurity-Groups: $ctx"
     if {![llength $thegroups]} {
 	display [color note "No Security Groups"]
 	return

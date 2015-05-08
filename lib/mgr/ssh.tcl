@@ -706,11 +706,13 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
     }
 
     if {$bg == 4} {
+	# CheckSources is only caller for bg==4.
 	try {
 	    set lines [exec 2>@ stderr <@ stdin {*}$cmd]
 	} trap {CHILDSTATUS} {e o} {
-	    exit fail [GetStatus $o]
-	    set lines {}
+	    err [lindex [split [dict get $o -errorinfo] \n] 0]
+	    #exit fail [GetStatus $o]
+	    #set lines {}
 	}
 	return $lines
     }

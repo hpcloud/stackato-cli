@@ -126,7 +126,7 @@ test guid-1.11 {client guid} -constraints cfv2 -setup {
     ref-target
     go-admin
 } -body {
-    run guid stack lucid64
+    run guid stack alsek
 } -cleanup {
     stage-close
 } -match glob -result *

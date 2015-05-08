@@ -86,7 +86,7 @@ test env-del-1.5 {env-del} -setup {
     stage-close
 } -result {Deleting Environment Variable [VAR] ... OK}
 
-test env-del-1.6 {env-del, persistent} -setup {
+test env-del-1.6.0 {env-del, persistent} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -100,6 +100,25 @@ test env-del-1.6 {env-del, persistent} -setup {
     stage-close
 } -result {No Environment Variables}
 
+test env-del-1.6.1 {env-del, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env-del TEST VAR
+    run env     TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {System:
++---------------+-------+
+| Variable      | Value |
++---------------+-------+
+| VCAP_SERVICES |       |
++---------------+-------+}
+
 test env-del-1.7 {env-del, running app, restart} -setup {
     stage-open
     go-admin
@@ -112,7 +131,7 @@ test env-del-1.7 {env-del, running app, restart} -setup {
     remove-appdir
     stage-close
 } -match glob -result {Deleting Environment Variable \[VAR\] ... 
-*Stopping Application \[node-env\] ... OK
+*Stopping Application \[node-env\] ... *
 *Starting Application \[node-env\] ... *
 *//node-env.* deployed*}
 

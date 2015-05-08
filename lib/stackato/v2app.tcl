@@ -44,19 +44,20 @@ oo::class create ::stackato::v2::app {
 	# here). When changing attribute names make sure to not
 	# collide with these.
 
-	my Attribute name              !string
-	my Attribute space             &space
-	my Attribute environment_json  dict    label {Environment} default {}
-	my Attribute memory            integer label {Memory       } default 256            ;# integer0 is better
-	my Attribute total_instances   integer label {Instances    } default 1 as instances ;# integer0 actually.
-	my Attribute disk_quota        integer label {Disk         } default 256            ;# integer0 is better
-	my Attribute state             string  label {State        } default STOPPED        ;# state enum might help
-	my Attribute command           string  label {Command      } default {}
-	my Attribute console           boolean label {Console      } default off
-	my Attribute buildpack         string  label {Buildpack    } default {}
-	my Attribute stack             &stack  label {Stack        } default {}
-	my Attribute debug             string  label {Debug        } default {}
-	my Attribute production        boolean label {Production   } default off
+	my Attribute name               !string
+	my Attribute space              &space
+	my Attribute environment_json   dict    label {Environment} default {}
+	my Attribute memory             integer label {Memory       } default 256            ;# integer0 is better
+	my Attribute total_instances    integer label {Instances    } default 1 as instances ;# integer0 actually.
+	my Attribute disk_quota         integer label {Disk         } default 256            ;# integer0 is better
+	my Attribute state              string  label {State        } default STOPPED        ;# state enum might help
+	my Attribute command            string  label {Command      } default {}
+	my Attribute console            boolean label {Console      } default off
+	my Attribute buildpack          null|string  label {Buildpack    } default {}
+	my Attribute detected_buildpack null|string  label {Det Buildpack} default {}
+	my Attribute stack              &stack  label {Stack        } default {}
+	my Attribute debug              string  label {Debug        } default {}
+	my Attribute production         boolean label {Production   } default off
 
 	my Many service_bindings
 	my Many	routes
@@ -87,6 +88,9 @@ oo::class create ::stackato::v2::app {
 	# --- Stackato 3.4 --- Versioning support.
 	my Many      app_versions
 	my Attribute droplet_count integer
+
+	# --- Stackato >3.4 --- Docker image support (Bring Your Own Docker (as application)).
+	my Attribute docker_image null|string
 
 	#my SearchableOn name
 	#my SearchableOn space
@@ -281,6 +285,17 @@ oo::class create ::stackato::v2::app {
 	return [[authenticated] logs-async-of $cmd [my url] $n]
     }
 
+    method system-env {} {
+	debug.v2/app {}
+	try {
+	    return [dict get' [[authenticated] json_get [my url]/env] system_env_json {}]
+	} trap {REST HTTP 404} {e o} - \
+	  trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} - \
+	  trap {STACKATO CLIENT V2 NOTFOUND}        {e o} {
+	    return {}
+	}
+    }
+
     # # ## ### ##### ######## #############
     ## Special APIs ... Control
 
@@ -371,6 +386,8 @@ oo::class create ::stackato::v2::app {
 
     # # ## ### ##### ######## #############
     ## Instance specific operations.
+    ## These are called from v2appinstance objects.
+    ## "for-instance" is the generic entry point.
 
     method for-instance {index operation args} {
 	debug.v2/app {}
@@ -380,6 +397,11 @@ oo::class create ::stackato::v2::app {
     method instance-files {index path} {
 	debug.v2/app {}
 	[authenticated] files [my url] $path $index
+    }
+
+    method instance-restart {index} {
+	debug.v2/app {}
+	[authenticated] restart-instance [my url] $index
     }
 
     # # ## ### ##### ######## #############
@@ -546,8 +568,9 @@ oo::class create ::stackato::v2::appinstance {
 
     # TODO: stream_file
 
-    forward files app-do files
-    forward file  app-do files
+    forward files   app-do files
+    forward file    app-do files
+    forward restart app-do restart
 
     # # ## ### ##### ######## #############
 }

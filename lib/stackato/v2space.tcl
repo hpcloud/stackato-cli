@@ -54,6 +54,9 @@ oo::class create ::stackato::v2::space {
 
 	# TODO scoped_to_organization
 
+	# Present since stackato 3.?
+	my Many routes
+
 	next $url
 
 	debug.v2/space {/done}

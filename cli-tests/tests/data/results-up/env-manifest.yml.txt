@@ -7,4 +7,4 @@ staging: -----> echo FOO__ = $FOO
 staging:        FOO__ = BAR
 staging: -----> echo SNAFU = $SNAFU
 staging:        SNAFU = CLUSTER
-*http://node-env.@BASE@/ deployed
+*

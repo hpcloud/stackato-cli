@@ -3,11 +3,11 @@ stackato [OPTIONS]
     stackato add-user [OPTIONS] [<name>]
     stackato admin
     stackato admin exit
-    stackato admin grant <email>
+    stackato admin grant <user>
     stackato admin help [OPTIONS] [<cmdname>...]
     stackato admin list [OPTIONS]
     stackato admin report [OPTIONS] [<destination>]
-    stackato admin revoke <email>
+    stackato admin revoke <user>
     stackato alias <name> <command>...
     stackato aliases [OPTIONS]
     stackato app [OPTIONS] [<application>]
@@ -64,6 +64,7 @@ stackato [OPTIONS]
     stackato env [OPTIONS] [<application>]
     stackato env-add [OPTIONS] [<application>] <varname> <value>
     stackato env-del [OPTIONS] [<application>] <varname>
+    stackato environment-variable-group [OPTIONS]
     stackato events [OPTIONS] [<application>]
     stackato exit
     stackato feature-flag [OPTIONS] <name>
@@ -139,6 +140,7 @@ stackato [OPTIONS]
     stackato rename-space-quota [OPTIONS] [<name>] <newname>
     stackato restage [OPTIONS] [<application>]
     stackato restart [OPTIONS] [<application>]
+    stackato restart-instance [OPTIONS] <application> <instance>
     stackato rollback [OPTIONS] [<application>] <version>
     stackato routes [OPTIONS]
     stackato run [OPTIONS] <command>...
@@ -154,8 +156,10 @@ stackato [OPTIONS]
     stackato service-plans [OPTIONS]
     stackato services [OPTIONS]
     stackato set-env [OPTIONS] [<application>] <varname> <value>
+    stackato set-environment-variable-group [OPTIONS]
     stackato set-placement-zone [OPTIONS] [<application>] <zone>
     stackato set-space-quota [OPTIONS] [<name>]
+    stackato show-service-broker [OPTIONS] [<name>]
     stackato show-service-plan [OPTIONS] <name> [<organization>]
     stackato show-token [OPTIONS]
     stackato space [OPTIONS] [<name>]

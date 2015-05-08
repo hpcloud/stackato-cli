@@ -12,6 +12,7 @@ package require stackato::log
 package require stackato::mgr::context
 package require stackato::v2
 package require table
+package require try
 
 debug level  cmd/features
 debug prefix cmd/features {[debug caller] | }
@@ -36,6 +37,10 @@ namespace eval ::stackato::cmd::features {
 proc ::stackato::cmd::features::list {config} {
     debug.cmd/features {}
 
+    if {![$config @json]} {
+	display "Feature-flags: [context format-target]"
+    }
+
     set features [v2 feature_flag list]
 
     if {[$config @json]} {
@@ -47,8 +52,6 @@ proc ::stackato::cmd::features::list {config} {
 	return
     }
 
-    display [context format-target]
-
     if {![llength $features]} {
 	display [color note "No Features"]
 	return
@@ -56,17 +59,28 @@ proc ::stackato::cmd::features::list {config} {
 
     [table::do t {Name State Overridden Default} {
 	foreach o [v2 sort @name $features -dict] {
-	    $t add \
-		[color name [$o @name]] \
-		[State [$o @enabled]] \
-		[$o @overridden] \
-		[State [$o @default_value]]
+	    set name    [color name [$o @name]]
+	    set enabled [State [$o @enabled]]
+	    try {
+		set over [$o @overridden]
+	    } trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e opt} {
+		# opt, to not clash with iteraton variable o
+		set over [color bad {<<not supplied>>}]
+	    }
+	    try {
+		set defvalue [State [$o @default_value]]
+	    } trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e opt} {
+		# opt, to not clash with iteraton variable o
+		set defvalue [color bad {<<not supplied>>}]
+	    }
+
+	    $t add $name $enabled $over $defvalue
 	    # overridden, default, error_message
 	}
     }] show display
-
     return
 }
+
 proc ::stackato::cmd::features::show {config} {
     debug.cmd/features {}
 
@@ -79,11 +93,26 @@ proc ::stackato::cmd::features::show {config} {
 
     display [context format-target]
     [table::do t {Key Value} {
-	$t add Name            [color name [$feature @name]]
-	$t add State           [State [$feature @enabled]]
-	$t add Overridden      [$feature @overridden]
-	$t add Default         [State [$feature @default_value]]
-	$t add {Error Message} [$feature @error_message]
+	set name    [color name [$feature @name]]
+	set enabled [State [$feature @enabled]]
+	set errmsg  [$feature @error_message]
+
+	try {
+	    set over [$feature @overridden]
+	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
+	    set over [color bad {<<not supplied by target>>}]
+	}
+	try {
+	    set default [State [$feature @default_value]]
+	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE} {e o} {
+	    set default [color bad {<<not supplied by target>>}]
+	}
+
+	$t add Name            $name
+	$t add State           $enabled
+	$t add Overridden      $over
+	$t add Default         $default
+	$t add {Error Message} $errmsg
     }] show display
     return
 }

@@ -242,14 +242,14 @@ proc ::stackato::cmd::orgs::list {config} {
     # No arguments.
 
     if {![$config @json]} {
-	display "In [color name [ctarget get]]..."
+	display "Organizations: [context format-target]"
     }
     set co [corg get]
 
     set titles {{} Name Default Quota {Space Quota} Spaces Domains}
     set full [$config @full]
     set depth 1
-    set ir quota_definition,spaces,domains
+    set ir quota_definition,spaces,domains,space_quota_definitions
     if {$full} {
 	lappend titles Applications Services
 	set depth 3
@@ -267,6 +267,11 @@ proc ::stackato::cmd::orgs::list {config} {
 	    lappend tmp [$org as-json]
 	}
 	display [json::write array {*}$tmp]
+	return
+    }
+
+    if {![llength $theorgs]} {
+	display [color note "No organizations"]
 	return
     }
 

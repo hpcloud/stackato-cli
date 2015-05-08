@@ -67,7 +67,12 @@ proc ::stackato::cmd::color::def {config} {
 proc ::stackato::cmd::color::undef {config} {
     debug.cmd/color {}
 
+    # Read, modify and write the yaml configuration for persistence.
 
+    set colors [Load]
+    set color [$config @color]
+    dict unset colors $color
+    Store $colors
 
     return
 }

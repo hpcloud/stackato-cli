@@ -28,7 +28,8 @@ namespace eval ::stackato::mgr::logstream {
     namespace export start stop stop-m active \
 	set-use-c get-use-c set-use get-use \
 	needfast needslow isfast show1 tail \
-	new-entries no-new-entries kill
+	new-entries no-new-entries kill \
+	wait-for-active wait-for-inactive
     namespace ensemble create
 
     namespace import ::cmdr::color
@@ -204,6 +205,60 @@ proc ::stackato::mgr::logstream::kill {} {
     return
 }
 
+proc ::stackato::mgr::logstream::wait-for-active {pollinterval maxwait} {
+    debug.mgr/logstream {}
+    # Wait until 'pollinterval' [millis] passes with new log entries,
+    # but at most for 'maxwait' [seconds]. If the latter passes, stop
+    # with a failure report.
+
+    set start [clock seconds]
+    while {([clock seconds] - $start) < $maxwait} {
+	After $pollinterval
+	if {[new-entries]} {
+	    debug.mgr/logstream {/done, have entries}
+	    return on
+	}
+	debug.mgr/logstream {/continue, timeout not reached}
+    }
+    debug.mgr/logstream {/done, timeout in wait}
+    return off
+}
+
+proc ::stackato::mgr::logstream::wait-for-inactive {pollinterval maxwait {endpattern {}}} {
+    debug.mgr/logstream {}
+
+    # Check if the end pattern is among the entries, if we
+    # have a pattern to look for. On a match we end, without
+    # note.
+
+    if {$endpattern ne {}} {
+	match $endpattern 
+    }
+
+    # Wait until 'pollinterval' [millis] passes without new log
+    # entries, but at most for 'maxwait' [seconds] since the last
+    # entry. IOW a new log entry resets the timeout.
+
+    set start [clock seconds]
+    while {1} {
+	if {[matches]} { return 0 }
+	After $pollinterval
+	if {[new-entries]} {
+	    # reset timeout
+	    set start [clock seconds]
+	    debug.mgr/logstream {/continue, new entries}
+	    continue
+	}
+
+	if {([clock seconds] - $start) > $maxwait} break
+	debug.mgr/logstream {/continue, timeout not yet reached}
+    }
+
+    match {}
+    debug.mgr/logstream {/done, timeout}
+    return 1
+}
+
 proc ::stackato::mgr::logstream::DelayForInactive {delay} {
     debug.mgr/logstream {}
     # Wait until 'delay' passes without new log entries.
@@ -231,6 +286,23 @@ proc ::stackato::mgr::logstream::active {} {
     variable active
     debug.mgr/logstream {==> $active}
     return  $active
+}
+
+proc ::stackato::mgr::logstream::match {pattern} {
+    variable match
+    debug.mgr/logstream {==> ($pattern)}
+    set match $pattern
+    return
+}
+
+proc ::stackato::mgr::logstream::matches {} {
+    # query if the logstream saw new entries since the last check, and
+    # reset the counter
+    variable hasmatches
+    set result $hasmatches
+    set hasmatches 0
+    debug.mgr/logstream {==> $result}
+    return $result
 }
 
 proc ::stackato::mgr::logstream::new-entries {} {
@@ -356,8 +428,9 @@ proc ::stackato::mgr::logstream::GetLast {client theapp} {
 proc ::stackato::mgr::logstream::Tail {config} {
     debug.mgr/logstream {}
     dict set config follow 1 ;# configure filtering in show1
-    variable previous {} ;# nothing seen yet.
-    variable hasnew   0  ;# initialize indicator
+    variable previous   {}   ;# nothing seen yet.
+    variable hasnew     0    ;# initialize indicators
+    variable hasmatches 0
 
     TailRun $config
     return
@@ -432,7 +505,7 @@ proc ::stackato::mgr::logstream::TailNext {config cmd {details {}}} {
 
 proc ::stackato::mgr::logstream::isws {config} {
     # Web-socket API can be disabled by the user.
-    if {[[dict get $config _config] @no-ws]} { return 0 }
+    if {![[dict get $config _config] @ws]} { return 0 }
 
     set client [dict get $config client]
     set ci [$client info]
@@ -464,8 +537,9 @@ proc ::stackato::mgr::logstream::tail-poll {config} {
     debug.mgr/logstream {}
 
     dict set config follow 1 ;# configure filtering in show1
-    variable previous {}     ;# nothing seen yet
-    variable hasnew   0      ;# initialize indicator
+    variable previous   {}   ;# nothing seen yet
+    variable hasnew     0    ;# initialize indicators
+    variable hasmatches 0
 
     while {1} {
 	show1 $config
@@ -488,10 +562,14 @@ proc ::stackato::mgr::logstream::tail-ws {config {wait 1}} {
     set urlb $url
     if {$num > 0} { append urlb ?num=$num }
 
-    set sock [ws open $target $urlb \
-		  [dict create \
-		       text  [namespace code [list tail-ws-text      $config]] \
-		       close [namespace code [list tail-ws-reconnect $config $target $url]]]]
+    try {
+	set sock [ws open $target $urlb \
+		      [dict create \
+			   text  [namespace code [list tail-ws-text      $config]] \
+			   close [namespace code [list tail-ws-reconnect $config $target $url]]]]
+    } trap WEBSOCKET {e o} {
+	err $e
+    }
 
     if {!$wait} { return $sock }
     ws wait
@@ -505,10 +583,14 @@ proc ::stackato::mgr::logstream::tail-ws-text {config msg} {
 
 proc ::stackato::mgr::logstream::tail-ws-reconnect {config target url} {
     debug.mgr/logstream {}
-    ws open $target $url \
-	[dict create \
-	     text  [namespace code [list tail-ws-text      $config]] \
-	     close [namespace code [list tail-ws-reconnect $config $target $url]]]
+    try {
+	ws open $target $url \
+	    [dict create \
+		 text  [namespace code [list tail-ws-text      $config]] \
+		 close [namespace code [list tail-ws-reconnect $config $target $url]]]
+    } trap WEBSOCKET {e o} {
+	err $e
+    }
     return
 }
 
@@ -578,9 +660,13 @@ proc ::stackato::mgr::logstream::show1-ws {config} {
     debug.mgr/logstream {target = $target}
     debug.mgr/logstream {url    = $url}
 
-    ws open $target $url?num=[dict get $config max] \
-	[dict create \
-	     text [namespace code [list ShowLine1 $config]]]
+    try {
+	ws open $target $url?num=[dict get $config max] \
+	    [dict create \
+		 text [namespace code [list ShowLine1 $config]]]
+    } trap WEBSOCKET {e o} {
+	err $e
+    }
     ws wait
     return
 }
@@ -642,7 +728,14 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	# Raw JSON as it came from the server.
 	display $line
     } else {
+	variable match
+	variable hasmatches
+
 	dict with record {} ;# => instance, source, text, ...
+
+	if {($match ne {}) && [string match $match $text]} {
+	    incr hasmatches
+	}
 
 	set original_source $source
 	
@@ -669,7 +762,7 @@ proc ::stackato::mgr::logstream::ShowLine1 {config line} {
 	    set date "[clock format $timestamp -format {%Y-%m-%dT%H:%M:%S%z}] "
 	}
 
-	display "[color $linecolor $date$source]: [EolCode $text]"
+	display "[color $linecolor $date$source]: [Highlight [EolCode $text]]"
     }
 }
 
@@ -865,6 +958,38 @@ proc ::stackato::mgr::logstream::EolMap {} {
     return $eolmap
 }
 
+# Highlight text of interest in log entries. Fixed patterns for
+# now. TODO: Make them user configurable, both patterns and colors.
+
+proc ::stackato::mgr::logstream::Highlight {text} {
+    return [string map [HighMap] $text]
+}
+proc ::stackato::mgr::logstream::HighMap {} {
+    # Lazy creation. Ensures that we have a proper active color system.
+    # Memoization to avoid redoing this for each line.
+
+    HM+ bad     SyntaxError
+    HM+ bad     {Error tailing file}
+    HM+ bad     {Failed to detect creation}
+    HM+ bad     {Unable to successfully start instance}
+    HM+ bad     {failed to accept connections}
+    HM+ bad     {no such file or directory}
+    HM+ bad     {syntax error}
+    HM+ note    {Completed uploading droplet}
+    HM+ note    {Uploading droplet}
+    HM+ warning WARNING
+    HM+ warning WARN
+
+    proc ::stackato::mgr::logstream::HighMap {} [list return $highmap ]
+    return $highmap
+}
+
+proc ::stackato::mgr::logstream::HM+ {color pattern} {
+    upvar 1 highmap highmap
+    lappend highmap $pattern [color $color $pattern]
+    return
+}
+
 # # ## ### ##### ######## ############# #####################
 
 namespace eval ::stackato::mgr::logstream {
@@ -886,6 +1011,13 @@ namespace eval ::stackato::mgr::logstream {
     # Indicator flag set when new entries arrived and where shown.
     # Reset on query.
     variable hasnew 0
+
+    # Indicator flag set when new entries arrived and match a pattern.
+    # Reset on query.
+    variable hasmatches 0
+
+    # The match pattern. Defaults to something which does not match.
+    variable match {}
 
     # Configuration settings. Various delays. All in milliseconds
     # (suitable for after without modification).

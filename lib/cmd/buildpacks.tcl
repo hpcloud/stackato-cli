@@ -11,6 +11,7 @@ package require cmdr::ask
 package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
+package require stackato::mgr::context
 package require stackato::v2
 package require zipfile::encode
 package require fileutil
@@ -36,6 +37,7 @@ namespace eval ::stackato::cmd::buildpacks {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::v2
 }
 
@@ -322,22 +324,36 @@ proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
 	$client http_get_raw $url application/octet-stream
 
     } on error {e o} {
+	debug.cmd/buildpacks {Closing $chan /err}
 	close $chan
+
+	# On windows delay between close and deletion to allow the OS
+	# to settle and update the file's permissions.
+	if {$::tcl_platform(platform) eq "windows"} {
+	    after 1000
+	}
+
+	debug.cmd/buildpacks {Remove $tmp}
 	# Ensure removal of the now unused tempfile
 	file delete $tmp
+	debug.cmd/buildpacks {Tmp exists = [file exists $tmp]}
+
 	# Note: Exposes constructed url
 	#err "Unable to retrieve $url: $e"
 	err $err
     } finally {
-	display " [color good OK]"
-	clearlast
-
 	# Restore original state (cf auth, no redirections).
 	$client configure -follow-redirections $saved -headers $hdrs \
 	    -rblocksize {} -rprogress {} -channel {}
     }
 
+    display " [color green OK]"
+    clearlast
+
+    debug.cmd/buildpacks {Closing $chan /ok}
     close $chan
+
+    debug.cmd/buildpacks {/done}
     return [::list 1 $tmp]
 }
 
@@ -484,6 +500,10 @@ proc ::stackato::cmd::buildpacks::list {config} {
     debug.cmd/buildpacks {}
     # No arguments.
 
+    if {![$config @json]} {
+	display "\nBuildpacks: [context format-target]"
+    }
+
     try {
 	set buildpacks [v2 buildpack list]
     } trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} {
@@ -496,6 +516,11 @@ proc ::stackato::cmd::buildpacks::list {config} {
 	    lappend tmp [$r as-json]
 	}
 	display [json::write array {*}$tmp]
+	return
+    }
+
+    if {![llength $buildpacks]} {
+	display [color note "No buildpacks"]
 	return
     }
 

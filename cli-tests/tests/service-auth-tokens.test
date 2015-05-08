@@ -50,7 +50,7 @@ test service-auth-tokens-1.3 {client service-auth-tokens, non-admin login ok} -c
     go-admin
     remove-non-admin
     stage-close
-} -result {No service auth tokens available}
+} -match glob -result "Service authentication tokens: *\nNo service auth tokens"
 
 test service-auth-tokens-1.4 {client service-auth-tokens, standard} -constraints cfv2 -setup {
     stage-open
@@ -60,7 +60,8 @@ test service-auth-tokens-1.4 {client service-auth-tokens, standard} -constraints
     run service-auth-tokens
 } -cleanup {
     stage-close
-} -match glob -result {+------------+----------+
+} -match glob -result {Service authentication tokens: *
++------------+----------+
 | Label      | Provider |
 +------------+----------+
 | filesystem | core     |

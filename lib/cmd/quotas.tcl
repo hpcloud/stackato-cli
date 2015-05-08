@@ -12,6 +12,7 @@ package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::mgr::client ; # pulls all of v2
+package require stackato::mgr::context
 package require stackato::mgr::ctarget
 package require table
 
@@ -34,6 +35,7 @@ namespace eval ::stackato::cmd::quotas {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::psz
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
 
@@ -167,7 +169,7 @@ proc ::stackato::cmd::quotas::list {config} {
     # No arguments.
 
     if {![$config @json]} {
-	display "In [ctarget get]..."
+	display "Quotas: [context format-target]"
     }
 
     set thequotas [v2 sort @name [v2 quota_definition list] -dict]
@@ -178,6 +180,11 @@ proc ::stackato::cmd::quotas::list {config} {
 	    lappend tmp [$qd as-json]
 	}
 	display [json::write array {*}$tmp]
+	return
+    }
+
+    if {![llength $thequotas]} {
+	display [color note "No quotas"]
 	return
     }
 

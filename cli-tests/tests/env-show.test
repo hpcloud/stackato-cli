@@ -50,7 +50,7 @@ test env-1.2 {env, non-admin login is ok} -setup {
     stage-close
 } -match glob -result *
 
-test env-1.3 {env, nothing} -setup {
+test env-1.3.0 {env, nothing} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -62,7 +62,24 @@ test env-1.3 {env, nothing} -setup {
     stage-close
 } -result {No Environment Variables}
 
-test env-1.4 {env, something} -setup {
+test env-1.3.1 {env, nothing (system only)} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {System:
++---------------+-------+
+| Variable      | Value |
++---------------+-------+
+| VCAP_SERVICES |       |
++---------------+-------+}
+
+test env-1.4.0 {env, something} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -78,6 +95,30 @@ test env-1.4 {env, something} -setup {
 +----------+-------+
 | VAR      | VAL   |
 +----------+-------+}
+
+test env-1.4.1 {env, something (plus system)} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {User:
++----------+-------+
+| Variable | Value |
++----------+-------+
+| VAR      | VAL   |
++----------+-------+
+System:
++---------------+-------+
+| Variable      | Value |
++---------------+-------+
+| VCAP_SERVICES |       |
++---------------+-------+}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

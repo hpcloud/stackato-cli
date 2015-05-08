@@ -56,9 +56,12 @@ proc ::stackato::mgr::self::packages {} {
 	    cmdline
 	    cmdr
 	    cmdr::actor
+	    cmdr::ask
+	    cmdr::color
 	    cmdr::config
 	    cmdr::help
 	    cmdr::help::json
+	    cmdr::history
 	    cmdr::officer
 	    cmdr::pager
 	    cmdr::parameter
@@ -80,6 +83,7 @@ proc ::stackato::mgr::self::packages {} {
 	    http
 	    json
 	    json::write
+	    lambda
 	    linenoise
 	    linenoise::facade
 	    linenoise::repl
@@ -91,6 +95,8 @@ proc ::stackato::mgr::self::packages {} {
 	    report
 	    s-http
 	    sha1
+	    snit
+	    starkit
 	    string::token
 	    string::token::shell
 	    struct::list
@@ -116,8 +122,10 @@ proc ::stackato::mgr::self::packages {} {
 	    uri
 	    url
 	    uuid
+	    websocket
 	    zipfile::decode
 	    zipfile::encode
+	    zlib
 	    zlibtcl
 	}
     }
@@ -169,6 +177,8 @@ proc ::stackato::mgr::self::me {} {
     }
 
     set me [file tail $base]
+    regsub {.exe$} $me {} me
+
     debug.mgr/self {= $me}
     return $me
 }

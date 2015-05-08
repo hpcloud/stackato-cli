@@ -34,6 +34,8 @@ oo::class create ::stackato::v2::service {
 	my Attribute active       boolean default off
 	my Attribute extra        string
 
+	my Attribute service_broker &service_broker
+
 	# acls - dict - restricted set of keys
 	#   users, wildcards.
 	#     each maps to (list of string)

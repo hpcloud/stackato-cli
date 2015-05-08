@@ -42,6 +42,7 @@ debug prefix mgr/ws/data {}
 
 proc ::stackato::mgr::ws::open {target url actions} {
     debug.mgr/ws {}
+    debug.mgr/ws/data {[::websocket::loglevel debug]}
     variable sock
     # action = dict ( text|binary|error|close -> cmd )
     # text must be defined.

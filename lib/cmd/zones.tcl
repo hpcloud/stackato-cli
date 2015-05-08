@@ -12,6 +12,7 @@ package require cmdr::color
 package require stackato::cmd::app
 package require stackato::log
 package require stackato::mgr::client ; # pulls all of v2
+package require stackato::mgr::context
 package require stackato::mgr::ctarget
 package require stackato::mgr::manifest
 package require table
@@ -33,6 +34,7 @@ namespace eval ::stackato::cmd::zones {
     namespace import ::stackato::cmd::app
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
@@ -96,7 +98,7 @@ proc ::stackato::cmd::zones::list {config} {
     # No arguments.
 
     if {![$config @json]} {
-	display "In [ctarget get]..."
+	display "\nPlacement-zones: [context format-target]"
     }
 
     try {
@@ -111,6 +113,11 @@ proc ::stackato::cmd::zones::list {config} {
 	    lappend tmp [$z as-json]
 	}
 	display [json::write array {*}$tmp]
+	return
+    }
+
+    if {![llength $thezones]} {
+	display [color note "No placement-zones"]
 	return
     }
 

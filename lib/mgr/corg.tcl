@@ -282,12 +282,25 @@ proc ::stackato::mgr::corg::select-for {what p {mode noauto}} {
     # Implied client.
     debug.mgr/corg {Retrieve list of organizations...}
 
-    ::set choices [v2 organization list]
+    # The choice of org is restricted to the orgs associated with the
+    # user we are logged in as. Bug 104693.
+    ::set client [$p config @client]
+    ::set user [$client current_user_id]
+
+    if {$user eq {}} {
+	# Not logged in, but we have to be
+	stackato::client::AuthError
+    } else {
+	::set user    [v2 deref-type user $user]
+	::set choices [$user @organizations]
+	::set user    [$client current_user]
+    }
+ 
     debug.mgr/corg {ORG [join $choices "\nORG "]}
 
     if {([llength $choices] == 1) && ($mode eq "auto")} {
 	::set neworg [lindex $choices 0]
-	display "Choosing the one available organization: \"[color name [$neworg @name]]\""
+	display "$user Choosing the one available organization: \"[color name [$neworg @name]]\""
 	return $neworg
     }
 

@@ -59,7 +59,7 @@ test admin-revoke-1.4 {admin revoke, bogus user} -setup {
     run admin revoke bogus@test
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input email {A user} bogus@test]
+} -returnCodes error -match glob -result [unexpected input * {A user} bogus@test]
 
 test admin-revoke-1.5 {admin revoke} -setup {
     stage-open

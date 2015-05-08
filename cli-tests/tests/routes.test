@@ -82,13 +82,6 @@ test routes-1.6 {routes, explicit space, none} -constraints cfv2 -setup {
 
 # # ## ### ##### ######## ############# #####################
 
-set expected [map {Routes: *
-+-*-+-*-+-*-+
-| Url *| Space *| Applications *|
-+-*-+-*-+-*-+*
-| http://xxx.@D@ *| @O@::@S@ *| TEST *|*
-+-*-+-*-+-*-+} @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
-
 test routes-1.7 {routes, all, some} -constraints cfv2 -setup {
     stage-open
     go-admin
@@ -98,7 +91,8 @@ test routes-1.7 {routes, all, some} -constraints cfv2 -setup {
 } -cleanup {
     run delete -n --routes TEST
     stage-close
-} -match glob -result $expected
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
 test routes-1.8 {routes, current space, some} -constraints cfv2 -setup {
     stage-open
@@ -107,9 +101,10 @@ test routes-1.8 {routes, current space, some} -constraints cfv2 -setup {
 } -body {
     run routes
 } -cleanup {
-    run delete -n --no-routes TEST
+    run delete -n --routes TEST
     stage-close
-} -match glob -result $expected
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
 test routes-1.9 {routes, explicit space, some} -constraints cfv2 -setup {
     stage-open
@@ -120,14 +115,8 @@ test routes-1.9 {routes, explicit space, some} -constraints cfv2 -setup {
 } -cleanup {
     run delete -n --routes TEST
     stage-close
-} -match glob -result $expected
-
-set expected [map {Routes: *
-+-*-+-*-+-*-+
-| Url *| Space *| Applications *|
-+-*-+-*-+-*-+
-| http://xxx.@D@ *| @O@::@S@ *|  *|
-+-*-+-*-+-*-+} @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
 test routes-1.10 {routes, all, unused} -constraints cfv2 -setup {
     stage-open
@@ -139,7 +128,8 @@ test routes-1.10 {routes, all, unused} -constraints cfv2 -setup {
 } -cleanup {
     run delete-route -n xxx.[targetdomain]
     stage-close
-} -match glob -result $expected
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
 test routes-1.11 {routes, current space, unused} -constraints cfv2 -setup {
     stage-open
@@ -151,7 +141,8 @@ test routes-1.11 {routes, current space, unused} -constraints cfv2 -setup {
 } -cleanup {
     run delete-route -n xxx.[targetdomain]
     stage-close
-} -match glob -result $expected
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
 test routes-1.12 {routes, explicit space, unused} -constraints cfv2 -setup {
     stage-open
@@ -163,9 +154,8 @@ test routes-1.12 {routes, explicit space, unused} -constraints cfv2 -setup {
 } -cleanup {
     run delete-route -n xxx.[targetdomain]
     stage-close
-} -match glob -result $expected
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
 
-
-unset expected
 # # ## ### ##### ######## ############# #####################
 cleanupTests

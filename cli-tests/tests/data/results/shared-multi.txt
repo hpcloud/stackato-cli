@@ -2,15 +2,15 @@ Using manifest file "stackato.yml"
 Command:           node app.js
 Application Url:   *://node-env.@BASE@
 Creating Application \[node-env\] as \[https://api.@BASE@ -> @ORG@ -> @SPACE@ -> node-env\] ... OK
-  Map *://node-env.@BASE@ ... OK
-Creating new service \[shared\] ... OK
-Binding shared to node-env ... OK
+  Map *://node-env.@BASE@ ... OK*
+*Creating new service \[shared\] ... OK
+*Binding \[shared\] to node-env ... OK
 Uploading Application \[node-env\] ... *
 Push Status: OK
 Command:           node app.js
 Application Url:   *://node-env-2.@BASE@
 Creating Application \[node-env-2\] as \[https://api.@BASE@ -> @ORG@ -> @SPACE@ -> node-env-2\] ... OK
-  Map *://node-env-2.@BASE@ ... OK
-Binding shared to node-env-2 ... OK
+  Map *://node-env-2.@BASE@ ... OK*
+*Binding \[shared\] to node-env-2 ... OK
 Uploading Application \[node-env-2\] ... *
 Push Status: OK

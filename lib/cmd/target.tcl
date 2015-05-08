@@ -189,6 +189,8 @@ proc ::stackato::cmd::target::Set {config} {
 		set value [$config @skip-ssl-validation]
 		debug.cmd/target {skip value = $value}
 
+		say "[color note Sticky] [color name --skip-ssl-validation] = $value"
+
 		if {$value} {
 		    tadjunct add $target skip-ssl-validation 1
 		} else {
@@ -197,6 +199,42 @@ proc ::stackato::cmd::target::Set {config} {
 		}
 		# See cmdr global option --skip-ssl-validation for
 		# where this information is queried.
+	    }
+
+	    debug.cmd/target {ws set = [$config @ws set?]}
+	    if {[$config @ws set?]} {
+		# Make explicitly chosen no-ws sticky
+		set value [$config @ws]
+		debug.cmd/target {skip value = $value}
+
+		say "[color note Sticky] [color name --ws] = $value"
+
+		if {$value} {
+		    # Remove, same as hardwired default.
+		    tadjunct remove $target ws
+		} else {
+		    tadjunct add $target ws 0
+		}
+		# See cmdr option --ws (push) for where this
+		# information is queried.
+	    }
+
+	    debug.cmd/target {timeout set = [$config @timeout set?]}
+	    if {[$config @timeout set?]} {
+		# Make explicitly chosen (push-)timeout sticky
+		set value [$config @timeout]
+		debug.cmd/target {timeout value = $value}
+
+		say "[color note Sticky] [color name --timeout] = $value"
+
+		if {$value in {none default {}}} {
+		    # Remove, go for the hardwired default.
+		    tadjunct remove $target push-timeout
+		} else {
+		    tadjunct add $target push-timeout $value
+		}
+		# See cmdr option --ws (push) for where this
+		# information is queried.
 	    }
 	}
 	2 {

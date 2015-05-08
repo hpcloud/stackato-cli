@@ -7,11 +7,11 @@
 # ATTENTION: The configuration used in the file "run-tests.sh" must
 # match the configuration initialized here.
 
-STACKATO_CLI_TEST_TARGET=api.stackato-nightly.activestate.com
-STACKATO_CLI_TEST_ADMIN=cli-test-admin@test
-STACKATO_CLI_TEST_APASS=cli-test-admin-pass
-STACKATO_CLI_TEST_ORG=cli-test-org
-STACKATO_CLI_TEST_SPACE=cli-test-space
+STACKATO_CLI_TEST_TARGET=${STACKATO_CLI_TEST_TARGET:-api.stackato-nightly.activestate.com}
+STACKATO_CLI_TEST_ADMIN=${STACKATO_CLI_TEST_ADMIN:-cli-test-admin@test}
+STACKATO_CLI_TEST_APASS=${STACKATO_CLI_TEST_APASS:-cli-test-admin-pass}
+STACKATO_CLI_TEST_ORG=${STACKATO_CLI_TEST_ORG:-cli-test-org}
+STACKATO_CLI_TEST_SPACE=${STACKATO_CLI_TEST_SPACE:-cli-test-space}
 
 # ATTENTION
 # It is expected that the STACKATO_CLI_TEST_SPACE is the one and only

@@ -31,6 +31,9 @@ oo::class create ::stackato::v2::managed_service_instance {
 	my Attribute service_plan  &service_plan
 	my Attribute gateway_data  ndict
 
+	# New in 3.6
+	my Attribute last_operation ndict
+
 	next $url
     }
 

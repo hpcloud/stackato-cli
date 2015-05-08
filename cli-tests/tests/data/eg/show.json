@@ -1,0 +1,9 @@
+{
+    "entity"   : {
+        "env" : {}
+    },
+    "metadata" : {
+        "guid" : "@@",
+        "url"  : "/v2/config/environment_variable_groups/@@"
+    }
+}

@@ -81,7 +81,7 @@ test rename-app-1.5 {rename (app), non-admin login ok} -constraints cfv2 -setup 
     run delete -n testapp2
     remove-non-admin
     stage-close
-} -result {Renaming application [testapp] to testapp2 ... OK}
+} -result {Renaming application [testapp] to 'testapp2' ... OK}
 
 test rename-app-1.6 {rename (app), unknown source app} -constraints cfv2 -setup {
     stage-open
@@ -114,7 +114,7 @@ test rename-app-1.8 {rename} -constraints cfv2 -setup {
 } -cleanup {
     run delete -n testapp2
     stage-close
-} -result {Renaming application [testapp] to testapp2 ... OK}
+} -result {Renaming application [testapp] to 'testapp2' ... OK}
 
 test rename-app-1.9 {rename (app), persists} -constraints cfv2 -setup {
     stage-open

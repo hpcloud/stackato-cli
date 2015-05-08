@@ -72,7 +72,7 @@ test env-add-1.4 {env-add} -setup {
     stage-close
 } -result {Adding Environment Variable [VAR=VAL] ... OK}
 
-test env-add-1.5 {env-add, persistent} -setup {
+test env-add-1.5.0 {env-add, persistent} -constraints cfv1 -setup {
     stage-open
     go-admin
     make-test-app
@@ -88,6 +88,30 @@ test env-add-1.5 {env-add, persistent} -setup {
 +----------+-------+
 | VAR      | VAL   |
 +----------+-------+}
+
+test env-add-1.5.1 {env-add, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL
+    run env     TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {User:
++----------+-------+
+| Variable | Value |
++----------+-------+
+| VAR      | VAL   |
++----------+-------+
+System:
++---------------+-------+
+| Variable      | Value |
++---------------+-------+
+| VCAP_SERVICES |       |
++---------------+-------+}
 
 test env-add-1.6 {env-add, running app, restart} -setup {
     stage-open

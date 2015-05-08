@@ -13,6 +13,7 @@ package require cmdr::color
 package require stackato::jmap
 package require stackato::log
 package require stackato::v2
+package require stackato::mgr::context
 package require table
 
 debug level  cmd/serviceauth
@@ -33,6 +34,7 @@ namespace eval ::stackato::cmd::serviceauth {
     namespace import ::stackato::jmap
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::v2
 }
 
@@ -40,6 +42,10 @@ namespace eval ::stackato::cmd::serviceauth {
 
 proc ::stackato::cmd::serviceauth::list {config} {
     debug.cmd/serviceauth {}
+
+    if {![$config @json]} {
+	display "\nService authentication tokens: [context format-target]"
+    }
 
     set thetokens [v2 service_auth_token list]
 
@@ -53,7 +59,7 @@ proc ::stackato::cmd::serviceauth::list {config} {
     }
 
     if {![llength $thetokens]} {
-	display "No service auth tokens available"
+	display [color note "No service auth tokens"]
 	debug.cmd/serviceauth {/done NONE}
 	return
     }

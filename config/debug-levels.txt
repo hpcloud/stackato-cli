@@ -4,11 +4,13 @@ cmd/admin
 cmd/alias
 cmd/app
 cmd/app/ignored
+cmd/app/wait
 cmd/buildpacks
 cmd/cgroup
 cmd/color
 cmd/do
 cmd/domains
+cmd/envgroups
 cmd/features
 cmd/groups
 cmd/host
@@ -29,6 +31,7 @@ cmd/usermgr
 cmd/zones
 cmdr
 cmdr/actor
+cmdr/ask
 cmdr/color
 cmdr/config
 cmdr/help
@@ -88,6 +91,7 @@ v2/base/summary
 v2/buildpack
 v2/client
 v2/domain
+v2/envgroups
 v2/feature_flags
 v2/memory
 v2/organization

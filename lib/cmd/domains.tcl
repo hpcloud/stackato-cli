@@ -11,8 +11,10 @@ package require cmdr::ask
 package require cmdr::color
 package require stackato::log
 package require stackato::mgr::client
+package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
+package require stackato::mgr::ctarget
 package require stackato::v2
 package require table
 
@@ -33,8 +35,10 @@ namespace eval ::stackato::cmd::domains {
     namespace import ::stackato::log::display
     namespace import ::stackato::log::err
     namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::context
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
+    namespace import ::stackato::mgr::ctarget
     namespace import ::stackato::v2
 }
 
@@ -201,20 +205,21 @@ proc ::stackato::cmd::domains::list {config} {
     if {[$config @all]} {
 	set domains [v2 domain list 1 \
 			 include-relations owning_organization]
+	display "Domains: [context format-target]"
     } else {
 	if {[package vsatisfies [[$config @client] server-version] 3.1]} {
 	    # 3.2+
 	    set domains [[corg get] @domains get* \
 			     {depth 1 include-relations owning_organization}]
 	    if {![$config @json]} {
-		display "Org [color name [[corg get] @name]]..."
+		display "Domains@Org: [context format-org]"
 	    }
 	} else {
 	    # 3.0
 	    set domains [[cspace get] @domains get* \
 			     {depth 1 include-relations owning_organization}]
 	    if {![$config @json]} {
-		display "Space [color name [[cspace get] @name]]..."
+		display "Domains@Space: [context format-short]"
 	    }
 	}
     }
@@ -225,6 +230,11 @@ proc ::stackato::cmd::domains::list {config} {
 	    lappend tmp [$r as-json]
 	}
 	display [json::write array {*}$tmp]
+	return
+    }
+
+    if {![llength $domains]} {
+	display [color note "No domains"]
 	return
     }
 

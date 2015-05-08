@@ -1,7 +1,7 @@
 *Updating application 'node-env'...
 *Forcing use of minimum memory requirement: 20M
-*Uploading Application \[node-env\] ... 
-  Checking for bad links ...  OK
+*Uploading Application \[node-env\] ... *
+  Checking for bad links ...  OK*
   Copying to temp space ...  OK
   Checking for available resources ...  OK
   Processing resources ... OK

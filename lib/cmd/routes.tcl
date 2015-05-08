@@ -51,9 +51,19 @@ proc ::stackato::cmd::routes::delete {config} {
 	    if {[cspace get] eq {}} {
 		err "Unable to delete routes of the space. No space specified."
 	    }
+	    try {
+		# See if we can get the routes directly from the space.
+		set routes [[cspace get] @routes get* \
+				{depth 2 include-relations domain,apps,space,organization}]
+		set note ""
+            } trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE routes} {e o} {
+		# If not, go through full list of routes. This may
+		# take the target a while to supply. We down-filter
+		# client-side.
 
-	    set routes [[cspace get] @apps @routes get* \
-			    {depth 2 include-relations apps}]
+		set routes [FilterSpace [v2 route list 2 include-relations apps,space] \
+				[cspace get]]
+	    }
 	}
 
 	set routes [FilterUsed $routes]
@@ -92,15 +102,39 @@ proc ::stackato::cmd::routes::list {config} {
 	    if {[cspace get] eq {}} {
 		err "Unable to show routes of the space. No space specified."
 	    }
-	    set routes [[cspace get] @apps @routes]
+
+	    try {
+		# See if we can get the routes directly from the space.
+		set routes [[cspace get] @routes]
+            } trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE routes} {e o} {
+		# If not, go through full list of routes. This may
+		# take the target a while to supply. We down-filter
+		# client-side.
+
+		set routes [FilterSpace [v2 route list 2 include-relations space] \
+				[cspace get]]
+
+	    }
 	}
     } else {
 	if {[$config @all]} {
 	    set routes [v2 route list 2 include-relations domain,apps,space,organization]
 	    display "\nRoutes: [context format-target]"
 	} else {
-	    set routes [[cspace get] @apps @routes get* \
-			    {depth 2 include-relations domain,apps,space,organization}]
+	    try {
+		# See if we can get the routes directly from the space.
+		set routes [[cspace get] @routes get* \
+				{depth 2 include-relations domain,apps,space,organization}]
+
+            } trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE routes} {e o} {
+		# If not, go through full list of routes. This may
+		# take the target a while to supply. We down-filter
+		# client-side.
+
+		set routes [FilterSpace [v2 route list 2 include-relations domain,apps,space,organization] \
+				[cspace get]]
+	    }
+
 	    display "\nRoutes: [context format-short]"
 	}
     }
@@ -143,6 +177,16 @@ proc ::stackato::cmd::routes::FilterUsed {routes} {
     foreach r $routes {
 	# Ignore used routes.
 	if {[llength [$r @apps]]} continue
+	lappend tmp $r
+    }
+    return $tmp
+}
+
+proc ::stackato::cmd::routes::FilterSpace {routes space} {
+    set tmp {}
+    foreach r $routes {
+	# Ignore routes outside of the space.
+	if {![$space == [$r @space]]} continue
 	lappend tmp $r
     }
     return $tmp

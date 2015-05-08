@@ -766,11 +766,31 @@ namespace eval ::REST {
 }
 
 proc ::REST::initialize {} {
-	debug.rest {}
+	debug.rest {tls [package provide tls] @ [package ifneeded tls [package provide tls]]}
+	debug.rest {tls [package provide tls] = [tls::version]}
+
 	variable cafile
-	# Note: Always have a cafile, even if only the wrapped default.
+
+	# Note: Should have a cafile, even if only the wrapped default.
+	if {$cafile eq {}} {
+		# May not have cafile if the cmdr triggers an early access of
+		# the target, before the completion phase.
+		# That is possible, for example, when an unknown option is
+		# offered to an optional argument as possible value, and the
+		# associated validation type needs the target. In a best
+		# effort we poke into the cmdr and force @cafile to have a
+		# value, this stores the data here.
+		#
+		# Concrete example: quota configure ... ?name?
+		# OP [301584].
+		debug.rest {force cafile default early}
+		[stackato-cli get *config*] @cafile
+	}
+
+	debug.rest {cafile = ($cafile)}
 
 	if {[file system $cafile] ne "native"} {
+		debug.rest {save wrapped certs to disk}
 		# Save wrapped certs to disk for TLS, which is not vfs-ready,
 		# to read.
 		#
@@ -785,13 +805,20 @@ proc ::REST::initialize {} {
 		set cafile $tmp
 	}
 
-	tls::init -tls1 on -command ::REST::verify -cafile $cafile
+	debug.rest {activate tls 1, 1.1, and 1.2}
+	tls::init \
+		-tls1   on \
+		-tls1.1 on \
+		-tls1.2 on \
+		-command ::REST::verify \
+		-cafile $cafile
 
 	proc ::REST::initialize {} {}
 	return
 }
 
 proc ::REST::cafile {path} {
+	debug.rest {cafile := ($path)}
 	variable cafile $path
 	return
 }
@@ -827,6 +854,11 @@ proc ::REST::verify {cmd args} {
 	debug.rest {}
 	variable debug
 	variable skip
+
+	# [301584] Ensure proper values in case of early access to target,
+	# before cmdr's completion phase.
+	[stackato-cli get *config*] @skip-ssl-validation
+	[stackato-cli get *config*] @debug-tls-handshake
 
 	if {$debug} {
 		global shpre

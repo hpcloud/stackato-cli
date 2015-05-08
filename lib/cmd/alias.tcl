@@ -48,7 +48,7 @@ proc ::stackato::cmd::alias::aliases {config} {
     }
 
     if {![llength $aliases]} {
-	puts "No Aliases"
+	puts [color note "No Aliases"]
 	return
     }
 

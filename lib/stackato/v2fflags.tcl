@@ -60,7 +60,7 @@ oo::class create ::stackato::v2::feature_flag {
 	    set e $json
 	}
 
-	# And now we actully can run the standard json integration
+	# And now we actually can run the standard json integration
 	next $e
     }
     export =

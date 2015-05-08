@@ -1,7 +1,9 @@
 # -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
 ## (c) 2013 Andreas Kupries
 # # ## ### ##### ######## ############# #####################
-## update
+## update (via push)
+## Note: --timeout 10s used to stop waiting relatively quickly for 0-downtime target.
+## Default 2m is a bit long for that (times ca 24 tests).
 
 kt check Tcl     8.5
 kt check tcltest 2
@@ -38,7 +40,7 @@ test update-1.1 {push as update, empty application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run push -n }
+    indir [appdir] { run push -n --timeout 10s }
 } -cleanup {
     # Failed to stage => still means that it was created. Not for CFv1
     # tough, so catch delete issue for these targets.
@@ -48,7 +50,7 @@ test update-1.1 {push as update, empty application} -setup {
 } -returnCodes error -match glob \
     -result [per-api \
 		 "Error: The framework \[standalone\] needs a non-empty start command.*Please add a \"command\" key to your stackato.yml" \
-		 {Error: Application failed to stage: Staging error: cannot get instances since staging failed (400)}]
+		 {Error 170003: An app was not successfully detected by any available buildpack (400)}]
 
 # # ## ### ##### ######## ############# #####################
 
@@ -83,7 +85,7 @@ foreach {n cons excode label theapp} {
 	go-admin
 	indir $appdir { run push -n }
     } -body {
-	indir $appdir { run push -n }
+	indir $appdir { run push -n --timeout 10s }
     } -cleanup {
 	remove-test-app node-env
 	stage-close
@@ -100,7 +102,7 @@ test update-2.16 "push as update, memory -1" -setup {
     # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
-    indir [example memory-1] { run push -n }
+    indir [example memory-1] { run push -n --timeout 10s }
 } -cleanup {
     remove-test-app node-env
     stage-close
@@ -116,7 +118,7 @@ test update-2.17 "push as update, memory 0" -setup {
     # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
-    indir [example memory0] { run push -n }
+    indir [example memory0] { run push -n --timeout 10s }
 } -cleanup {
     remove-test-app node-env
     stage-close
@@ -138,7 +140,7 @@ foreach {n excode label theapp} {
 	go-admin
 	indir $appdir { run push -n }
     } -body {
-	indir $appdir { run push -n }
+	indir $appdir { run push -n --timeout 10s }
     } -cleanup {
 	catch { remove-test-app node-env1 }
 	catch { remove-test-app node-env2 }

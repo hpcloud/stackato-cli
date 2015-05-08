@@ -11,7 +11,7 @@
         "total_services"             : 100
     },
     "metadata" : {
-        "created_at" : "????-??-??T??:??:??*:??",
+        "created_at" : "????-??-??T??:??:??*",
         "guid"       : "*",
         "updated_at" : "null",
         "url"        : "/v2/space_quota_definitions/*"

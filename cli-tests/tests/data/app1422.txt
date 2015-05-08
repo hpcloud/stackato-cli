@@ -7,15 +7,15 @@
         "console" *: *,
         "debug" *: null,
         "description" *: *,
-        "detected_buildpack" *: "Node.js",
+        "detected_buildpack" *: "Node.js",*
         "disk_quota" *: *,
         "distribution_zone" *: "*",
-        "docker_image" *: "null",
+        "docker_image" *: null,
         "droplet_count" *: *,
         "environment_json" *: {},*
         "events_url" *: "/v2/apps/*/events",
         "guid" *: "*",
-        "health_check_timeout" *: *,
+        "health_check_timeout" *: *,*
         "instances" *: 1,
         "max_cpu_threshold" *: *,
         "max_instances" *: *,
@@ -24,7 +24,7 @@
         "min_instances" *: *,
         "name" *: "node-env",
         "package_hash" *: "*",
-        "package_state" *: *,
+        "package_state" *: *,*
         "production" *: *,
         "restart_required" *: *,*
         "routes_url" *: "/v2/apps/*/routes",*

@@ -35,7 +35,7 @@ test info-1.2 {target information, transient target is such} -setup {
     run target
 } -cleanup {
     stage-close
-} -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
+} -result {[https://api.stackato.local] (Note: Cannot access target (https://api.stackato.local/info: couldn't open socket: host is unreachable (Name or service not known)))}
 
 test info-1.3.1 {target information, json, v1} -constraints cfv1 -setup {
     stage-open
@@ -98,7 +98,7 @@ test info-1.6 {target information, transient target by environment is such} -set
     run target
 } -cleanup {
     stage-close
-} -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
+} -result {[https://api.stackato.local] (Note: Cannot access target (https://api.stackato.local/info: couldn't open socket: host is unreachable (Name or service not known)))}
 
 # --token-file, --token, --group, --trace
 

@@ -290,7 +290,7 @@ oo::class create ::stackato::v2::base {
     # list    --> C/list-of
 
     classmethod list-transform {json} {
-	debug.v2/base
+	debug.v2/base {}
 	return $json
     }
 
@@ -1084,23 +1084,46 @@ oo::class create ::stackato::v2::base {
     }
 
     method A1defined? {name jname type} {
+	debug.v2/base {}
+
 	# Cached, yes.
-	if {[dict exists $mydata $name]} { return 1 }
+	if {[dict exists $mydata $name]} {
+	    debug.v2/base {/CACHED ==> yes}
+	    return 1
+	}
 
 	# Not cached, new => No.
-	if {[my is new]} { return 0 }
+	if {[my is new]} {
+	    debug.v2/base {/NEW ==> no}
+	    return 0
+	}
 
 	my ResolvePhantom ^$name
 
 	# A replica, and defined => Yes.
-	if {[dict exists $myjson entity $jname]}       { return 1 }
-	if {[dict exists $myjson entity ${jname}_url]} { return 1 }
+	if {[dict exists $myjson entity $jname]} {
+	    debug.v2/base {/ATTR ==> yes}
+	    return 1
+	}
+	if {[dict exists $myjson entity ${jname}_url]} {
+	    debug.v2/base {/URL ==> yes}
+	    return 1
+	}
+	if {
+	    [dict exists $myjson entity ${jname}_guid] &&
+	    ([dict get $myjson entity ${jname}_guid] ne "null")
+	} {
+	    debug.v2/base {/GUID ==> yes}
+	    return 1
+	}
 
 	# Overall no.
+	debug.v2/base {==> no}
 	return 0
     }
 
     method A1inlined? {name jname type} {
+	debug.v2/base {}
 	# Cached, no.
 	if {[dict exists $mydata $name]} { return 0 }
 
@@ -1145,6 +1168,7 @@ oo::class create ::stackato::v2::base {
 	my ResolvePhantom ^$name
 
 	if {[dict exists $myjson entity $jname]} {
+	    debug.v2/base {inlined}
 	    # Inlined entity found. Create object and save url for
 	    # access.
 
@@ -1155,6 +1179,7 @@ oo::class create ::stackato::v2::base {
 
 	} elseif { [dict exists $myjson entity ${jname}_guid] &&
 		   [[authenticated] has-orphan [dict get $myjson entity ${jname}_guid]] } {
+	    debug.v2/base {semi-inlined orphan}
 
 	    # Semi-inlined entity through orphan-relations. We can
 	    # expect its data to be found in the orphan-cache of the
@@ -1176,6 +1201,7 @@ oo::class create ::stackato::v2::base {
 	    dict set $myjson entity $jname $json
 
 	} elseif {[dict exists $myjson entity ${jname}_url]} {
+	    debug.v2/base {url}
 	    # Entity reference. Save the url for access.
 
 	    set url [dict get $myjson entity ${jname}_url]
@@ -1192,11 +1218,33 @@ oo::class create ::stackato::v2::base {
 		set json [[authenticated] get-by-url $url]
 		set url [[get-for $json] url]
 	    }
+
+	} elseif {[dict exists $myjson entity ${jname}_guid]} {
+	    # Entity reference by uuid alone. Type is implied. Construct the url.
+	    debug.v2/base {guid}
+
+	    set url /v2/${type}s/[dict get $myjson entity ${jname}_guid]
+	    debug.v2/base {served  ==> $url}
+
+	    if {$type eq "service_instance"} {
+
+		# HACK to support MSI|UPSI. Preload. We have to
+		# inspect the json information to know the proper type
+		# (MSI vs UPSI) for the in-memory object to
+		# create. Without doing this the deref at the bottom
+		# will use the SI base-class, wrong on all accounts.
+
+		set json [[authenticated] get-by-url $url]
+		set url [[get-for $json] url]
+	    }
+
 	} elseif {[dict exists $mydefault $name]} {
+	    debug.v2/base {default}
 	    set url [dict get $mydefault $name]
 	    debug.v2/base {default ==> $url}
 
 	} else {
+	    debug.v2/base {undefined}
 	    my Undefined "attribute $name" ATTRIBUTE $name
 	}
 
@@ -2009,9 +2057,27 @@ oo::class create ::stackato::v2::base {
 	}
 
 	debug.v2/base {retrieve from [[authenticated] target] :: [my url]}
-	# Note that we are not invalidating any changes we may have
-	# already done to the entity (in the cache, and logs).
-	set myjson [[authenticated] get-by-url [my url]]
+	# The note below does not make sense!!
+	#   Because changing the entity through the various A*set
+	#   methods always uses the associated A*get to retrieve the old
+	#   value of the attribute. This resolves any phantom. This
+	#   means that the Resolve always happens when the object is not
+	#   (yet) changed, so there is nothing to invalidate.
+	# ----
+	# Note that we are not invalidating any changes we may
+	# have already done to the entity (in the cache, and
+	# logs).
+	#set myjson [[authenticated] get-by-url [my url]]
+
+	debug.v2/base {assign}
+	# We use the regular assignment operator for json data.  This
+	# ensures that a sub-class override to transform the incoming
+	# json is properly executed
+	# -- Example: env-groups.
+	# Note that the feature-flags are not a proper example of this
+	# because their rewrites are handled through their
+	# list-transform.
+	my = [[authenticated] get-by-url [my url]]
 
 	debug.v2/base {loaded [my as-json]}
 	debug.v2/base {/done}

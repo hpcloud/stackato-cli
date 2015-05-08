@@ -1,24 +1,24 @@
 *node-env
-+------------------+-*-+
-| Key              | Value *|
-+------------------+-*-+
-| Description      | * |
-| Routes           | *://node-env.* |
-| Placement Zone   | * |
-| SSO Enabled      | * |
-| State            | STOPPED *|
-| Restart required | * |
-| Health           | STOPPED *|
-| Instances        | 1 *|
-| Memory           | 256.0M *|
-| Disk Quota       | 2.0G *|
-| Services         | * |
-| Environment      | * |
-| Drains           | * |
-| Auto Scaling     | * |
-| - Enabled        | * |
-| - Min Instances  | * |
-| - Max Instances  | * |
-| - Min CPU        | * |
-| - Max CPU        | * |
-+------------------+-*-+
++-*-+-*-+
+| Key *| Value *|
++-*-+-*-+
+| Description *| * |
+| Routes *| *://node-env.* |
+| Placement Zone *| * |
+| SSO Enabled *| * |
+| State *| STOPPED *|
+| Restart required *| * |
+| Health *| STOPPED *|
+*| Instances *| 1 *|
+| Memory *| 256.0M *|
+| Disk Quota *| 2.0G *|
+| Services *| * |
+| Environment *| * |
+| Drains *| * |
+| Auto Scaling *| * |
+| - Enabled *| * |
+| - Min Instances *| * |
+| - Max Instances *| * |
+| - Min CPU *| * |
+| - Max CPU *| * |*
++-*-+-*-+

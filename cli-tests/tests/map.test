@@ -77,7 +77,7 @@ test map-1.3.2.2 {map, bogus url, CFv2, S3.2+} -constraints s32ge -setup {
     remove-appdir
     stage-close
 } -returnCodes error -result \
-	 "Error: Unknown domain '': Does not exist. Please use 'stackato create-domain' to create the domain and add it to the org '[theorg]'."
+	 "Error: Reminder: Unknown domain '': Does not exist. Please use 'stackato create-domain' to create the domain and add it to the org '[theorg]'., forced the rollback"
 
 test map-1.4 {map, non-admin login is ok} -setup {
     stage-open

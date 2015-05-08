@@ -18,6 +18,7 @@ package ifneeded stackato::cmd::cgroup        0        [list source [file join $
 package ifneeded stackato::cmd::color         0        [list source [file join $dir color.tcl]]
 package ifneeded stackato::cmd::do            0        [list source [file join $dir do.tcl]]
 package ifneeded stackato::cmd::domains       0        [list source [file join $dir domains.tcl]]
+package ifneeded stackato::cmd::envgroups     0        [list source [file join $dir envgroups.tcl]]
 package ifneeded stackato::cmd::features      0        [list source [file join $dir features.tcl]]
 package ifneeded stackato::cmd::groups        0        [list source [file join $dir groups.tcl]]
 #package ifneeded stackato::cmd::host          0        [list source [file join $dir host.tcl]]
@@ -36,4 +37,4 @@ package ifneeded stackato::cmd::spaces        0        [list source [file join $
 package ifneeded stackato::cmd::target        0        [list source [file join $dir target.tcl]]
 package ifneeded stackato::cmd::usermgr       0        [list source [file join $dir usermgr.tcl]]
 package ifneeded stackato::cmd::zones         0        [list source [file join $dir zones.tcl]]
-package ifneeded stackato::cmdr               3.2.0    [list source [file join $dir cmdr.tcl]]
+package ifneeded stackato::cmdr               3.2.1    [list source [file join $dir cmdr.tcl]]

@@ -111,7 +111,7 @@ test bind-service-1.4.2 {bind-service} -constraints cfv2 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {Binding test-service to TEST ... OK}
+} -result {Binding [test-service] to TEST ... OK}
 
 test bind-service-1.5.1 {bind-service, persistent} -constraints cfv1 -setup {
     stage-open
@@ -177,11 +177,11 @@ test bind-service-1.6.2 {bind-service, running app, restart} -constraints cfv2 -
     remove-test-app node-env
     remove-appdir
     stage-close
-} -match glob -result {Binding test-service to node-env ... 
+} -match glob -result {Binding \[test-service\] to node-env ... 
 Stopping Application \[node-env\] ... *OK
 Starting Application \[node-env\] ... *
 OK
-*//node-env.* deployed}
+*//node-env.* deployed*}
 
 test bind-service-1.7.1 {bind-service, deployed stopped app, no restart} -constraints cfv1 -setup {
     stage-open
@@ -213,7 +213,7 @@ test bind-service-1.7.2 {bind-service, deployed stopped app, no restart} -constr
     remove-test-app node-env
     remove-appdir
     stage-close
-} -result {Binding test-service to node-env ... OK}
+} -result {Binding [test-service] to node-env ... OK}
 
 
 

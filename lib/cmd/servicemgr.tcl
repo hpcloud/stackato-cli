@@ -373,6 +373,20 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
 	return
     }
 
+    # Prefetch all service brokers so that we can resolve their uuids
+    # in the service plans. This is a workaround to the fact that you
+    # can ask for a list of brokers, but the entity url given is not
+    # working (404).
+    try {
+	v2 service_broker list
+    } trap {STACKATO CLIENT AUTHERROR}    {e} - \
+      trap {STACKATO CLIENT V2 AUTHERROR} {e} {
+	# ignore authorization issues. Degrade gracfully later below.
+	debug.cmd/servicemgr {no authorization for broker data/names}
+	set brokernames no
+    } on ok {e o} {
+	set brokernames yes
+    }
 
     # Pull the plan <-> org linkage and convert into a map the table
     # code below can make use of.
@@ -417,6 +431,19 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
 
 	lappend details $p
 	lappend details $v
+
+	if {[$service @service_broker defined?]} {
+	    if {$brokernames} {
+		lappend details [$service @service_broker @name]
+	    } else {
+		# No auth for broker data, just list the uuid
+		lappend details [$service @service_broker id]
+	    }
+	} else {
+	    lappend details {}
+	}
+
+	# Orgs the plan is visible to.
 	lappend details [join [dict get' $vis $plan {}] \n]
 
 	lappend plans $details
@@ -424,9 +451,9 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
     }
 
     # Now format and display the table
-    [table::do t {Vendor Plan Description Details Free Public Provider Version Orgs} {
+    [table::do t {Vendor Plan Description Details Free Public Provider Version Broker Orgs} {
 	foreach plan [lsort -dict -index 1 [lsort -dict $plans]] {
-	    $t add {*}$plan
+	    $t add {*}[lreplace $plan 1 1 [color name [lindex $plan 1]]]
 	}
     }] show display
 
@@ -442,7 +469,7 @@ proc ::stackato::cmd::servicemgr::DisplayProvisionedServicesV2 {services} {
 
     set services [v2 sort @name $services -dict]
 
-    [table::do t {Space Name Service Provider Version Plan Applications} {
+    [table::do t {Space Name Service Provider Version Plan Applications State} {
 	foreach service $services {
 	    set space [$service @space]
 	    set name  [$service @name]
@@ -464,9 +491,10 @@ proc ::stackato::cmd::servicemgr::DisplayProvisionedServicesV2 {services} {
 
 	    $t add \
 		[$space full-name] \
-		$name \
+		[color name $name] \
 		$label $provider $version $pname \
-		[join [$service @service_bindings @app @name] \n]
+		[join [$service @service_bindings @app @name] \n] \
+		[TheState $service]
 	}
     }] show display
 
@@ -919,13 +947,17 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 
     set service [$config @name]
 
-    if {[$config @json]} {
+    if {![$config @json]} {
+	display \n[context format-short \
+		     " -> [color name [$service @name]]"]
+    } else {
 	display [$service as-json]
 	return
     }
 
-    display \n[$service @name]
     [table::do t {What Value} {
+	$t add State [TheState $service]
+
 	if {[catch {
 	    set plan [$service @service_plan]
 	}]} {
@@ -940,7 +972,7 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 	    if {$p ne {}} { $t add Provider $p }
 	    if {$v ne {}} { $t add Version  $v }
 
-	    $t add Plan            [$plan @name]
+	    $t add Plan            [color name [$plan @name]]
 	    $t add "- Description" [$plan @description]
 	    if {[$plan @free defined?]} {
 		$t add "- Free" [$plan @free]
@@ -951,7 +983,7 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 	    $t add Dashboard [$service @dashboard_url]
 	}
 
-	$t add Space [$service @space full-name]
+	$t add Space [color name [$service @space full-name]]
 
 	set creds [$service @credentials]
 	if {[dict size $creds]} {
@@ -1029,6 +1061,30 @@ proc ::stackato::cmd::servicemgr::ShowV1 {config client} {
 
     debug.cmd/servicemgr {/done}
     return
+}
+
+proc ::stackato::cmd::servicemgr::TheState {service} {
+    debug.cmd/servicemgr {}
+    if {![catch {
+	array set st [$service @last_operation]
+    }]} {
+	append state $st(type) " "
+	set los $st(state)
+	switch -glob -- $los {
+	    succ* {
+		append state [color good $los]
+	    }
+	    {in pro*} {
+		append state [color note $los]
+	    }
+	    default {
+		append state [color bad $los]
+	    }
+	}
+    } else {
+	set state "no data"
+    }
+    return $state
 }
 
 # # ## ### ##### ######## ############# #####################
@@ -1468,6 +1524,7 @@ proc ::stackato::cmd::servicemgr::Tunnel {config client} {
 
     if {![tunnelmgr bound? $client $service]} {
 	service bind-with-banner $client $service [tunnelmgr app]
+	app check-app-for-restart $config [tunnelmgr app]
     }
 
     set connection [tunnelmgr connection-info \
@@ -1560,7 +1617,7 @@ proc ::stackato::cmd::servicemgr::PushTunnelHelper {config token turl} {
     }
 
     manifest config= [$config @client self] _
-    manifest setup [tunnelmgr helper] $mfile reset
+    manifest setup 1 [tunnelmgr helper] $mfile reset
     set appname [tunnelmgr appname]
 
     manifest current= $appname 1

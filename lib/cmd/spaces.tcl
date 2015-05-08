@@ -289,18 +289,18 @@ proc ::stackato::cmd::spaces::list {config} {
 	if {$json} {
 	    set thespaces [v2 space list]
 	} else {
+	    display "Spaces: [context format-target]"
 	    set thespaces [v2 space list $depth include-relations $rel]
-	    display "All spaces..."
 	}
     } else {
 	# Spaces in the current or chosen organization.
 	if {$json} {
 	    set thespaces [[corg get] @spaces get]
 	} else {
+	    display "Spaces: [context format-org]"
 	    dict set sc depth             $depth
 	    dict set sc include-relations $rel
 	    set thespaces [[corg get] @spaces get* $sc]
-	    display "In [color name [[corg get] @name]]..."
 	}
     }
 
@@ -315,7 +315,16 @@ proc ::stackato::cmd::spaces::list {config} {
 	return
     }
 
-    set cs [cspace get]
+    if {![llength $thespaces]} {
+	display [color note "No spaces"]
+	return
+    }
+
+    if {$all} {
+	set cs {}
+    } else {
+	set cs [cspace get]
+    }
 
     set titles {{} Name Default Apps Services {Space Quota}}
     if {$full} {

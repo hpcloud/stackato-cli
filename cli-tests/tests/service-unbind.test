@@ -110,7 +110,7 @@ test unbind-service-1.4.2 {unbind-service} -constraints cfv2 -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {Unbinding test-service from TEST ... OK}
+} -result {Unbinding [test-service] from TEST ... OK}
 
 test unbind-service-1.5.1 {unbind-service, persistent} -constraints cfv1 -setup {
     stage-open
@@ -176,7 +176,7 @@ test unbind-service-1.6.2 {unbind-service, running app, restart} -constraints cf
     remove-test-app node-env
     remove-appdir
     stage-close
-} -match glob -result {Unbinding test-service from node-env ... 
+} -match glob -result {Unbinding \[test-service\] from node-env ... 
 Stopping Application \[node-env\] ... *OK
 Starting Application \[node-env\] ... *
 OK
@@ -212,7 +212,7 @@ test unbind-service-1.7.2 {unbind-service, deployed stopped app, no restart} -co
     remove-test-app node-env
     remove-appdir
     stage-close
-} -result {Unbinding test-service from node-env ... OK}
+} -result {Unbinding [test-service] from node-env ... OK}
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

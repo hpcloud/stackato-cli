@@ -63,7 +63,8 @@ namespace eval ::stackato::cmd::app {
 	securesh dbshell open_browser env_list env_add env_delete \
 	drain_add drain_delete drain_list rename map-urls \
 	check-app-for-restart upload-files the-upload-manifest \
-	list-events start-single activate migrate restage
+	list-events start-single activate migrate restage \
+	restart-instance
     namespace ensemble create
 
     namespace import ::cmdr::ask
@@ -110,6 +111,8 @@ debug level  cmd/app
 debug prefix cmd/app {[debug caller] | }
 debug level  cmd/app/ignored
 debug prefix cmd/app/ignored {[debug caller] | }
+debug level  cmd/app/wait
+debug prefix cmd/app/wait {[debug caller] | }
 # TODO: FUTURE: Use levels to control detail?!
 
 # # ## ### ##### ######## ############# #####################
@@ -229,7 +232,7 @@ proc ::stackato::cmd::app::Rename {config theapp} {
 	err "An empty application name is not allowed"
     }
 
-    display "Renaming application \[[$theapp @name]\] to $new ... " false
+    display "Renaming application \[[color name [$theapp @name]]\] to '[color name $new]' ... " false
     $theapp @name set $new
     $theapp commit
     display [color good OK]
@@ -302,7 +305,7 @@ proc ::stackato::cmd::app::StartV2 {config theapp push} {
 	return
     }
 
-    display "Starting Application \[$appname\] ... "
+    display "Starting Application \[[color name $appname]\] ... "
 
     if {[$config @tail] && [[$config @client] is-stackato]} {
 	# Start logyard streaming before sending the start request, to
@@ -368,7 +371,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	set downcounter $maxcounter
 
 	while 1 {
-	    debug.cmd/app {ping CC}
+	    debug.cmd/app/wait {ping CC}
 
 	    set s [clock clicks -milliseconds]
 	    try {
@@ -384,7 +387,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 		}
 
 	    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
-		debug.cmd/app {staging in progress}
+		debug.cmd/app/wait {staging in progress}
 		# Staging in progress.
 		if {[$config @tail] && ![logstream active]} {
 		    display "    Staging in progress"
@@ -400,7 +403,7 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 
 	    set hasstarted [expr {$hasstarted || [AnyStarting $imap]}]
 	    if {$hasstarted && [NoneActive $imap]} {
-		debug.cmd/app {all down @ $downcounter/$maxcounter}
+		debug.cmd/app/wait {all down @ $downcounter/$maxcounter}
 		# All instances are DOWN, and we saw STARTING before.
 		# NOTE: Do not abort immediately. This might be a
 		# transient state, or bad reporting. We abort if and
@@ -420,9 +423,9 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 		    }
 		    err "Application failed to start"
 		}
-		debug.cmd/app {all down - continue}
+		debug.cmd/app/wait {all down - continue}
 	    } else {
-		debug.cmd/app {down counter reset = $maxcounter}
+		debug.cmd/app/wait {down counter reset = $maxcounter}
 		# Reset the failure counter, as we are either in the
 		# initial down-phase, or at least one instance is
 		# active (starting or running).
@@ -437,13 +440,13 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	    # Reset the timeout while the log is active, i.e. new
 	    # entries were seen since the last check here.
 	    if {[logstream new-entries]} {
-		debug.cmd/app {timeout /reset}
+		debug.cmd/app/wait {timeout /reset}
 		set start_time [clock seconds]
 	    }
 
 	    set delta [expr {[clock seconds] - $start_time}]
 	    if {$delta > $timeout} {
-		debug.cmd/app {timeout /triggered}
+		debug.cmd/app/wait {timeout /triggered}
 		# Real time, as good as we can. Simply counting loop
 		# iterations here is no good, as the loop itself may take
 		# substantially longer than one second, especially when it
@@ -509,7 +512,7 @@ proc ::stackato::cmd::app::WaitV2Log {theapp url} {
 }
 
 proc ::stackato::cmd::app::AnyFlapping {imap} {
-    debug.cmd/app {}
+    debug.cmd/app/wait {}
     dict for {n i} $imap {
 	if {[$i flapping?]} { return yes }
     }
@@ -517,7 +520,7 @@ proc ::stackato::cmd::app::AnyFlapping {imap} {
 }
 
 proc ::stackato::cmd::app::AnyStarting {imap} {
-    debug.cmd/app {}
+    debug.cmd/app/wait {}
     dict for {n i} $imap {
 	if {[$i starting?]} { return yes }
     }
@@ -525,7 +528,7 @@ proc ::stackato::cmd::app::AnyStarting {imap} {
 }
 
 proc ::stackato::cmd::app::NoneActive {imap} {
-    debug.cmd/app {}
+    debug.cmd/app/wait {}
     # Has (Starting|Running) <=> All (Flapping|Down)
     dict for {n i} $imap {
 	if {[$i starting?]} { return no }
@@ -535,7 +538,7 @@ proc ::stackato::cmd::app::NoneActive {imap} {
 }
 
 proc ::stackato::cmd::app::AllRunning {imap} {
-    debug.cmd/app {}
+    debug.cmd/app/wait {}
     dict for {n i} $imap {
 	if {![$i running?]} { return no }
     }
@@ -543,7 +546,7 @@ proc ::stackato::cmd::app::AllRunning {imap} {
 }
 
 proc ::stackato::cmd::app::OneRunning {imap} {
-    debug.cmd/app {}
+    debug.cmd/app/wait {}
     dict for {n i} $imap {
 	if {[$i running?]} { return yes }
     }
@@ -802,7 +805,7 @@ proc ::stackato::cmd::app::StopV2 {config theapp} {
 	return
     }
 
-    display "Stopping Application \[$appname\] ... " false
+    display "Stopping Application \[[color name $appname]\] ... " false
     $theapp stop!
     display [color good OK]
 
@@ -829,7 +832,7 @@ proc ::stackato::cmd::app::StopV1 {config appname} {
     }
 
     if {![logstream get-use $client]} {
-	display "Stopping Application \[$appname\] ... " false
+	display "Stopping Application \[[color name $appname]\] ... " false
     }
 
     dict set app state STOPPED
@@ -961,10 +964,8 @@ proc ::stackato::cmd::app::restart {config} {
     }
 
     # Notes:
-
     # - If the user specified the application to operate on then all
     #   calls of 'user_all' will use exactly that application.
-
     # - Otherwise the system operates on all applications in the manifest.
     #   The user will not be asked for a name if no applications are found.
     #   That is a fail case. Similarly if there apps in the manifest, but
@@ -980,6 +981,58 @@ proc ::stackato::cmd::app::restart {config} {
     }
 
     debug.cmd/app {OK}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::app::restart-instance {config} {
+    debug.cmd/app {}
+
+    # Required
+    # config @application (single)
+    # config @client
+
+    # Assert single-ness. Need different code here for multiple apps
+    # chosen by user.
+    if {[$config @application list]} {
+	[$config @client] internal "Unexpected list-type @application"
+    }
+
+    # Notes:
+    # - If the user specified the application to operate on then all
+    #   calls of 'user_all' will use exactly that application.
+    # - Otherwise the system operates on all applications in the manifest.
+    #   The user will not be asked for a name if no applications are found.
+    #   That is a fail case. Similarly if there apps in the manifest, but
+    #   without name.
+
+    manifest user_all each $config {::stackato::mgr logstream start}
+
+    try {
+	manifest user_all each $config ::stackato::cmd::app::RestartInstance
+    } finally {
+	manifest user_all each $config {::stackato::mgr logstream stop-m}
+    }
+
+    debug.cmd/app {OK}
+    return
+}
+
+proc ::stackato::cmd::app::RestartInstance {config theapp} {
+    debug.cmd/app {}
+
+    set appname  [$theapp @name]
+    set instance [$config @theinstance]
+    set index    [$instance index]
+
+		logstream start $config $theapp any ; # A place where a non-fast log stream is ok.
+
+    display "Restarting instance [color name $index] of application \[[color name $appname]\] ... "
+    $instance restart
+
+    LogUnbound $config {*Instance is ready*}
+    # OK (or warning) generated by LogUnbound.
     return
 }
 
@@ -1359,7 +1412,7 @@ proc ::stackato::cmd::app::CrashInfo {config theapp {print_results true} {since 
 	} else {
 	    display ""
 	    if {![llength $crashed]} {
-		display "No crashed instances for \[$appname\]"
+		display "No crashed instances for \[[color name $appname]\]"
 		$t destroy
 	    } else {
 		$t show display
@@ -1473,7 +1526,7 @@ proc ::stackato::cmd::app::Map1 {config appname} {
     set client [$config @client]
     set app    [$client app_info $appname]
 
-    display "Application \[$appname\] ... "
+    display "Application \[[color name $appname]\] ... "
 
     set n [llength [$config @url]]
 
@@ -1498,7 +1551,7 @@ proc ::stackato::cmd::app::Map2 {config theapp} {
     set appname [$theapp @name]
     debug.cmd/app {$theapp ('$appname' in [$theapp @space full-name] of [ctarget get])}
 
-    display "Application \[[$theapp @name]\] ... "
+    display "Application \[[color name [$theapp @name]]\] ... "
 
     set n [llength [$config @url]]
 
@@ -1622,14 +1675,16 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
 		# domains does not exist at all.
 		set msg "Does not exist. [self please $cmd] to create the domain and add it to the $wherelong."
 	    }
+	    set msg "Unknown domain '$domain': $msg"
 	    display "" ; # Force new line.
+	    display [color bad $msg]
 
 	    # Force application rollback, per caller's instruction.
 	    if {$rollback} {
 		Delete 0 1 $config $theapp
 	    }
 
-	    err "Unknown domain '$domain': $msg"
+	    err "Reminder: $msg, forced the rollback"
 	}
     }
 
@@ -1711,7 +1766,7 @@ proc ::stackato::cmd::app::Unmap1 {config appname} {
     set uris [dict get' $app uris {}]
     debug.cmd/app {uris = [join $uris \n\t]}
 
-    display "Application \[$appname\] ... "
+    display "Application \[[color name $appname]\] ... "
 
     set url [$config @url]
     set url [string tolower $url]
@@ -1740,7 +1795,7 @@ proc ::stackato::cmd::app::Unmap2 {config theapp} {
 
     set appname [$theapp @name]
 
-    display "Application \[$appname\] ... "
+    display "Application \[[color name $appname]\] ... "
 
     debug.cmd/app {/regular}
     # Unmap the specified routes from the application.
@@ -2457,7 +2512,7 @@ proc ::stackato::cmd::app::Mem {config theapp} {
 
     debug.cmd/app {current memory limit = $currfmt}
 
-    display "Current Memory Reservation \[$appname\]: $currfmt"
+    display "Current Memory Reservation \[[color name $appname]\]: $currfmt"
     return
 }
 
@@ -2511,7 +2566,7 @@ proc ::stackato::cmd::app::ChangeMem {config client theapp av cv} {
 	return
     }
 
-    display "  Updating Memory Reservation \[$appname\] to $memfmt ... "
+    display "  Updating Memory Reservation \[[color name $appname]\] to $memfmt ... "
 
     # check memsize here for capacity
     # in v2 this is done fully server side, no local check.
@@ -2593,7 +2648,7 @@ proc ::stackato::cmd::app::Disk {config theapp} {
 
     debug.cmd/app {current disk limit = $currfmt}
 
-    display "Current Disk Reservation \[$appname\]: $currfmt"
+    display "Current Disk Reservation \[[color name $appname]\]: $currfmt"
     return
 }
 
@@ -2647,7 +2702,7 @@ proc ::stackato::cmd::app::ChangeDisk {config client theapp av cv} {
 	return
     }
 
-    display "  Updating Disk Reservation \[$appname\] to $memfmt ... "
+    display "  Updating Disk Reservation \[[color name $appname]\] to $memfmt ... "
 
     debug.cmd/app {reservation/instance changed $currfmt ==> $memfmt}
 
@@ -2968,6 +3023,9 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set stack [AppStack $config]
     debug.cmd/app {stack         = $stack}
 
+    set dockerimage [AppDockerImage $config $theapp $update]
+    debug.cmd/app {docker-image  = $dockerimage}
+
     # Placement Zone
     set zone [AppZone $config]
     debug.cmd/app {zone          = $zone}
@@ -3009,7 +3067,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     set mem_quota [AppMem $config $starting {} $instances {}] ; # No framework, nor runtime
     debug.cmd/app {mem_quota    = $mem_quota}
 
-    set disk_quota [AppDisk $config $path]
+    set disk_quota [AppDisk $config $path $dockerimage]
     debug.cmd/app {disk_quota    = $disk_quota}
 
     # # ## ### ##### ######## ############# #####################
@@ -3037,6 +3095,15 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     if {$stack ne {}} {
 	debug.cmd/app {apply stack $stack}
 	$theapp @stack set $stack
+    }
+    if {$dockerimage ne {}} {
+	debug.cmd/app {apply docker-image $dockerimage}
+	# NOTE [301224] We force the app entity to record a change
+	# even if the docker image did not change. This ensures later
+	# on (see <%%%>) that the data is saved across rollbacks and
+	# triggers a commit.
+	$theapp @docker_image set {}
+	$theapp @docker_image set $dockerimage
     }
     if {($zone ne {})} {
 	# incoming zone      :: entity
@@ -3091,12 +3158,27 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 
     set changes 0
     if {$update} {
+	debug.cmd/app {update}
+
 	set sync [$config @reset]
 	set action [expr {$sync ? "Syncing" : "Comparing"}]
+	set dockerbits {}
 
-	display "$action Application \[$appname\] to \[[context format-short " -> $appname"]\] ... "
+	debug.cmd/app {sync = $sync}
+	display "$action Application \[[color name $appname]\] to \[[context format-short " -> $appname"]\] ... "
 
+	debug.cmd/app {changes ...}
 	dict for {attr details} [dict sort [$theapp journal]] {
+	    debug.cmd/app {   $attr = ($details)}
+
+	    # <%%%> Changes to the @docker_image do not count as
+	    # config change! This attribute is the equivalent to the
+	    # /bits of a regular app.
+	    if {$attr eq "docker_image"} {
+		set dockerbits [$theapp @$attr]
+		continue
+	    }
+
 	    lassign $details was old
 	    set new [$theapp @$attr]
 	    incr changes
@@ -3116,14 +3198,41 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    }
 	}
 	if {!$sync} {
+	    debug.cmd/app {not sync}
+
 	    # Undo changes, ignored.
 	    if {$changes} {
+		debug.cmd/app {  reset changes}
 		variable resetinfo
 		display [color note $resetinfo]
+	    } else {
+		debug.cmd/app {  no changes}
+
+		# <%%%> No changes. Check if we are docker-based. If
+		# yes, fake a change for the image, to force a reload
+		# on the target. Analogous to simply upload the /bits
+		# of a regular app.
+		try {
+		    debug.cmd/app {fake change of dockerbits}
+		    set dockerbits [$theapp @docker_image]
+		} on error {e o} {
+		    debug.cmd/app {fake change setup failed: $e}
+		    set dockerbits {}
+		}
 	    }
 
 	    $theapp rollback
 	    set changes 0
+
+	    # <%%%> Restore @docker_image changes across the rollback
+	    debug.cmd/app { dockerbits = ($dockerbits)}
+	    if {$dockerbits ne {}} {
+		debug.cmd/app {  force change, restore bits, or faked change}
+		$theapp @docker_image set {}
+		$theapp @docker_image set $dockerbits
+		incr changes
+		# force commit!
+	    }
 	}
     } else {
 	incr changes ; # push forces commit
@@ -3134,18 +3243,22 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	[expr { $update ? "preserve" : "replace" }]
 
     if {$changes} {
+	debug.cmd/app {changes!}
 	if {$interact} {
 	    SaveManifestInitial $config
 	}
 
 	if {!$update} {
-	    display "Creating Application \[$appname\] as \[[context format-short " -> $appname"]\] ... " false
+	    display "Creating Application \[[color name $appname]\] as \[[context format-short " -> $appname"]\] ... " false
 	} else {
 	    display {Committing ... } false
 	}
+
+	debug.cmd/app {  commit!}
 	$theapp commit
 	display [color good OK]
     } elseif {$sync} {
+	debug.cmd/app {sync, no changes}
 	display {No changes}
     }
 
@@ -3198,7 +3311,9 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    # would disturb it. It might not even be possible,
 	    # depending on the exact nature of the problem.
 
+	    display [color bad $e]
 	    Delete 0 1 $config $theapp
+	    set e "Reminder: $e, forced the rollback"
 	}
 	# Rethrow.
 	return {*}$o $e
@@ -3217,7 +3332,7 @@ proc ::stackato::cmd::app::CreateAppV1 {interact starting defersd config client 
 	SaveManifestInitial $config
     }
 
-    display "Creating Application \[$appname\] in \[[ctarget get]\] ... " false
+    display "Creating Application \[[color name $appname]\] in \[[ctarget get]\] ... " false
     set response [$client create_app $appname $manifest]
     display [color good OK]
 
@@ -3270,7 +3385,7 @@ proc ::stackato::cmd::app::ManifestOfAppV1 {starting config appname path} {
     set mem_quota [AppMem $config $starting $frameobj $instances $runtime]
     debug.cmd/app {mem_quota    = $mem_quota}
 
-    set disk_quota [AppDisk $config $path]
+    set disk_quota [AppDisk $config $path {}]
     debug.cmd/app {disk_quota    = $disk_quota}
 
     # Standards: nodejs/node -- Ho to get ?
@@ -3499,7 +3614,9 @@ proc ::stackato::cmd::app::Push {config appname {interact 0}} {
 	# however. Keeping the state is likely useful and rollback
 	# would disturb it. It might not even be possible, depending
 	# on the exact nature of the problem.
+	display [color bad $e]
 	Delete 0 1 $config $theapp
+	set e "Reminder: $e, forced the rollback"
 	# Rethrow.
 	return {*}$o $e
     }
@@ -3512,7 +3629,9 @@ proc ::stackato::cmd::app::Push {config appname {interact 0}} {
     } on error {e o} {
 	# On upload failure, delete the app.
 	#      no force, rollback
+	display [color bad $e]
 	Delete 0         1        $config $theapp 
+	set e "Reminder: $e, forced the rollback"
 	# Rethrow.
 	return {*}$o $e
     }
@@ -3556,7 +3675,7 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 
     RegenerateManifest $config $theapp $appname $interact
 
-    display "Updating application '$appname'..."
+    display "Updating application '[color name $appname]'..."
 
     if {[$client isv2]} {
 	set action [SyncV2 $config $appname $theapp $interact]
@@ -3581,6 +3700,14 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	    }
 	    append label ", using a zero-downtime switchover"
 	    display $label
+
+	    if {[$config @tail] && [[$config @client] is-stackato]} {
+		# Start a logstream to monitor the switchover, which
+		# happens asynchronously.
+
+		logstream start $config $theapp any ; # A place where a non-fast log stream is ok.
+		LogUnbound $config
+	    }
 	}
 	start {
 	    start-single $config $theapp
@@ -3589,12 +3716,38 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	    Restart1 $config $theapp
 	}
 	default {
-	    display "Note that \[$appname\] was not automatically started because it was STOPPED before the update."
+	    display "Note that \[[color name $appname]\] was not automatically started because it was STOPPED before the update."
 	    display "You can start it manually [self please "start $appname" using]"
 	}
     }
 
     debug.cmd/app {/done}
+    return
+}
+
+proc ::stackato::cmd::app::LogUnbound {config {endpattern {}}} {
+    debug.cmd/app {}
+
+    # We wait 3 minutes (hardwired, for now) for the first new log
+    # entries to occur, indicating that switchover has started, and
+    # then use the regular --timeout on the stream to determine when
+    # to stop watching.
+    #
+    # Note that we _cannot_ use the instance status information for
+    # this. With the zero-downtime this will report a mix of old and
+    # new instances and is worthless in terms of deducing the overall
+    # application state, nor of the switchover state.
+
+    if {![logstream wait-for-active 700 1800]} {
+	# 1,800 [sec] = 3 [min] * 60 [sec/min]
+	err "Giving up watching the log, as no entries were received for 3 minutes."
+    }
+
+    if {[logstream wait-for-inactive 700 [$config @timeout] $endpattern]} {
+	display "Ending the watcher, as [color note {no new log entries}] were received within the last [$config @timeout] seconds."
+    } else {
+	display [color good OK]
+    }
     return
 }
 
@@ -3633,18 +3786,50 @@ proc ::stackato::cmd::app::RunDebugger {config} {
 proc ::stackato::cmd::app::RunPPHooks {appname action} {
     debug.cmd/app {}
 
-    global env
+    global env tcl_platform
     set saved [array get env]
 
     set env(STACKATO_APP_NAME)    $appname
     set env(STACKATO_CLIENT)      [self exe]
     set env(STACKATO_HOOK_ACTION) $action
 
+    # Bug(zilla) 106151
+    if {[info exists env(SHELL)]} {
+	# Check for a shell first.
+	set base [list $env(SHELL) -c]
+
+    } elseif {($tcl_platform(platform) eq "windows") &&
+	      [info exists env(COMSPEC)]} {
+	# On Windows comspec is another possibility.
+	# (We allow the shell above, because we might be in a
+	# unix-like environment like Cygwin, or Msys)
+
+	set base [list $env(COMSPEC) /c]
+    } else {
+	# Last try, look for a /bin/sh, and use when found.
+
+	set sh [auto_execok /bin/sh]
+	if {[llength $sh]} {
+	    set base [list {*}$sh -c]
+
+	} else {
+	    # Nothing panned out, giving up with a proper error instead of
+	    # a stack trace.
+
+	    if {$tcl_platform(platform) eq "windows"} {
+		err "Neither SHELL nor COMSPEC found, unable to run the pre-push hooks for ${action}."
+	    } else {
+		err "No SHELL found, unable to run the pre-push hooks for ${action}."
+	    }
+	}
+    }
+
     try {
 	foreach cmd [manifest hooks pre-push] {
 	    display "[color note pushing:] -----> $cmd"
+	    set cmd [list {*}$base $cmd]
 	    cd::indir [manifest path] {
-		exec::run "[color note pushing:]       " $::env(SHELL) -c $cmd
+		exec::run "[color note pushing:]       " {*}$cmd
 	    }
 	}
     } finally {
@@ -3682,7 +3867,7 @@ proc ::stackato::cmd::app::SyncV1 {client config appname app interact} {
 
     # Read/... See caller.
     set cmd [expr {$sync ? "Syncing" : "Comparing"}]
-    display "$cmd Application \[$appname\] to \[[ctarget get]\] ... "
+    display "$cmd Application \[[color name $appname]\] to \[[ctarget get]\] ... "
 
     # Now the local information.
     set m [ManifestOfAppV1 0 $config $appname [manifest path]]
@@ -3808,9 +3993,57 @@ proc ::stackato::cmd::app::SyncV2 {config appname theapp interact} {
 	ConfigureAppV2 $theapp 1 0 0 0 \
 	    $config $appname [manifest path]
 
-    } ;# else nothing
-    # for there is no manifest (information), and we sync'd from the
-    # server, not the other way around
+    } else {
+	# No, not nothing. Not with docker-based apps around.  Run a fake
+	# change of the docker-image, if there is one, as that is the
+	# /bits equivalent we have to always perform.
+	#
+	# else nothing for there is no manifest (information), and we
+	# sync'd from the server, not the other way around
+	#
+	# OP [301559].
+	# We have to run the part of ConfigureAppV2 handling the
+	# --docker-image option as well, for if we don't it will get
+	# ignored, which is obviously wrong. This part was missed in
+	# commit 1a7c990a41 when the original issue of handling docker
+	# images in this code path was fixed for [301224].
+
+	set dockerimage [AppDockerImage $config $theapp 1]
+	debug.cmd/app {docker-image  = $dockerimage}
+
+	if {$dockerimage ne {}} {
+	    debug.cmd/app {apply docker-image $dockerimage}
+	    # NOTE [301224] We force the app entity to record a change
+	    # even if the docker image did not change. This ensures later
+	    # on (see <%%%>) that the data is saved across rollbacks and
+	    # triggers a commit.
+	    $theapp @docker_image set {}
+	    $theapp @docker_image set $dockerimage
+	}
+
+	try {
+	    debug.cmd/app {fake change of dockerbits}
+	    # This should abort/do nothing if either the target has no
+	    # such attribute, or its value is empty (regular app).
+
+	    set dockerbits [$theapp @docker_image]
+
+	    debug.cmd/app {  dockerbits = ($dockerbits)}
+	    if {$dockerbits ne {}} {
+		debug.cmd/app {  force change, faked change}
+		$theapp @docker_image set {}
+		$theapp @docker_image set $dockerbits
+
+		display "Committing to docker image \"$dockerbits\" ... " false
+		debug.cmd/app {  commit!}
+		$theapp commit
+		display [color good OK]
+	    }
+
+	} on error {e o} {
+	    debug.cmd/app {fake change setup failed: $e}
+	}
+    }
 
     debug.cmd/app {}
 
@@ -3904,6 +4137,7 @@ proc ::stackato::cmd::app::GetManifestV2 {client theapp __} {
 	@max_cpu_threshold    maxCpuThreshold=
 	@min_cpu_threshold    minCpuThreshold=
 	@autoscale_enabled    autoscaling=
+	@docker_image         docker-image=
     } {
 	catch {
 	    set v [$theapp $attr]
@@ -3976,6 +4210,7 @@ proc ::stackato::cmd::app::RegenerateManifest {config theapp appname interact {s
 	# proc 'LoadBase'. This is where the collected outmanifest
 	# data is merged in during this reload.
 	manifest setup \
+	    [$config @path set?] \
 	    [$config @path] \
 	    [$config @manifest] \
 	    reset
@@ -4066,7 +4301,7 @@ proc ::stackato::cmd::app::SaveManifestFinal {config} {
     # The other path in the caller (RegenerateManifest) must do such a
     # merge against the existing main manifest.
     manifest resetout
-    manifest setup [$config @path] $tmp reset
+    manifest setup [$config @path set?] [$config @path] $tmp reset
 
     if {!$savemode} {
 	file delete $tmp
@@ -4112,8 +4347,10 @@ proc ::stackato::cmd::app::AppPath {config} {
     if {!$proceed} {
 	# TODO: interactive deployment path => custom completion.
 	set path [ask string {Please enter in the deployment path: }]
+	set user 1
     } else {
 	set path [pwd]
+	set user 0
     }
 
     set path [file normalize $path]
@@ -4121,7 +4358,7 @@ proc ::stackato::cmd::app::AppPath {config} {
     CheckDeployDirectory $path
 
     # May reload manifest structures
-    manifest setup $path [$config @manifest]
+    manifest setup $user $path [$config @manifest]
     return
 }
 
@@ -4257,6 +4494,48 @@ proc ::stackato::cmd::app::AppZone {config} {
 	manifest zone= [$zone @name]
     }
     return $zone
+}
+
+proc ::stackato::cmd::app::AppDockerImage {config theapp update} {
+    debug.cmd/app {}
+
+    # Note: Can pull manifest data only here.
+    # During cmdr processing current app is not known.
+    if {[$config @docker-image set?]} {
+	set dimage [$config @docker-image]
+	# dimage = string
+	debug.cmd/app {option   = $dimage}
+    } else {
+	set dimage [manifest docker-image]
+	# dimage = string
+	debug.cmd/app {manifest = $dimage}
+    }
+    # dimage = string
+
+    if {$dimage ne {}} {
+	if {0&&$update} {
+	    if {![$theapp @docker_image defined?] ||
+		([$theapp @docker_image] eq {})} {
+		err "Cannot change regular application to docker-based on update."
+	    }
+	}
+	# Can't check for the attribute, this may be an empty app
+	# entity from basic client-side construction. Which tells us
+	# nothing about the target.
+	if {0&&![$theapp @docker_image defined?]} {
+	    err "--docker-image not supported by the target."
+	}
+	display "Docker Image:      [color name $dimage]"
+	manifest docker-image= $dimage
+    } else {
+	if {0&&$update} {
+	    if {[$theapp @docker_image defined?] &&
+		([$theapp @docker_image] ne {})} {
+		err "Cannot change docker-based application to regular on update."
+	    }
+	}
+    }
+    return $dimage
 }
 
 proc ::stackato::cmd::app::AppAutoscaling {config} {
@@ -4544,7 +4823,7 @@ proc ::stackato::cmd::app::AppStartCommand {config frameobj} {
 
     if {!$defined} {
 	if {$frameobj ne {}} {
-	    set basic "The framework \[[$frameobj name]\] needs a non-empty start command."
+	    set basic "The framework \[[color name [$frameobj name]]\] needs a non-empty start command."
 	} else {
 	    # v2 target. Command is not required. Accept missing status and go on.
 	    debug.cmd/app {v2 target, accept as missing}
@@ -4628,7 +4907,7 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
     set urls $tmp
 
     if {![llength $urls]} {
-	display "No Application Urls"
+	display [color note "No Application Urls"]
     }
 
     #manifest url= $urls
@@ -4864,7 +5143,7 @@ proc ::stackato::cmd::app::AppMem {config starting frameobj instances runtime} {
     return $mem
 }
 
-proc ::stackato::cmd::app::AppDisk {config path} {
+proc ::stackato::cmd::app::AppDisk {config path dockerimage} {
     debug.cmd/app {}
 
     set client [$config @client]
@@ -4893,7 +5172,11 @@ proc ::stackato::cmd::app::AppDisk {config path} {
 	}
     }
 
-    set  min [application-size $path]
+    if {$dockerimage eq {}} {
+	set min [application-size $path]
+    } else {
+	set min 0
+    }
     incr min 10
 
     if {$disk < $min} {
@@ -4977,7 +5260,7 @@ proc ::stackato::cmd::app::AppDrains {config theapp} {
 	    set j [expr {!![dict get $known $k json]}]
 
 	    if {$u eq $url && $j == $json} {
-		display "  Skipping drain \[$k\], already present, unchanged"
+		display "  Skipping drain \[[color name $k]\], already present, unchanged"
 		continue
 	    }
 	    # drain exists, has changed. delete, then recreate below.
@@ -4992,7 +5275,7 @@ proc ::stackato::cmd::app::AppDrains {config theapp} {
 	    # Fall into creation below.
 	}
 
-	display "  $cmd drain \[$k\] $detail$djson$url " 0
+	display "  $cmd drain \[[color name $k]\] $detail$djson$url " 0
 	if {[$client isv2]} {
 	    $theapp drain-create $k $url $json
 	} else {
@@ -5105,13 +5388,14 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 
 	    if {$cred eq {}} {
 		display "Debugging now enabled on [color bad unknown] port."
+		# Failed to transmit credentials is handled in GetCredentials (GetCred1 actually).
 
 		# Signal to RunDebugger that we do not have the information it needs.
 		SaveDebuggerInfo {} {}
 	    } elseif {![dict exists $cred port]} {
 		display "Debugging now enabled on [color bad unknown] port."
 		display [color bad "Service failed to transmit its port information"]
-		display [color bad "Please contact the administrator for \[[ctarget get]\]"]
+		display [color bad "Please contact the administrator for \[[color name [ctarget get]]\]"]
 
 		# Signal to RunDebugger that we do not have the information it needs.
 		SaveDebuggerInfo {} {}
@@ -5357,7 +5641,7 @@ proc ::stackato::cmd::app::GetCred1 {client theservice} {
 
     if {![dict exists $si credentials]} {
 	display [color bad "Service failed to transmit its credentials"]
-	display [color bad "Please contact the administrator for \[[ctarget get]\]"]
+	display [color bad "Please contact the administrator for \[[color name [ctarget get]]\]"]
 	return {}
     } else {
 	return [dict get $si credentials]
@@ -5500,7 +5784,7 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	    # In preserve mode, stronger than append, we do NOT
 	    # overwrite existing variables with manifest
 	    # information.
-	    display "  Preserving Environment Variable \[$k\]"
+	    display "  Preserving Environment Variable \[[color name $k]\]"
 	    continue
 	}
 
@@ -5523,7 +5807,7 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	    # hidden value now.
 	    regsub -all . $value * value
 	}
-	set item ${k}=$value
+	set item [color name ${k}]=$value
 	display "  $cmd Environment Variable \[$item\]"
     }
 
@@ -5538,7 +5822,7 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	}
 
 	dict set appenv $k $v
-	set item ${k}=$v
+	set item [color name ${k}]=$v
 	display "  $cmd Environment Variable \[$item\]"
     }
 
@@ -6540,7 +6824,7 @@ proc ::stackato::cmd::app::EnvAdd {config theapp} {
 	set env [$theapp @environment_json]
 	# env is dictionary
 
-	set item ${k}=$v
+	set item [color name ${k}]=$v
 
 	dict set env $k $v
 
@@ -6563,6 +6847,7 @@ proc ::stackato::cmd::app::EnvAdd {config theapp} {
 	set     newenv [lsearch -inline -all -not -glob $env ${k}=*]
 	lappend newenv $item
 
+	set item [color name ${k}]=$v
 	display "Adding Environment Variable \[$item\] ... " false
 
 	dict set app env $newenv
@@ -6598,7 +6883,7 @@ proc ::stackato::cmd::app::EnvDelete {config theapp} {
 
 	dict unset env $varname
 
-	display "Deleting Environment Variable \[$varname\] ... " false
+	display "Deleting Environment Variable \[[color name $varname]\] ... " false
 
 	$theapp @environment_json set $env
 	$theapp commit
@@ -6614,7 +6899,7 @@ proc ::stackato::cmd::app::EnvDelete {config theapp} {
 
 	set newenv [lsearch -inline -all -not -glob $env ${varname}=*]
 
-	display "Deleting Environment Variable \[$varname\] ... " false
+	display "Deleting Environment Variable \[[color name $varname]\] ... " false
 
 	if {$newenv eq $env} {
 	    display [color good OK]
@@ -6648,7 +6933,8 @@ proc ::stackato::cmd::app::EnvList {config theapp} {
     if {[$client isv2]} {
 	debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
 	# CFv2 API...
-	set env [$theapp @environment_json]
+	set env  [$theapp @environment_json]
+	set senv [$theapp system-env]
 	# env is dictionary
 
     } else {
@@ -6658,28 +6944,55 @@ proc ::stackato::cmd::app::EnvList {config theapp} {
 	set app [$client app_info $theapp]
 
 	#checker -scope line exclude badOption
-	set env [Env2Dict [dict get' $app env {}]]
+	set env  [Env2Dict [dict get' $app env {}]]
+	set senv {}
     }
 
     set env [dict sort $env]
+    if {[$client isv2]} {
+	set senv [dict sort $senv]
+    }
 
     debug.cmd/app {env = ($env)}
 
     if {[$config @json]} {
 	display [jmap env $env]
-	return
-    }
-
-    if {![dict size $env]} {
-	display "No Environment Variables" 
-	return
-    }
-
-    [table::do t {Variable Value} {
-	dict for {k v} $env {
-	    $t add $k $v
+	if {[$client isv2]} {
+	    display [jmap env $senv]
 	}
-    }] show display
+	return
+    }
+
+    if {![dict size $env] && ![dict size $senv]} {
+	display [color note "No Environment Variables"]
+	return
+    }
+
+    if {[$client isv2]} {
+	if {[dict size $env]} {
+	    display "User:"
+	    [table::do t {Variable Value} {
+		dict for {k v} $env {
+		    $t add $k $v
+		}
+	    }] show display
+	}
+
+	if {[dict size $senv]} {
+	    display "System:"
+	    [table::do t {Variable Value} {
+		dict for {k v} $senv {
+		    $t add $k $v
+		}
+	    }] show display
+	}
+    } else {
+	[table::do t {Variable Value} {
+	    dict for {k v} $env {
+		$t add $k $v
+	    }
+	}] show display
+    }
     return
 }
 
@@ -6710,7 +7023,7 @@ proc ::stackato::cmd::app::DrainAdd {config theapp} {
     set uri    [$config @uri]
     set json   [$config @json]
 
-    display "Adding [expr {$json?"json ":""}]drain \[$drain\] ... " false
+    display "Adding [expr {$json?"json ":""}]drain \[[color name $drain]\] ... " false
 
     if {[$client isv2]} {
 	$theapp drain-create $drain $uri $json
@@ -6736,7 +7049,7 @@ proc ::stackato::cmd::app::DrainDelete {config theapp} {
     set client [$config @client]
     set drain  [$config @drain]
 
-    display "Deleting drain \[$drain\] ... " false
+    display "Deleting drain \[[color name $drain]\] ... " false
 
     if {[$client isv2]} {
 	$theapp drain-delete $drain
@@ -6758,8 +7071,17 @@ proc ::stackato::cmd::app::drain_list {config} {
 
 proc ::stackato::cmd::app::DrainList {config theapp} {
     debug.cmd/app {}
-
     set client [$config @client]
+
+    if {![$config @json]} {
+	if {[$client isv2]} {
+	    set appname [$theapp @name]
+	} else {
+	    set appname $theapp
+	}
+	display "Drains: [context format-short " -> [color name $appname]"]"
+    }
+
     if {[$client isv2]} {
 	set thedrains [$theapp drain-list]
     } else {
@@ -6774,7 +7096,7 @@ proc ::stackato::cmd::app::DrainList {config theapp} {
     }
 
     if {![llength $thedrains]} {
-	display "No Drains"
+	display [color note "No Drains"]
 	return
     }
 
@@ -6811,6 +7133,16 @@ proc ::stackato::cmd::app::DrainList {config theapp} {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::app::Upload {config theapp appname} {
+    debug.cmd/app {}
+
+    if {[[$config @client] isv2] &&
+	[$theapp @docker_image defined?] &&
+	([$theapp @docker_image] ne {})} {
+	debug.cmd/app {docker image chosen as sources, skip upload}
+	display "Uploading Application \[[color name $appname]\] ... Skipped, using docker image \"[color name [$theapp @docker_image]]\""
+	return
+    }
+
     set ignores [manifest ignorePatterns]
     debug.cmd/app {ignores      = $ignores}
 
@@ -6842,7 +7174,8 @@ proc ::stackato::cmd::app::upload-files {config theapp appname path {ignorepatte
 
     try {
 	debug.cmd/app {**************************************************************}
-	display "Uploading Application \[$appname\] ... "
+	display "Uploading Application \[[color name $appname]\] ... "
+	display "  From path $path"
 
 	# Truncate the appname as used in file paths to a sensible
 	# length to avoid OS path length restrictions when the user
@@ -6973,11 +7306,13 @@ proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
 
     # (**) Application is single file ...
     if {[file extension $path] eq ".ear"} {
+	display "  Copying .ear file"
 	# It is an EAR file, we do not want to unpack it
 	file mkdir $explode_dir
 	file copy $path $explode_dir
 
     } elseif {[file extension $path] in {.jar .war .zip}} {
+	display "  Exploding file"
 	# Its an archive, unpack to treat as app directory.
 	zipfile::decode::unzipfile $path $explode_dir
 
@@ -6985,6 +7320,7 @@ proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
 	# Plain file, just treat it as the single file in an otherwise
 	# regular application directory.  We normalize the file to
 	# avoid accidentially copying a soft-link as is.
+	display "  Copying plain file"
 
 	file mkdir                            $explode_dir
 	file copy [misc full-normalize $path] $explode_dir
@@ -7031,6 +7367,8 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	set jar_file [lindex $jarfiles 0]
 
 	if {$ear_file ne {}} {
+	    display "  Copying .ear file"
+
 	    debug.cmd/app {ear-file found = $ear_file}
 	    # It is an EAR file, we do not want to unpack it
 	    file mkdir $explode_dir
@@ -7042,11 +7380,13 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	    debug.cmd/app {war-file found = $war_file}
 	    # Its an archive, unpack to treat as app directory.
 	    if {[file isdirectory $war_file]} {
+		display "  Copying .war directory"
 		# Actually its a directory, plain copy is good enough.
 		cd::indir $war_file {
 		    MakeACopy $explode_dir [pwd] {}
 		}
 	    } else {
+		display "  Exploding .war file"
 		zipfile::decode::unzipfile $war_file $explode_dir
 	    }
 	    return
@@ -7056,11 +7396,13 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	    debug.cmd/app {jar-file found = $jar_file}
 	    # Its an archive, unpack to treat as app directory.
 	    if {[file isdirectory $jar_file]} {
+		display "  Copying .jar directory"
 		# Actually its a directory, plain copy is good enough.
 		cd::indir $jar_file {
 		    MakeACopy $explode_dir [pwd] {}
 		}
 	    } else {
+		display "  Exploding .jar file"
 		zipfile::decode::unzipfile $jar_file $explode_dir
 	    }
 	    return
@@ -7088,6 +7430,7 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	}
     }
 
+    display "  Copying directory"
     debug.cmd/app {safe the app directory for processing}
     MakeACopy $explode_dir [pwd] $ignorepatterns
     return

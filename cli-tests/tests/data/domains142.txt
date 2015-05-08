@@ -1,4 +1,4 @@
-Org @org@...
+Domains@Org: * -> @org@
 +-*-+-*-+-*-+
 | Name *| Owner | Shared |
 +-*-+-*-+-*-+*

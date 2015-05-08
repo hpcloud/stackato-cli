@@ -110,7 +110,7 @@ test drain-delete-1.6 {drain delete, persistent} -setup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {No Drains}
+} -match glob -result "Drains: *\nNo Drains"
 
 test drain-delete-1.7 {drain-delete, running app, no! restart} -setup {
     stage-open

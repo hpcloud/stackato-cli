@@ -1,7 +1,7 @@
 *Application Url:   *://node-env.@BASE@
 *Creating Application * ... OK
-*Uploading Application * ... 
-  Checking for bad links ...  OK
+*Uploading Application * ... *
+  Checking for bad links ...  OK*
   Copying to temp space ...  OK
   Checking for available resources ...  OK
   Processing resources ... OK

@@ -50,7 +50,7 @@ test spaces-1.3 {spaces} -constraints cfv2 -setup {
     run spaces
 } -cleanup {
     stage-close
-} -match glob -result "In [theorg]...
+} -match glob -result "Spaces: [thetarget] -> [theorg]
 +-*-+-*-+-*-+-*-+-*-+
 |   | Name *| Default *| Apps *| Services *|
 +-*-+-*-+-*-+-*-+-*-+

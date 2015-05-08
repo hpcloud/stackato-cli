@@ -61,6 +61,7 @@ test domains-1.4.1 {domains, shared standard domain} -constraints s30le -setup {
 } -cleanup {
     stage-close
 } -match glob -result [map [viewFile data/domains141.txt] \
+			   @org@    [theorg] \
 			   @space@  [thespace] \
 			   @domain@ [targetdomain]]
 
@@ -73,6 +74,16 @@ test domains-1.4.2 {domains, shared standard domain} -constraints s32ge -setup {
     stage-close
 } -match glob -result [map [viewFile data/domains142.txt] \
 			   @org@    [theorg] \
+			   @domain@ [targetdomain]]
+
+test domains-1.4.3 {domains, all} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run domains --all
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/domains143.txt] \
 			   @domain@ [targetdomain]]
 
 # # ## ### ##### ######## ############# #####################

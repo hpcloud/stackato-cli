@@ -27,6 +27,7 @@ package ifneeded stackato::validate::instance            0 [list source [file jo
 package ifneeded stackato::validate::integer0            0 [list source [file join $dir integer0.tcl]]
 package ifneeded stackato::validate::integer1            0 [list source [file join $dir integer1.tcl]]
 package ifneeded stackato::validate::interval            0 [list source [file join $dir interval.tcl]]
+package ifneeded stackato::validate::intervalornone      0 [list source [file join $dir intervalornone.tcl]]
 package ifneeded stackato::validate::memspec             0 [list source [file join $dir memspec.tcl]]
 package ifneeded stackato::validate::memspecplus         0 [list source [file join $dir memspecplus.tcl]]
 package ifneeded stackato::validate::notappname          0 [list source [file join $dir notappname.tcl]]

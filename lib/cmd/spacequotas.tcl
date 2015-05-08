@@ -215,13 +215,21 @@ proc ::stackato::cmd::spacequotas::list {config} {
     debug.cmd/spacequotas {}
     # No arguments.
 
+    if {![$config @json]} {
+	if {[$config @all]} {
+	    set context [context format-target]
+	} else {
+	    set context [context format-org]
+	}
+	display "\nSpace Quotas: $context"
+    }
+
     if {[$config @all]} {
 	set thequotas [v2 space_quota_definition list]
-	set context   [context format-target]
     } else {
 	set thequotas [[corg get] @space_quota_definitions]
-	set context   [context format-org]
     }
+
     set thequotas [v2 sort @name $thequotas -dict]
 
     if {[$config @json]} {
@@ -233,7 +241,6 @@ proc ::stackato::cmd::spacequotas::list {config} {
 	return
     }
 
-    display "Space Quotas: $context"
     if {![llength $thequotas]} {
 	display [color note "No Space Quota"]
 	return

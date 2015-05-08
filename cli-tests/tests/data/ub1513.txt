@@ -2,5 +2,5 @@ Updating buildpack [clitestbuildpack] ...
   Position ... Unchanged
   Enabled  ... Unchanged
   Locked   ... Unchanged
-Uploading new buildpack bits ...  OK
+Uploading new buildpack bits (bp-empty.zip) ...  OK
 OK

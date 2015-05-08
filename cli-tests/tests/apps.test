@@ -41,16 +41,18 @@ test apps-1.2 {apps, non-admin login is ok} -setup {
     stage-close
 } -match glob -result *
 
-test apps-1.3 {apps} -setup {
+# # ## ### ##### ######## ############# #####################
+
+test apps-1.3 {apps, none} -setup {
     stage-open
     go-admin
 } -body {
     run apps
 } -cleanup {
     stage-close
-} -result {No Applications}
+} -match glob -result "Applications: *\nNo Applications"
 
-test apps-1.4 {apps, json} -setup {
+test apps-1.4 {apps, none, json} -setup {
     stage-open
     go-admin
 } -body {
@@ -58,6 +60,31 @@ test apps-1.4 {apps, json} -setup {
 } -cleanup {
     stage-close
 } -result {[]}
+
+# # ## ### ##### ######## ############# #####################
+
+test apps-1.5 {apps, one, regular list} -setup {
+    stage-open
+    go-admin
+    make-test-app node-env [example a.original.node-env]
+} -body {
+    run apps
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/apps15.txt]
+
+test apps-1.6 {apps, one, full listing} -setup {
+    stage-open
+    go-admin
+    make-test-app node-env [example a.original.node-env]
+} -body {
+    run apps --full
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [viewFile data/apps16.txt]
+
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

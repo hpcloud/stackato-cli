@@ -142,13 +142,13 @@ proc ::stackato::mgr::manifest::Init {} {
 # Retrieve the value of the hidden state variable. This
 # initializes it, and calls "setup-from-config" here, as a
 # 'when-defined' callback. Any access after the first returns a
-# cached value, not running the initalization again.
+# cached value, instead of running the initalization again.
 #
 # Variants:
 #    $config   @manifest/setup
 #    $p config @manifest/setup
 
-# Must be executed by all public manifest acesssors.
+# Must be executed by all public manifest accesssors.
 # The out-manifest commands however do not require it.
 # The main exceptions are "reset" and "setup*", and,
 # of course, all the internal commands.
@@ -374,6 +374,17 @@ proc ::stackato::mgr::manifest::stack= {name} {
     variable outmanifest
     InitializeOutManifest
     yaml dict set outmanifest stack [Cscalar $name]
+    return
+}
+
+proc ::stackato::mgr::manifest::docker-image= {name} {
+    debug.mgr/manifest/core {}
+    # Ignore null.
+    if {$name eq {}} return
+
+    variable outmanifest
+    InitializeOutManifest
+    yaml dict set outmanifest docker_image [Cscalar $name]
     return
 }
 
@@ -651,6 +662,17 @@ proc ::stackato::mgr::manifest::stack {} {
     return $stack
 }
 
+proc ::stackato::mgr::manifest::docker-image {} {
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+    set dimage [yaml dict get' $currentappinfo docker_image {}]
+    if {$dimage eq "null"} { set dimage {} }
+    return $dimage
+}
+
 proc ::stackato::mgr::manifest::framework {} {
     debug.mgr/manifest/core {}
     InitCurrent
@@ -756,12 +778,21 @@ proc ::stackato::mgr::manifest::path {} {
     InitCurrent
 
     variable currentappinfo
-    if {[info exists currentappinfo] &&
+    variable basepath
+    variable userbase
+
+    if {$userbase} {
+	debug.mgr/manifest/core {--path user-set = $basepath}
+	return $basepath
+
+    } elseif {[info exists currentappinfo] &&
 	[yaml dict find $currentappinfo result \
 	    path]} {
+	debug.mgr/manifest/core {manifest path:  = $result}
 	return $result
+
     } else {
-	variable basepath
+	debug.mgr/manifest/core {--path default  = $basepath}
 	return  $basepath
     }
 }
@@ -970,7 +1001,12 @@ proc ::stackato::mgr::manifest::on_user {mode config cmd} {
 	# to dynamically get the proper appname for the selection in
 	# the manifest.
 
-	if {[info object isa object $theapp]} {
+	debug.mgr/manifest/core {theapp = $theapp}
+
+	if {![$client isv2]} {
+	    set appname $theapp
+	} elseif {[info object isa object $theapp] &&
+	         ([info object class $theapp] eq "::stackato::v2:app")} {
 	    set appname [$theapp @name]
 	} else {
 	    set appname $theapp
@@ -1571,6 +1607,7 @@ proc ::stackato::mgr::manifest::reset {} {
     debug.mgr/manifest/core {}
     # Full reset of all state after a command has completed.
     variable basepath       ; unset -nocomplain basepath
+    variable userbase       ; unset -nocomplain userbase
     variable mbase          ; unset -nocomplain mbase
     variable rootfile       ; unset -nocomplain rootfile
     variable manifest       ; unset -nocomplain manifest
@@ -1597,15 +1634,17 @@ proc ::stackato::mgr::manifest::quiet {args} {
 proc ::stackato::mgr::manifest::setup-from-config {p x} {
     debug.mgr/manifest/core {}
     setup \
+	[$p config @path set?] \
 	[$p config @path] \
 	[$p config @manifest]
     return
 }
 
-proc ::stackato::mgr::manifest::setup {path manifestfile {reset {}}} {
-    debug.mgr/manifest/core {manifest setup ($path) ($manifestfile) /$reset}
+proc ::stackato::mgr::manifest::setup {upath path manifestfile {reset {}}} {
+    debug.mgr/manifest/core {(r=$reset)}
 
     variable basepath [file normalize $path]
+    variable userbase $upath
     variable mbase    $basepath
 
     if {[file isfile $mbase]} {
@@ -2349,8 +2388,8 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 	name instances mem memory disk framework services processes
 	min_version env ignores hooks cron requirements drain subdomain
 	command app-dir url urls depends-on buildpack stack host domain
-	placement-zone description autoscale sso-enabled timeout
-	force-war-unpacking
+	placement-zone placementzone description autoscale sso-enabled
+	timeout force-war-unpacking docker_image
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2609,8 +2648,8 @@ proc ::stackato::mgr::manifest::TS_Isolate {value} {
 
     foreach k {
 	processes min_version env ignores hooks cron
-	requirements drain placement-zone description
-	sso-enabled autoscale force-war-unpacking
+	requirements drain placement-zone placementzone
+	description sso-enabled autoscale force-war-unpacking
     } {
 	if {![dict exists $value $k]} continue
 
@@ -2647,6 +2686,18 @@ proc ::stackato::mgr::manifest::TransformStackato {value} {
 	    if {[dict exists $data drain]} {
 		set data [TransformDrains $data]
 		dict set value stackato [Cmapping {*}$data]
+	    }
+	    if {[dict exists $data placementzone]} {
+		if {[dict exists $data placement-zone]} {
+		    # Have both placement-zone and placementzone.
+		    # Drop the latter, keep the former.
+		    dict unset data placementzone
+		} else {
+		    # Have only placementzone, rename to unify.
+		    dict set data placement-zone [dict get $data placementzone]
+		    dict unset data placementzone
+		}
+		dict set value $section [Cmapping {*}$data]
 	    }
 	}
     }
@@ -2761,6 +2812,7 @@ proc ::stackato::mgr::manifest::TransformCFManifest {yml} {
 
     # (2) Extend toplevels with a default "path" (".").
     if {![dict exists $toplevel path]} {
+	debug.mgr/manifest/core {path: default = . = [pwd]}
 	dict set toplevel path [Cscalar .]
     }
 
@@ -2922,23 +2974,27 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
     if {[dict exists $value env]} {
 	set value [TransformEnvironment $value]
 
-	yaml tags!do [dict get $value stackato] {key "stackato"} t data {
-	    mapping {
-		if {[dict exists $data env]} {
-		    # Have both official and AS env settings.  Merge them,
-		    # give official settings priority.  The result is filed
-		    # under 'stackato', as everything else expects it there.
-		    dict set data env \
-			[yaml deep-merge \
-			     [dict get $value env] \
-			     [dict get $data env]]
-		} else {
-		    # We have only official settings.
-		    # Rename them to be under 'stackato'.
-
-		    dict set data env [dict get $value env]
+	if {[dict exists $value stackato]} {
+	    yaml tags!do [dict get $value stackato] {key "stackato"} t data {
+		mapping {
+		    if {[dict exists $data env]} {
+			# Have both official and AS env settings.  Merge them,
+			# give official settings priority.  The result is filed
+			# under 'stackato', as everything else expects it there.
+			dict set data env \
+			    [yaml deep-merge \
+				 [dict get $value env] \
+				 [dict get $data env]]
+		    } else {
+			# We have only official settings.
+			# Rename them to be under 'stackato'.
+			dict set data env [dict get $value env]
+		    }
 		}
 	    }
+	} else {
+	    # No stackato section, begin it and fill with the env.
+	    dict set data env [dict get $value env]
 	}
 
 	dict set   value stackato [Cmapping {*}$data]
@@ -3269,6 +3325,7 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 	    path        -
 	    buildpack   -
 	    stack       -
+	    docker_image -
 	    command   {
 		yaml tag! scalar $avalue "key \"$akey\""
 	    }

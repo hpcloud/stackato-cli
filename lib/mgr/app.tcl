@@ -59,7 +59,7 @@ proc ::stackato::mgr::app::DeleteV2 {config client theapp force {rollback 0}} {
     set appname [$theapp @name]
 
     if {$rollback} {
-	display [color bad "Rolling back application \[[color name $appname]\] ... "] false
+	display "[color bad "Rolling back application \["][color name $appname][color bad "\] ... "]" false
     }
 
     set services_to_delete [ServicesToDelete $theapp $force $rollback]
