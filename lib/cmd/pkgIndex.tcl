@@ -37,4 +37,4 @@ package ifneeded stackato::cmd::spaces        0        [list source [file join $
 package ifneeded stackato::cmd::target        0        [list source [file join $dir target.tcl]]
 package ifneeded stackato::cmd::usermgr       0        [list source [file join $dir usermgr.tcl]]
 package ifneeded stackato::cmd::zones         0        [list source [file join $dir zones.tcl]]
-package ifneeded stackato::cmdr               3.2.1    [list source [file join $dir cmdr.tcl]]
+package ifneeded stackato::cmdr               3.2.2    [list source [file join $dir cmdr.tcl]]

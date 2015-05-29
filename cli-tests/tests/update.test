@@ -1,9 +1,7 @@
 # -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
-## (c) 2013 Andreas Kupries
+## (c) 2013-2015 Andreas Kupries
 # # ## ### ##### ######## ############# #####################
 ## update (via push)
-## Note: --timeout 10s used to stop waiting relatively quickly for 0-downtime target.
-## Default 2m is a bit long for that (times ca 24 tests).
 
 kt check Tcl     8.5
 kt check tcltest 2
@@ -40,7 +38,7 @@ test update-1.1 {push as update, empty application} -setup {
     stage-open
     go-admin
 } -body {
-    indir [appdir] { run push -n --timeout 10s }
+    indir [appdir] { run push -n }
 } -cleanup {
     # Failed to stage => still means that it was created. Not for CFv1
     # tough, so catch delete issue for these targets.
@@ -85,7 +83,7 @@ foreach {n cons excode label theapp} {
 	go-admin
 	indir $appdir { run push -n }
     } -body {
-	indir $appdir { run push -n --timeout 10s }
+	indir $appdir { run push -n }
     } -cleanup {
 	remove-test-app node-env
 	stage-close
@@ -102,7 +100,7 @@ test update-2.16 "push as update, memory -1" -setup {
     # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
-    indir [example memory-1] { run push -n --timeout 10s }
+    indir [example memory-1] { run push -n }
 } -cleanup {
     remove-test-app node-env
     stage-close
@@ -118,7 +116,7 @@ test update-2.17 "push as update, memory 0" -setup {
     # Note: Staging may fail, app is not running. This affects
     # the push (will not start app).
 } -body {
-    indir [example memory0] { run push -n --timeout 10s }
+    indir [example memory0] { run push -n }
 } -cleanup {
     remove-test-app node-env
     stage-close
@@ -140,7 +138,7 @@ foreach {n excode label theapp} {
 	go-admin
 	indir $appdir { run push -n }
     } -body {
-	indir $appdir { run push -n --timeout 10s }
+	indir $appdir { run push -n }
     } -cleanup {
 	catch { remove-test-app node-env1 }
 	catch { remove-test-app node-env2 }

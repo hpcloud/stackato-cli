@@ -110,7 +110,7 @@ test create-org-1.7.0 {create-org} -constraints cfv2 -setup {
 	       @org@    [theorg]-2 \
 	       @target@ [thetarget]]
 
-test create-org-1.7.1 {create-org, unicode name} -constraints cfv2 -setup {
+test create-org-1.7.1 {create-org, unicode name} -constraints {macOrUnix cfv2} -setup {
     stage-open
     go-admin
 } -body {

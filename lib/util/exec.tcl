@@ -23,12 +23,13 @@ namespace eval ::exec {
 }
 
 proc ::exec::bgrun {args} {
+    debug.exec {[info level 0]}
+    return [bg+ [exec {*}$args &]]
+}
+
+proc ::exec::bg+ {pid} {
     variable pids
     debug.exec {[info level 0]}
-
-    set pid [exec {*}$args &]
-    debug.exec {+ $pid}
-
     lappend pids $pid
     return $pid
 }

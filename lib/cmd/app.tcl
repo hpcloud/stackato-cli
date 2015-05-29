@@ -64,7 +64,7 @@ namespace eval ::stackato::cmd::app {
 	drain_add drain_delete drain_list rename map-urls \
 	check-app-for-restart upload-files the-upload-manifest \
 	list-events start-single activate migrate restage \
-	restart-instance
+	restart-instance debug-dir
     namespace ensemble create
 
     namespace import ::cmdr::ask
@@ -339,7 +339,7 @@ proc ::stackato::cmd::app::StartV2 {config theapp push} {
     return
 }
 
-proc ::stackato::cmd::app::WaitV2 {config theapp push} {
+proc ::stackato::cmd::app::WaitV2 {config theapp push {threshold -1}} {
     debug.cmd/app {}
 
     set timeout    [$config @timeout]
@@ -361,7 +361,10 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
     debug.cmd/app {  x-a-s-l = [$theapp have-header x-app-staging-log]}
     debug.cmd/app {}
 
-    if {[$config @tail] && ![logstream active] && [$theapp have-header x-app-staging-log]} {
+    if {($threshold < 0)    &&
+	[$config @tail]     &&
+	![logstream active] &&
+	[$theapp have-header x-app-staging-log]} {
 	WaitV2Log $theapp [$theapp header x-app-staging-log]
     }
 
@@ -376,9 +379,17 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
 	    set s [clock clicks -milliseconds]
 	    try {
 		set imap [$theapp instances]
+		debug.cmd/app/wait {map0 = $imap}
+
+		set ni   [dict size $imap]
+		set imap [DropOld $threshold $imap]
+		debug.cmd/app/wait {map1 = $imap}
+
+		set ignored [expr {$ni - [dict size $imap]}]
+		debug.cmd/app/wait {ni = $ni, nleft = [dict size $imap], ignored = $ignored }
 
 		if {![logstream active]} {
-		    PrintStatusSummary $imap
+		    PrintStatusSummary $imap $ignored
 		}
 
 		if {[OneRunning $imap]} {
@@ -465,14 +476,14 @@ proc ::stackato::cmd::app::WaitV2 {config theapp push} {
     } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
 	err "Application failed to stage: $e"
     } finally {
-	debug.cmd/app {stop log stream}
+	debug.cmd/app/wait {stop log stream}
 
 	if {[logstream active]} {
 	    logstream stop $config
 	}
     }
 
-    debug.cmd/app {/done}
+    debug.cmd/app/wait {/done}
     return
 }
 
@@ -509,6 +520,40 @@ proc ::stackato::cmd::app::WaitV2Log {theapp url} {
 
     debug.cmd/app {/done}
     return
+}
+
+proc ::stackato::cmd::app::DropOld {threshold imap} {
+    debug.cmd/app/wait {}
+    if {$threshold < 0} {
+	debug.cmd/app/wait {no filtering}
+	return $imap
+    }
+
+    debug.cmd/app/wait {drop any before [Epoch $threshold]}
+    set tmp {}
+    dict for {n i} $imap {
+	set since [$i since]
+	debug.cmd/app/wait {has [format %2d $n] $i [format %.4f $since] = [Epoch $since]}
+
+	if {$since <= $threshold} continue
+	dict set tmp $n $i
+    }
+    return $tmp
+}
+
+proc ::stackato::cmd::app::Youngest {imap} {
+    debug.cmd/app/wait {}
+    set threshold -1
+    dict for {n i} $imap {
+	set since [$i since]
+	debug.cmd/app/wait {max [format %2d $n] $i [format %.4f $since] = [Epoch $since]}
+
+	if {$since <= $threshold} continue
+	set threshold $since
+    }
+
+    debug.cmd/app/wait {==> $threshold ([Epoch $threshold])}
+    return $threshold
 }
 
 proc ::stackato::cmd::app::AnyFlapping {imap} {
@@ -553,9 +598,15 @@ proc ::stackato::cmd::app::OneRunning {imap} {
     return no
 }
 
-proc ::stackato::cmd::app::PrintStatusSummary {imap} {
-    debug.cmd/app {}
+proc ::stackato::cmd::app::PrintStatusSummary {imap {ignored 0}} {
+    debug.cmd/app/wait {}
     # Gather: total instances, plus counts of the various states. Make a report.
+
+    if {$ignored > 0} {
+	set suffix " [color red "\[$ignored\]"]"
+    } else {
+	set suffix {}
+    }
 
     set all 0
     foreach s [v2 appinstance states] { dict set count $s 0 }
@@ -576,7 +627,7 @@ proc ::stackato::cmd::app::PrintStatusSummary {imap} {
 	lappend sum [StateColor $s "$c [string tolower $s]"]
     }
 
-    display "    $ok/$all instances: [join $sum {, }]"
+    display "    $ok/$all instances: [join $sum {, }]$suffix"
     return
 }
 
@@ -2452,7 +2503,7 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
 	err "Unable to show instances: Application failed to stage"
     }
 
-    set instances [dict sort $instances]
+    set instances [dict sort $instances -dict]
 
     if {[$config @json]} {
 	dict for {k v} $instances {
@@ -3683,7 +3734,17 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	set action [SyncV1 $client $config $appname $app $interact]
     }
 
+    debug.cmd/app {Action = ($action)}
+
     RunPPHooks $appname update
+
+    if {$action eq "skip"} {
+	# For the zero-downtime switch we have to know the time of the
+	# youngest instance, so that we can now when a new instance is
+	# started (after that). See WaitV2 below for the use.
+	set threshold [Youngest [$theapp instances]]
+	debug.cmd/app/wait {Threshold = $threshold}
+    }
 
     Upload $config $theapp $appname
 
@@ -3691,23 +3752,28 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
     switch -exact -- $action {
 	skip {
 	    # The target supports a zero-downtime switchover. A restart is
-	    # not only not required, but contra-indicated. Do nothing.
-	    set url [$theapp uri]
-	    if {$url ne {}} {
-		set label "http://$url/ deployed"
-	    } else {
-		set label "$appname deployed to [ctarget get]"
-	    }
-	    append label ", using a zero-downtime switchover"
-	    display $label
+	    # not only not required, but contra-indicated. Do nothing. But
+	    # watch the instances for the first newly started.
+
+	    display "Triggered a zero-downtime switchover in the target."
 
 	    if {[$config @tail] && [[$config @client] is-stackato]} {
 		# Start a logstream to monitor the switchover, which
 		# happens asynchronously.
 
 		logstream start $config $theapp any ; # A place where a non-fast log stream is ok.
-		LogUnbound $config
 	    }
+
+	    WaitV2 $config $theapp 0 $threshold
+
+	    set url [$theapp uri]
+	    if {$url ne {}} {
+		set label "http://$url/ deployed"
+	    } else {
+		set label "$appname deployed to [ctarget get]"
+	    }
+	    #append label ", using a zero-downtime switchover"
+	    display $label
 	}
 	start {
 	    start-single $config $theapp
@@ -4022,26 +4088,26 @@ proc ::stackato::cmd::app::SyncV2 {config appname theapp interact} {
 	}
 
 	try {
-	    debug.cmd/app {fake change of dockerbits}
 	    # This should abort/do nothing if either the target has no
 	    # such attribute, or its value is empty (regular app).
-
+	    debug.cmd/app {fake change of dockerbits}
 	    set dockerbits [$theapp @docker_image]
 
+	} on error {e o} {
+	    debug.cmd/app {fake change setup failed: $e}
+
+	} on ok {e o} {
 	    debug.cmd/app {  dockerbits = ($dockerbits)}
 	    if {$dockerbits ne {}} {
 		debug.cmd/app {  force change, faked change}
 		$theapp @docker_image set {}
 		$theapp @docker_image set $dockerbits
 
-		display "Committing to docker image \"$dockerbits\" ... " false
+		display "Committing to docker image \"[color name [DisplayDIR $dockerbits]]\" ... " false
 		debug.cmd/app {  commit!}
 		$theapp commit
 		display [color good OK]
 	    }
-
-	} on error {e o} {
-	    debug.cmd/app {fake change setup failed: $e}
 	}
     }
 
@@ -4525,7 +4591,7 @@ proc ::stackato::cmd::app::AppDockerImage {config theapp update} {
 	if {0&&![$theapp @docker_image defined?]} {
 	    err "--docker-image not supported by the target."
 	}
-	display "Docker Image:      [color name $dimage]"
+	display "Docker Image:      [color name [DisplayDIR $dimage]]"
 	manifest docker-image= $dimage
     } else {
 	if {0&&$update} {
@@ -4536,6 +4602,21 @@ proc ::stackato::cmd::app::AppDockerImage {config theapp update} {
 	}
     }
     return $dimage
+}
+
+proc ::stackato::cmd::app::debug-dir {config} {
+    debug.cmd/app {}
+    puts [DisplayDIR [$config @ref]]
+    return
+}
+
+proc ::stackato::cmd::app::DisplayDIR {imageref} {
+    debug.cmd/app {}
+    # Squash password information in a docker image ref to prevent it
+    # from getting seen in log files and the like,
+
+    regsub {(.*://)?([^@]*)@} $imageref {\1***@} imageref
+    return $imageref
 }
 
 proc ::stackato::cmd::app::AppAutoscaling {config} {
@@ -7139,7 +7220,7 @@ proc ::stackato::cmd::app::Upload {config theapp appname} {
 	[$theapp @docker_image defined?] &&
 	([$theapp @docker_image] ne {})} {
 	debug.cmd/app {docker image chosen as sources, skip upload}
-	display "Uploading Application \[[color name $appname]\] ... Skipped, using docker image \"[color name [$theapp @docker_image]]\""
+	display "Uploading Application \[[color name $appname]\] ... Skipped, using docker image \"[color name [DisplayDIR [$theapp @docker_image]]]\""
 	return
     }
 

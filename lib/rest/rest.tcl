@@ -852,8 +852,11 @@ proc ::REST::status {} {
 
 proc ::REST::verify {cmd args} {
 	debug.rest {}
-	variable debug
-	variable skip
+	variable debug  ; # global debug flag     (--debug-tls-handshake)
+	variable skip   ; # global skip of checks (--skip-ssl-validation)
+	# Note. We check and report anything only once per specific host.
+	variable host   ; # Name of the host we are talking to and checking
+	variable skiph  ; # per-host skip (only one check per host).
 
 	# [301584] Ensure proper values in case of early access to target,
 	# before cmdr's completion phase.
@@ -882,7 +885,25 @@ proc ::REST::verify {cmd args} {
 		}
     }
 
-    # Here the command is 'verify'. Time to perform any (additional checks!).
+    # Here the command is 'verify'. Now is the time to perform any
+    # (additional checks!). And to bail out if so advised by user or
+    # previous checks.
+
+	if {$skip} {
+		if {$debug} {
+			puts $prefix\t$cmd\tskip!globally-disabled
+		}
+		return 1
+	}
+
+	if {[dict exists $skiph $host]} {
+		if {$debug} {
+			puts $prefix\t$cmd\tskip!already-checked:$host
+		}
+		return 1
+	}
+	dict set skiph $host .
+
     # Extract individual arguments first.
     lassign $args chan depth cert rc err
 
@@ -961,14 +982,9 @@ proc ::REST::verify {cmd args} {
 		puts $prefix\t$cmd\t___done
 	}
 
-	# In client v3.x simply report issue. With added complexity to
-	# report anything only once per specific host.
-	variable host
-	variable skiph
-	if {!$acode && !$skip && ![dict exists $skiph $host,$amsg]} {
+	# In client v3.x simply report issue.
+	if {!$acode} {
 		puts [cmdr color warning "SSL warning for \"$host\": $amsg"]
-		# Ignore any future warnings for the same host.
-		dict set skiph $host,$amsg .
 	}
 	# In client v4.x actually abort and throw error.
 	#if {$debug} { puts "$prefix\t$cmd\treturn $rc" }

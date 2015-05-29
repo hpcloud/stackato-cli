@@ -99,7 +99,7 @@ test create-space-1.7.0 {create-space} -constraints cfv2 -setup {
 	       @space@  [thespace]-2 \
 	       @target@ [thetarget]]
 
-test create-space-1.7.1 {create-space, unicode name} -constraints cfv2 -setup {
+test create-space-1.7.1 {create-space, unicode name} -constraints {macOrUnix cfv2} -setup {
     stage-open
     go-admin
 } -body {

@@ -89,7 +89,7 @@ test delete-space-quota-1.5.0 {delete-space-quota} -constraints s342ge -setup {
 } -result [map [viewFile data/sq/delete.txt] \
 	       @sq@ [thespacequota]]
 
-test delete-space-quota-1.5.1 {delete-space-quota, unicode name} -constraints s342ge -setup {
+test delete-space-quota-1.5.1 {delete-space-quota, unicode name} -constraints {macOrUnix s342ge} -setup {
     stage-open
     go-admin
     run create-space-quota [thespacequota]\u4e00

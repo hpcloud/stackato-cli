@@ -113,11 +113,16 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     }
 
     option help {
-	Show the main help of the client, and stop.
+	Show the help of the client (main or current command), and stop.
     } {
 	alias h ; alias ? ; presence
 	when-set [lambda {p x} {
-	    [$p config context root] do help
+	    set root [$p config context root]
+	    if {[$root exists *prefix*]} {
+		$root do help {*}[$root get *prefix*]
+	    } else {
+		$root do help
+	    }
 	    stackato::mgr::exit quit
 	}]
     }
@@ -1026,6 +1031,12 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    A collection of debugging aids.
 	}
 
+	private diref {
+	    undocumented
+	    description {Test the regexp for password concealment in docker image refs}
+	    input ref {The image ref to test}
+	} [jump@cmd app debug-dir]
+
 	private stdout {
 	    undocumented
 	    description {
@@ -1236,6 +1247,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		Show the packages used the client, and their versions.
 	    }
 	    use .json
+	    option all { Show load commands } { presence }
 	} [jump@cmd query list-packages]
 
 	private option-help {
@@ -1262,6 +1274,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
     alias debug-stderr          = debug stderr
     alias debug-stdin           = debug stdin
     alias debug-options         = debug option-help
+    alias debug-diref           = debug diref
 
     # # ## ### ##### ######## ############# #####################
 
@@ -6457,4 +6470,4 @@ proc jump@ {package cmd} {
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.2.1
+package provide stackato::cmdr 3.2.2

@@ -93,7 +93,7 @@ test update-space-quota-1.5.0 {update-space-quota} -constraints s342ge -setup {
 } -result [map [viewFile data/sq/update.txt] \
 	       @sq@ [thespacequota]]
 
-test update-space-quota-1.5.1 {update-space-quota, unicode name} -constraints s342ge -setup {
+test update-space-quota-1.5.1 {update-space-quota, unicode name} -constraints {macOrUnix s342ge} -setup {
     stage-open
     go-admin
     run create-space-quota [thespacequota]\u4e00

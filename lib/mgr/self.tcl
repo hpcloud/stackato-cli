@@ -177,6 +177,7 @@ proc ::stackato::mgr::self::me {} {
     }
 
     set me [file tail $base]
+    regsub {.EXE$} $me {} me
     regsub {.exe$} $me {} me
 
     debug.mgr/self {= $me}

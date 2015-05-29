@@ -354,28 +354,45 @@ proc ::stackato::cmd::query::list-packages {config} {
     foreach p [lsort -dict [self packages]] {
 	try {
 	    set v [package require $p]
+	    set w [string trim [package ifneeded $p $v]]
+
 	    dict set ok $p 1
 	} on error {e o} {
 	    set v $e
+	    set w {}
 	    dict set ok $p 0
 	}
-	lappend info $p $v
+	lappend info $p [list $v $w]
     }
 
     if {[$config @json]} {
-	display [jmap map dict $info]
+	display [jmap map {dict {* array}} $info]
 	return
     }
 
-    [table::do t {Package Version} {
-	foreach {p v} $info {
-	    if {0 && ![dict get $ok $p]} {
-		set p [color bad $p]
-		set v [color bad $v]
+    if {[$config @all]} {
+	[table::do t {Package Version Loader} {
+	    foreach {p vw} $info {
+		lassign $vw v w
+		if {0 && ![dict get $ok $p]} {
+		    set p [color bad $p]
+		    set v [color bad $v]
+		}
+		$t add $p $v $w
 	    }
-	    $t add $p $v
-	}
-    }] show display
+	}] show display
+    } else {
+	[table::do t {Package Version} {
+	    foreach {p vw} $info {
+		lassign $vw v __
+		if {0 && ![dict get $ok $p]} {
+		    set p [color bad $p]
+		    set v [color bad $v]
+		}
+		$t add $p $v
+	    }
+	}] show display
+    }
     return
 }
 

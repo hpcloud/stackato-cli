@@ -154,7 +154,7 @@ test env-add-1.8 {env-add, unicode variable name} -constraints knownBug -setup {
     stage-close
 } -result "Adding Environment Variable \[VAR\u4e00=VAL\] ... OK"
 
-test env-add-1.9 {env-add, unicode variable value} -setup {
+test env-add-1.9 {env-add, unicode variable value} -constraints macOrUnix -setup {
     stage-open
     go-admin
     make-test-app

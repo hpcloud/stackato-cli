@@ -64,12 +64,12 @@ test admin-report-1.4 {admin report, generates a file} -setup {
     stage-close
 } -result 1
 
-test admin-report-1.5 {admin report, file is proper gzipped tarball} -setup {
+test admin-report-1.5 {admin report, file is proper gzipped tarball} -constraints have_tar -setup {
     stage-open
     go-admin
 } -body {
     run admin report [thehome]/report
-    run-any tar tvfz [thehome]/report
+    run-any tar tvfz [file nativename [thehome]/report]
     # not gzipped tarball => stderr has output
 } -cleanup {
     stage-close

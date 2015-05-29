@@ -93,7 +93,7 @@ test create-space-quota-1.5.0 {create-space-quota} -constraints s342ge -setup {
 	       @org@ [theorg] \
 	       @sq@  [thespacequota]]
 
-test create-space-quota-1.5.1 {create-space-quota, unicode name} -constraints s342ge -setup {
+test create-space-quota-1.5.1 {create-space-quota, unicode name} -constraints {macOrUnix s342ge} -setup {
     stage-open
     go-admin
 } -body {

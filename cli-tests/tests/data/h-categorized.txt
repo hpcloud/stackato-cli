@@ -211,24 +211,25 @@ Services
         stackato create-service-auth-token [<label>] [<provider>]    Create a
                                                                      new
                                                                      service
-                                                                     authenticat
-                                                                     ion token
+                                                                     authentica
+                                                                     tion token
         stackato delete-service-auth-token [<label>]                 Delete the
                                                                      specified
                                                                      service
-                                                                     authenticat
-                                                                     ion token
+                                                                     authentica
+                                                                     tion token
         stackato service-auth-tokens                                 Show all
                                                                      service
-                                                                     authenticat
-                                                                     ion tokens
+                                                                     authentica
+                                                                     tion
+                                                                     tokens
                                                                      knowns to
                                                                      the target
         stackato update-service-auth-token [<label>]                 Update the
                                                                      specified
                                                                      service
-                                                                     authenticat
-                                                                     ion token
+                                                                     authentica
+                                                                     tion token
 
     Brokers
         stackato add-service-broker [<name>]                   Make the named
@@ -263,30 +264,33 @@ Services
                                                                        service to
                                                                        the
                                                                        specified
-                                                                       application
+                                                                       applicatio
+                                                                       n
         stackato clone-services <source> <application>                 Copy the
                                                                        service
                                                                        bindings
                                                                        of the
                                                                        source
-                                                                       application
-                                                                       to the
-                                                                       destination
-
-                                                                       application
+                                                                       applicatio
+                                                                       n to the
+                                                                       destinatio
+                                                                       n
+                                                                       applicatio
+                                                                       n
         stackato create-service [<vendor>] [<name>] [<application>]    Create a
                                                                        new
-                                                                       provisioned
-                                                                       service,
+                                                                       provisione
+                                                                       d service,
                                                                        and
                                                                        optionally
                                                                        bind it to
                                                                        an
-                                                                       application
+                                                                       applicatio
+                                                                       n
         stackato delete-service [<service>...]                         Delete the
                                                                        named
-                                                                       provisioned
-                                                                       service
+                                                                       provisione
+                                                                       d service
         stackato rename-service <service> [<name>]                     Rename the
                                                                        specified
                                                                        service
@@ -305,10 +309,12 @@ Services
                                                                        service
                                                                        from the
                                                                        specified
-                                                                       application
+                                                                       applicatio
+                                                                       n
         stackato update-user-provided-service <service>                Update the
-                                                                       credentials
-                                                                       of a user
+                                                                       credential
+                                                                       s of a
+                                                                       user
                                                                        provided
                                                                        service
 

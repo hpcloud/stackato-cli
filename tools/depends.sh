@@ -60,6 +60,7 @@ for i in \
     fileutil::traverse \
     'json 1.2' \
     json::write \
+    lexec \
     linenoise \
     linenoise::facade \
     linenoise::repl \

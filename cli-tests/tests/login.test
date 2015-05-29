@@ -64,7 +64,7 @@ test login-1.3.2 {login, transient target is such} -constraints cfv2 -setup {
     run target
 } -cleanup {
     stage-close
-} -result {[https://api.stackato.local] (Note: Cannot access target (https://api.stackato.local/info: couldn't open socket: host is unreachable (Name or service not known)))}
+} -match glob -result {\[https://api.stackato.local\] (Note: Cannot access target (https://api.stackato.local/info: couldn't open socket: *))}
 
 test login-1.4.1 {login, transient target, persistent token} -constraints cfv1 -setup {
     stage-open

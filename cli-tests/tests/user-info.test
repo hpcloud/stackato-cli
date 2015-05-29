@@ -30,7 +30,7 @@ test user-info-1.1 {user introspection, default target, bogus} -setup {
     run user-info
 } -cleanup {
     stage-close
-} -returnCodes error -result {Cannot access target 'https://api.stackato.local' (https://api.stackato.local/info: couldn't open socket: host is unreachable (Name or service not known))}
+} -returnCodes error -match glob -result {Cannot access target 'https://api.stackato.local' (https://api.stackato.local/info: couldn't open socket: *)}
 
 test user-info-1.2 {user introspection, not logged in} -setup {
     stage-open

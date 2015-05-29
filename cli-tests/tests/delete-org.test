@@ -96,7 +96,7 @@ test delete-org-1.7.0 {delete-org} -constraints cfv2 -setup {
     stage-close
 } -result "Deleting organization [theorg]-2 ... OK"
 
-test delete-org-1.7.1 {delete-org, unicode name} -constraints cfv2 -setup {
+test delete-org-1.7.1 {delete-org, unicode name} -constraints {macOrUnix cfv2} -setup {
     stage-open
     go-admin
     run create-org -n [theorg]\u4e00 --no-activate

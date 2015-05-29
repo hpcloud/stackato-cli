@@ -3,6 +3,7 @@
 
 package require fileutil
 package require try
+package require lexec
 
 # # ## ### ##### ######## ############# #####################
 ## Configuration.
@@ -187,13 +188,18 @@ proc run {args} {
 
     global env
     set here $env(HOME)
+
+    #puts %%%[list {*}[Where] {*}$args]%%%
+
     try {
 	file delete $out $err
 	set env(HOME) [thehome]
 	set env(STACKATO_NO_WRAP) 1
 	set env(STACKATO_SKIP_SSL_VALIDATION) 1
 	set fail [catch {
-	    exec > $out 2> $err [Where] {*}$args
+	    lexec::exec | \
+		[list {*}[Where] {*}$args] \
+		> $out 2> $err 
 	}]
     } finally {
 	set   env(HOME) $here
@@ -219,7 +225,9 @@ proc run-any {args} {
 	set env(STACKATO_NO_WRAP) 1
 	set env(STACKATO_SKIP_SSL_VALIDATION) 1
 	set fail [catch {
-	    exec > $out 2> $err {*}$args
+	    lexec::exec | \
+		$args \
+		> $out 2> $err 
 	}]
     } finally {
 	set   env(HOME) $here
@@ -507,6 +515,9 @@ apply {{spec} {
 
     tcltest::testConstraint s32ge   [expr {$isv2 && $post30}]
     tcltest::testConstraint s30le   [expr {$isv2 && $pre32}]
+
+    tcltest::testConstraint have_ssh [llength [auto_execok ssh]]
+    tcltest::testConstraint have_tar [llength [auto_execok tar]]
 
 }} [run debug-target --target [thetarget]]
 

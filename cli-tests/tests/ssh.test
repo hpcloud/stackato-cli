@@ -45,7 +45,7 @@ test ssh-1.1 {ssh, empty application} -setup {
 
 # # ## ### ##### ######## ############# #####################
 
-test ssh-1.2 {ssh, auto-select app} -setup {
+test ssh-1.2 {ssh, auto-select app} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -58,7 +58,7 @@ test ssh-1.2 {ssh, auto-select app} -setup {
     stage-close
 } -match glob -result [viewFile data/ls-l.txt]
 
-test ssh-1.3 {ssh, explicit app} -setup {
+test ssh-1.3 {ssh, explicit app} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -71,7 +71,7 @@ test ssh-1.3 {ssh, explicit app} -setup {
     stage-close
 } -match glob -result [viewFile data/ls-l.txt]
 
-test ssh-1.4 {ssh, auto-select app, explicit --instance} -setup {
+test ssh-1.4 {ssh, auto-select app, explicit --instance} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -84,7 +84,7 @@ test ssh-1.4 {ssh, auto-select app, explicit --instance} -setup {
     stage-close
 } -match glob -result [viewFile data/ls-l.txt]
 
-test ssh-1.5 {ssh, auto-select app, --all} -setup {
+test ssh-1.5 {ssh, auto-select app, --all} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -132,8 +132,12 @@ foreach {k cmd dry printed} {
 	{<1>	 = '-l'}
 	{<2>	 = 'a b'}
     }
+    6 {{echo foo | ls /etc/apt}} 
+    {"echo foo | ls /etc/apt"} {}
+    7 {echo foo | ls /etc/apt} 
+    {echo foo "|" ls /etc/apt} {}
 } {
-    test ssh-2.$k "ssh --dry, $cmd" -setup {
+    test ssh-2.$k "ssh --dry, $cmd" -constraints have_ssh -setup {
 	stage-open
 	go-admin
 	set appdir [example a.original.node-env]
@@ -146,25 +150,27 @@ foreach {k cmd dry printed} {
 	stage-close
     } -match glob -result [per-api [ssh-cmd node-env $dry] [ssh-cmd * $dry]]
 
-    test ssh-3.$k "ssh printargs, $cmd" -setup {
-	stage-open
-	go-admin
-	set appdir [example a.original.node-env]
-	indir $appdir { run push -n }
-	# Upload testing tool, observe received arguments.
-	# Note: This will not see redirections of any type, as these
-	# are handled by the shell invoking the command.
-	run scp -a node-env [kt find support/printargs] :printargs
-	run ssh -a node-env chmod u+x ./printargs
-    } -body {
-	run ssh -a node-env ./printargs {*}$cmd
-    } -cleanup {
-	unset appdir
-	remove-test-app node-env
-	stage-close
-    } -match exact -result [join $printed \n]
+    if {$k ni {6 7}} {
+	test ssh-3.$k "ssh printargs, $cmd" -constraints have_ssh -setup {
+	    stage-open
+	    go-admin
+	    set appdir [example a.original.node-env]
+	    indir $appdir { run push -n }
+	    # Upload testing tool, observe received arguments.
+	    # Note: This will not see redirections of any type, as these
+	    # are handled by the shell invoking the command.
+	    run scp -a node-env [kt find support/printargs] :printargs
+	    run ssh -a node-env chmod u+x ./printargs
+	} -body {
+	    run ssh -a node-env ./printargs {*}$cmd
+	} -cleanup {
+	    unset appdir
+	    remove-test-app node-env
+	    stage-close
+	} -match exact -result [join $printed \n]
+    }
 
-    test ssh-4.$k "ssh --dry --group, $cmd" -constraints cfv1 -setup {
+    test ssh-4.$k "ssh --dry --group, $cmd" -constraints {have_ssh cfv1} -setup {
 	stage-open
 	go-admin
 	run groups create   test-group
@@ -181,7 +187,7 @@ foreach {k cmd dry printed} {
 	stage-close
     } -match glob -result [ssh-cmd node-env $dry test-group]
 
-    test ssh-5.$k "ssh --dry fake --group, $cmd, bug 103469" -constraints cfv2 -setup {
+    test ssh-5.$k "ssh --dry fake --group, $cmd, bug 103469" -constraints {have_ssh cfv2} -setup {
 	stage-open
 	go-admin
 	set gf [thehome]/.stackato/client/group

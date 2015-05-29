@@ -95,7 +95,7 @@ test delete-space-1.7.0 {delete-space} -constraints cfv2 -setup {
     stage-close
 } -result "Deleting space [thespace]-2 ... OK"
 
-test delete-space-1.7.1 {delete-space, unicode name} -constraints cfv2 -setup {
+test delete-space-1.7.1 {delete-space, unicode name} -constraints {macOrUnix cfv2} -setup {
     stage-open
     go-admin
     run create-space -n [thespace]\u4e00 --no-activate

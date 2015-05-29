@@ -12,6 +12,7 @@ package require base64
 package require exec
 package require platform
 package require url
+package require lexec ; # TIP 424 exec syntax as package.
 package require struct::list
 package require cmdr::color
 package require stackato::misc
@@ -708,7 +709,8 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
     if {$bg == 4} {
 	# CheckSources is only caller for bg==4.
 	try {
-	    set lines [exec 2>@ stderr <@ stdin {*}$cmd]
+	    set lines [lexec::exec \
+			   | $cmd 2>@ stderr <@ stdin]
 	} trap {CHILDSTATUS} {e o} {
 	    err [lindex [split [dict get $o -errorinfo] \n] 0]
 	    #exit fail [GetStatus $o]
@@ -719,7 +721,8 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 
     if {$bg == 2} {
 	try {
-	    exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
+	    lexec::exec \
+		| $cmd 2>@ stderr >@ stdout <@ stdin
 	} trap {CHILDSTATUS} {e o} {
 	    return [GetStatus $o]
 	}
@@ -735,19 +738,30 @@ proc ::stackato::mgr::ssh::InvokeSSH {config cmd {bg 0} {eincmd {}} {eocmd {}}} 
 	    set in /dev/null
 	    set err /dev/null
 	}
-	set pid [exec::bgrun 2> $err >@ stdout < $in {*}$cmd]
+	set pid [exec::bg+ [lexec::exec \
+				| $cmd \
+				2> $err >@ stdout < $in \
+				& ]]
 	return $pid
     }
 
     try {
 	if {[llength $eincmd] && [llength $eocmd]} {
-	    exec 2>@ stderr >@ stdout {*}$eincmd | {*}$cmd | {*}$eocmd
+	    lexec::exec \
+		| $eincmd 2>@ stderr \
+		| $cmd               \
+		| $eocmd   >@ stdout
 	} elseif {[llength $eocmd]} {
-	    exec 2>@ stderr >@ stdout {*}$cmd | {*}$eocmd
+	    lexec::exec \
+		| $cmd   2>@ stderr \
+		| $eocmd  >@ stdout
 	} elseif {[llength $eincmd]} {
-	    exec 2>@ stderr >@ stdout {*}$eincmd | {*}$cmd
+	    lexec::exec \
+		| $eincmd 2>@ stderr \
+		| $cmd     >@ stdout
 	} else {
-	    exec 2>@ stderr >@ stdout <@ stdin {*}$cmd
+	    lexec::exec \
+		| $cmd 2>@ stderr >@ stdout <@ stdin
 	}
     } trap {CHILDSTATUS} {e o} {
 	exit fail [GetStatus $o]

@@ -39,7 +39,7 @@ test scp-1.1 {scp, empty application} -setup {
 ## Note: Ignoring the 'log' output as it is timing sensitive and may
 ## not contain everything needed to match because of that.
 
-test scp-1.2 {scp, auto-select app} -setup {
+test scp-1.2 {scp, auto-select app} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -52,7 +52,7 @@ test scp-1.2 {scp, auto-select app} -setup {
     stage-close
 } -match glob -result {}
 
-test scp-1.3 {scp, explicit app} -setup {
+test scp-1.3 {scp, explicit app} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -65,7 +65,7 @@ test scp-1.3 {scp, explicit app} -setup {
     stage-close
 } -match glob -result {}
 
-test scp-1.4 {scp, retrieve file} -setup {
+test scp-1.4 {scp, retrieve file} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -79,7 +79,7 @@ test scp-1.4 {scp, retrieve file} -setup {
     stage-close
 } -match glob -result [viewFile data/scp14.txt]
 
-test scp-1.5 {scp, retrieve file, explicit --instance} -setup {
+test scp-1.5 {scp, retrieve file, explicit --instance} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -124,7 +124,7 @@ test scp-2.0 {scp, mixed remote/local source paths not allowed} -setup {
 # (1.7) directory from file, overwrite existing
 # (1.8) missing directory, from directory
 
-test scp-2.1.1 {scp, local <-- remote, any dst, missing source} -setup {
+test scp-2.1.1 {scp, local <-- remote, any dst, missing source} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -137,7 +137,7 @@ test scp-2.1.1 {scp, local <-- remote, any dst, missing source} -setup {
     stage-close
 } -returnCodes error -result {foo: No such file or directory}
 
-test scp-2.1.2 {scp, local <-- remote, dst file, multiple sources, glob} -setup {
+test scp-2.1.2 {scp, local <-- remote, dst file, multiple sources, glob} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -150,7 +150,7 @@ test scp-2.1.2 {scp, local <-- remote, dst file, multiple sources, glob} -setup 
     stage-close
 } -returnCodes error -match glob -result {copying multiple files, but last argument `*/dst' is not a directory}
 
-test scp-2.1.3 {scp, local <-- remote, no dst, multiple sources, glob} -setup {
+test scp-2.1.3 {scp, local <-- remote, no dst, multiple sources, glob} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -163,7 +163,7 @@ test scp-2.1.3 {scp, local <-- remote, no dst, multiple sources, glob} -setup {
     stage-close
 } -returnCodes error -result {`dst': specified destination directory does not exist}
 
-test scp-2.1.4 {scp, local <-- remote, missing file from file} -setup {
+test scp-2.1.4 {scp, local <-- remote, missing file from file} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -179,7 +179,7 @@ test scp-2.1.4 {scp, local <-- remote, missing file from file} -setup {
     stage-close
 } -result {0 778}
 
-test scp-2.1.5 {scp, local <-- remote, overwrite file from file} -setup {
+test scp-2.1.5 {scp, local <-- remote, overwrite file from file} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -196,7 +196,7 @@ test scp-2.1.5 {scp, local <-- remote, overwrite file from file} -setup {
     stage-close
 } -result {0 778}
 
-test scp-2.1.6 {scp, local <-- remote, directory from file} -setup {
+test scp-2.1.6 {scp, local <-- remote, directory from file} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -213,7 +213,7 @@ test scp-2.1.6 {scp, local <-- remote, directory from file} -setup {
     stage-close
 } -result {0 778}
 
-test scp-2.1.7 {scp, local <-- remote, directory from file, overwrite existing} -setup {
+test scp-2.1.7 {scp, local <-- remote, directory from file, overwrite existing} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
@@ -231,7 +231,7 @@ test scp-2.1.7 {scp, local <-- remote, directory from file, overwrite existing} 
     stage-close
 } -result {0 778}
 
-test scp-2.1.8 {scp, local <-- remote, directory from directory} -setup {
+test scp-2.1.8 {scp, local <-- remote, directory from directory} -constraints have_ssh -setup {
     stage-open
     go-admin
     set appdir [example a.original.node-env]
