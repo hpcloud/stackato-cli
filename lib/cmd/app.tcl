@@ -6715,7 +6715,7 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 proc ::stackato::cmd::app::AcceptDbshell {vendor} {
     # See also ::stackato::cmd::servicemgr::AcceptTunnel, consolidate
     expr {$vendor in {
-	oracledb mysql redis mongodb postgresql
+	oracledb mysql redis mongodb postgresql mssql2012 mssql2014
     }}
 }
 

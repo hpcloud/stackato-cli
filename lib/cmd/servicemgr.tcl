@@ -1837,7 +1837,7 @@ proc ::stackato::cmd::servicemgr::ProcessService1 {client service} {
 proc ::stackato::cmd::servicemgr::AcceptTunnel {vendor} {
     # See also ::stackato::cmd::app::AcceptDbshell, consolidate
     expr {$vendor in {
-	oracledb mysql redis mongodb postgresql
+	oracledb mysql redis mongodb postgresql mssql2012 mssql2014
     }}
 }
 
