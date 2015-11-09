@@ -50,8 +50,7 @@ test service-1.3 {service (info), bogus service} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Service [bogus] is not a valid service choice} \
-	 [unexpected input name {service instance} bogus " in space '[theorg]::[thespace]'"]]
-
+	 [unexpected input name {service instance} bogus {Run 'stackato services' to see list of service instances} " in space '[theorg]::[thespace]'"]]
 
 test service-1.4 {service (info), mysql} -constraints cfv2 -setup {
     stage-open

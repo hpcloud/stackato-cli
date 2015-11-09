@@ -68,7 +68,8 @@ test unlink-user-org-1.4 {unlink-user-org, non-admin login is not ok (often)} -c
     run delete-org -n [theorg]-2
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input org organization [theorg]-2]
+} -returnCodes error \
+    -result [unexpected input org organization [theorg]-2 {Run 'stackato orgs' to see list of organizations}]
 
 test unlink-user-org-1.5 {unlink-user-org, persists} -constraints cfv2 -setup {
     stage-open

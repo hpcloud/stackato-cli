@@ -13,6 +13,7 @@ package require lambda
 package require dictutil
 package require cmdr::validate
 package require stackato::log
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::manifest
 package require stackato::validate::common
@@ -33,8 +34,9 @@ namespace eval ::stackato::validate::appversion {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
@@ -86,7 +88,9 @@ proc ::stackato::validate::appversion::validate {p x} {
 	return $x
     }
     debug.validate/appversion {FAIL}
-    fail-unknown-thing $p APPVERSION "appversion index" $x " for application '[$theapp @name]'"
+    fail-unknown-simple-msg \
+	"[self please [list releases [$theapp @name]] Run] to see list of revisions" \
+	$p APPVERSION "appversion index" $x " for application '[$theapp @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

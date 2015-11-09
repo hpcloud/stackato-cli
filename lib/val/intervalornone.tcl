@@ -96,6 +96,7 @@ proc ::stackato::validate::intervalornone::validate {p x} {
 	d {
 	    set value [expr {int($value * 86400)}]
 	}
+	default { error "Cannot happen" }
     }
 
     debug.validate/intervalornone {= $value}

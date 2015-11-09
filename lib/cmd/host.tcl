@@ -250,7 +250,7 @@ proc ::stackato::cmd::host::Write {config hostfile lines} {
 
     # Atomic overwrite of the true destination.
     if {[catch {
-	file rename -force $tmp $hostfile
+	file rename -force -- $tmp $hostfile
     } msg]} {
 	global tcl_platform
 

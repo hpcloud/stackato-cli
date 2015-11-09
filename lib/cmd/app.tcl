@@ -131,7 +131,7 @@ proc ::stackato::cmd::app::the-upload-manifest {config} {
     manifest currentInfo $mcfile [$config @tversion]
 
     set mdata [fileutil::cat $mcfile]
-    file delete $mcfile
+    file delete -- $mcfile
 
     puts $mdata
     return
@@ -771,6 +771,7 @@ proc ::stackato::cmd::app::StartV1 {config appname push} {
     }
 
     if {$failed} {
+	#checker -scope line exclude badInt
 	exit quit
     }
 
@@ -1170,6 +1171,7 @@ proc ::stackato::cmd::app::LogsStream {config theapp} {
     if {[$config @follow]} {
 	debug.cmd/app {/follow aka tail}
 	# Disable 'Interupted' output for ^C
+	#checker -scope line exclude badInt
 	exit trap-term-silent
 
 	logstream tail $mconfig
@@ -1203,10 +1205,8 @@ proc ::stackato::cmd::app::GrabAllLogs {config appname} {
     # @todo what else can instances_info_envelope be ? Hash map ?
     # if instances_info_envelope.is_a?(Array)      return
 
-    #checker -scope line exclude badOption
     set instances_info [dict get' $instances_info_envelope instances {}]
     foreach entry $instances_info {
-	#checker -scope line exclude badOption
 	GrabLogs $config $appname [dict getit $entry index]
     }
 
@@ -1278,7 +1278,6 @@ proc ::stackato::cmd::app::GrabCrashLogs {config appname instance {was_staged fa
     set prefix [$config @prefix]
 
     set map [instmap get]
-    #checker -scope line exclude badOption
     set instance [dict get' $map $instance $instance]
 
     foreach path [LogFilePaths $client $appname $instance \
@@ -1813,7 +1812,6 @@ proc ::stackato::cmd::app::Unmap1 {config appname} {
     set client [$config @client]
     set app    [$client app_info $appname]
 
-    #checker -scope line exclude badOption
     set uris [dict get' $app uris {}]
     debug.cmd/app {uris = [join $uris \n\t]}
 
@@ -1917,14 +1915,10 @@ proc ::stackato::cmd::app::StatsV1 {config client theapp} {
 	    set hp    "[dict getit $stat host]:[dict getit $stat port]"
 
 	    set uptime [uptime [dict getit $stat uptime]]
-	    #checker -scope line exclude badOption
 	    set usage [dict get' $stat usage {}]
 	    if {$usage ne {}} {
-		#checker -scope line exclude badOption
 		set cpu  [dict getit $usage cpu]
-		#checker -scope line exclude badOption
 		set mem  [expr {[dict getit $usage mem] * 1024}] ;# mem usage comes in K's
-		#checker -scope line exclude badOption
 		set disk [dict getit $usage disk]                ;# disk usage in B's
 	    } else {
 		set cpu  {}
@@ -2461,7 +2455,6 @@ proc ::stackato::cmd::app::SIv1 {config theapp client} {
     # @todo what else can instances_info_envelope be ? Hash map ?
     # if instances_info_envelope.is_a?(Array)      return
 
-    #checker -scope line exclude badOption
     set instances_info [dict get' $instances_info_envelope instances {}]
     #@type instances_info = list (dict) /@todo determine more.
 
@@ -2819,8 +2812,6 @@ proc ::stackato::cmd::app::Files {tail config theapp} {
     debug.cmd/app {$client is-v2 [$client isv2]}
 
     try {
-	#checker -scope line exclude badOption
-
 	if {[$config @all]} {
 	    set prefix [$config @prefix]
 
@@ -2847,6 +2838,12 @@ proc ::stackato::cmd::app::Files {tail config theapp} {
 	    ShowFile1 $tail $client $theapp $path $instance
 	}
 
+    } trap {STACKATO CLIENT V2 UNKNOWN REQUEST} e {
+	if {[string match *404* $e]} {
+	    display [color bad "([$instance index])$path: No such file or directory"]
+	} else {
+	    return {*}$o $e
+	}
     } trap {STACKATO CLIENT NOTFOUND} e {
 	display [color bad $e]
     } trap {STACKATO CLIENT TARGETERROR} {e o} {
@@ -2892,7 +2889,6 @@ proc ::stackato::cmd::app::AllFiles {client prefix appname path} {
     # @todo what else can instances_info_envelope be ? Hash map ?
     #      return if instances_info_envelope.is_a?(Array)
 
-    #checker -scope line exclude badOption
     set instances_info [dict get' $instances_info_envelope instances {}]
 
     foreach entry $instances_info {
@@ -3218,6 +3214,19 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	debug.cmd/app {sync = $sync}
 	display "$action Application \[[color name $appname]\] to \[[context format-short " -> $appname"]\] ... "
 
+	# Scan of label and values, compute field widths.
+	set max  0
+	set maxv 0
+	dict for {attr details} [$theapp journal] {
+	    set n [string length [string trimright [$theapp @$attr label]]]
+	    if {$n > $max} { set max $n }
+	    set new [$theapp @$attr]
+	    if {$attr eq "stack"} { set new [$new @name] }
+	    set n [string length $new]
+	    if {$n > $maxv} { set maxv $n }
+	}
+
+	# Scan again, now rendering.
 	debug.cmd/app {changes ...}
 	dict for {attr details} [dict sort [$theapp journal]] {
 	    debug.cmd/app {   $attr = ($details)}
@@ -3232,9 +3241,22 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 
 	    lassign $details was old
 	    set new [$theapp @$attr]
+
+	    # Reference attribute. Deref "old" and "new" to get the
+	    # names to display instead of obj commands and entity uid.
+	    if {$attr eq "stack"} {
+		# new = obj instance, old = uuid
+		set new [color name  [format %-${maxv}s [$new @name]]]
+		if {$was} {
+		    set old [color name [[v2 deref $old] @name]]
+		}
+	    } else {
+		set new [format %-${maxv}s $new]
+	    }
+
 	    incr changes
 
-	    set label [$theapp @$attr label]
+	    set label [format %-${max}s [string tolower [string trimright [$theapp @$attr label]]]]
 	    if {!$sync} {
 		set verb   keeping
 		set prefix [color warning {Warning, ignoring local change of}]
@@ -3286,12 +3308,38 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
 	    }
 	}
     } else {
+	debug.cmd/app {  force change for push}
 	incr changes ; # push forces commit
     }
 
-    # Environment binding.
-    AppEnvironment defered $config $theapp \
-	[expr { $update ? "preserve" : "replace" }]
+    if {$update} {
+	debug.cmd/app {read old EV}
+	set oldenv [dict sort [$theapp @environment_json]]
+
+	# Environment binding.
+	AppEnvironment defered $config $theapp "preserve"
+
+	set newenv [$theapp @environment_json]
+    } else {
+	debug.cmd/app {fake old EV as empty}
+	# New application, has no environment yet.
+	set oldenv {}
+
+	# Environment binding.
+	AppEnvironment defered $config $theapp "replace"
+
+	try {
+	    set newenv [$theapp @environment_json]
+	} trap {STACKATO CLIENT V2 UNDEFINED ATTRIBUTE environment_json} {e o} {
+	    # Still no env (nothing set), fake again.
+	    set newenv {}
+	}
+    }
+
+    if {[dict sort $newenv] ne $oldenv} {
+	debug.cmd/app {  accepted environment change}
+	incr changes
+    }
 
     if {$changes} {
 	debug.cmd/app {changes!}
@@ -3783,7 +3831,7 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	}
 	default {
 	    display "Note that \[[color name $appname]\] was not automatically started because it was STOPPED before the update."
-	    display "You can start it manually [self please "start $appname" using]"
+	    display "You can start it manually [self please [list start $appname] using]"
 	}
     }
 
@@ -4254,27 +4302,32 @@ proc ::stackato::cmd::app::RegenerateManifest {config theapp appname interact {s
     #   changes into the system. Without symbol resolution was done on
     #   the old name, possibly giving is a bogus service|drain name.
 
+    debug.cmd/app {/interact=$interact}
     if {$interact} {
 	# This transforms the collected outmanifest into the main
 	# manifest to use. The result may be saved to the application
 	# as well.
 
+	debug.cmd/app {/sd=$sd}
 	if {$sd} {
 	    AppServices $config $theapp
 	    AppDrains   $config $theapp
 	}
 
+	debug.cmd/app {/save}
 	SaveManifestFinal $config
 	# Above internally has a manifest reload from the saved
 	# interaction.
 
 	# Re-select the application we are working with.
+	debug.cmd/app {/reselect $appname}
 	manifest current= $appname yes
 
     } else {
 	# Bug 93955. Reload manifest. See also file manifest.tcl,
 	# proc 'LoadBase'. This is where the collected outmanifest
 	# data is merged in during this reload.
+	debug.cmd/app {/reload manifest}
 	manifest setup \
 	    [$config @path set?] \
 	    [$config @path] \
@@ -4282,8 +4335,10 @@ proc ::stackato::cmd::app::RegenerateManifest {config theapp appname interact {s
 	    reset
 
 	# Re-select the application we are working with.
+	debug.cmd/app {/reselect $appname}
 	manifest current= $appname yes
 
+	debug.cmd/app {/sd=$sd}
 	if {$sd} {
 	    AppServices $config $theapp
 	    AppDrains   $config $theapp
@@ -4324,7 +4379,7 @@ proc ::stackato::cmd::app::SaveManifestInitial {config {mode full}} {
     if {$mode eq "full"} {
 	set tmp [fileutil::tempfile stackato_m_]
 	manifest save $tmp
-	file rename -force $tmp $dst
+	file rename -force -- $tmp $dst
 	debug.cmd/app {Saved}
 
 	display "  Saved to \"[fileutil::relative [pwd] $dst]\""
@@ -4370,7 +4425,7 @@ proc ::stackato::cmd::app::SaveManifestFinal {config} {
     manifest setup [$config @path set?] [$config @path] $tmp reset
 
     if {!$savemode} {
-	file delete $tmp
+	file delete -- $tmp
 	debug.cmd/app {Not saved}
 
 	# Reset save-state
@@ -4388,7 +4443,8 @@ proc ::stackato::cmd::app::SaveManifestFinal {config} {
     # the file to be relative to the destination location, instead of
     # keeping the absolute path it was saved with, to make moving the
     # application in the filesystem easier.
-    file rename -force $tmp $savedst
+
+    file rename -force -- $tmp $savedst
     debug.cmd/app {Saved}
 
     display "  $action configuration to \"[fileutil::relative [pwd] $savedst]\""
@@ -5583,7 +5639,6 @@ proc ::stackato::cmd::app::LS2_Label {spec services} {
     debug.cmd/app {}
     if {![llength $services]} { return $services }
 
-    #checker -scope line exclude badOption
     set label [dict get' $spec label \
 		   [dict get' $spec type \
 			[dict get' $spec vendor \
@@ -5647,6 +5702,7 @@ proc ::stackato::cmd::app::LS2_ToPlans {services} {
     debug.cmd/app {}
     if {![llength $services]} { return {} }
 
+    set plans {}
     foreach s $services {
 	lappend plans {*}[$s @service_plans]
     }
@@ -5759,7 +5815,6 @@ proc ::stackato::cmd::app::ListKnown1 {client all} {
     foreach s [$client services] {
 	debug.cmd/app { known :: $s}
 
- 	#checker -scope line exclude badOption
 	set name [dict getit $s name]
 	set type [dict getit $s vendor]
 	set detail [expr {$all ? $s : $name}]
@@ -5815,7 +5870,6 @@ proc ::stackato::cmd::app::ListBound {client theapp} {
 }
 
 proc ::stackato::cmd::app::ListBound1 {client theapp} {
-    #checker -scope line exclude badOption
     return [dict get' [$client app_info $theapp] services {}]
 }
 
@@ -5914,7 +5968,7 @@ proc ::stackato::cmd::app::AppEnvironment {cmode config theapp defaultmode} {
 	set res [AE_WriteV1 $cmode $client $theapp $app $appenv]
     }
 
-    debug.cmd/app {/done}
+    debug.cmd/app {/done ==> ($res)}
     return $res
 }
 
@@ -6019,11 +6073,8 @@ proc ::stackato::cmd::app::AE_DetermineValue {varname vardef oenv} {
 
     unset -nocomplain value ;# start with NULL, aka 'undefined'.
 
-    #checker -scope line exclude badOption
     set required [dict get' $vardef required 0]
-    #checker -scope line exclude badOption
     set inherit  [dict get' $vardef inherit  0]
-    #checker -scope line exclude badOption
     set hidden   [dict get' $vardef hidden   0]
 
     if {![dict exists $vardef default] && !$required} {
@@ -6084,7 +6135,6 @@ proc ::stackato::cmd::app::AE_DetermineValue {varname vardef oenv} {
 
 	# (a) Get the label for the prompting out of the
 	# description, or use a standard phrase.
-	#checker -scope line exclude badOption
 	set prompt [dict get' $vardef prompt "Enter $varname"]
 
 	# (b) Free form text, or choices from a list.
@@ -6495,8 +6545,8 @@ proc ::stackato::cmd::app::VendorMap {client instances} {
     } else {
 	foreach si $instances {
 	    dict set vmap \
-		[dict getit $s name] \
-		[dict getit $s vendor]
+		[dict getit $si name] \
+		[dict getit $si vendor]
 	}
     }
     return $vmap
@@ -6510,7 +6560,7 @@ proc ::stackato::cmd::app::Choices {client instances} {
 	}
     } else {
 	foreach si $instances {
-	    set name [dict getit $s name]
+	    set name [dict getit $si name]
 	    dict set cmap $name $name
 	}
     }
@@ -6593,7 +6643,7 @@ proc ::stackato::cmd::app::DbShellV1 {client config theapp} {
 
     # No services. Nothing to convert.
     if {![llength $services]} {
-	err "No services are bound to application \[$appname\]"
+	err "No services are bound to application \[$theapp\]"
     }
 
     if {[$config @service set?]} {
@@ -6919,8 +6969,6 @@ proc ::stackato::cmd::app::EnvAdd {config theapp} {
 	# CFv1 API...
 
 	set app [$client app_info $theapp]
-
-	#checker -scope line exclude badOption
 	set env [dict get' $app env {}]
 
 	set item ${k}=$v
@@ -6974,8 +7022,6 @@ proc ::stackato::cmd::app::EnvDelete {config theapp} {
 	# CFv1 API...
 
 	set app [$client app_info $theapp]
-
-	#checker -scope line exclude badOption
 	set env [dict get' $app env {}]
 
 	set newenv [lsearch -inline -all -not -glob $env ${varname}=*]
@@ -7023,8 +7069,6 @@ proc ::stackato::cmd::app::EnvList {config theapp} {
 	# CFv1 API...
 
 	set app [$client app_info $theapp]
-
-	#checker -scope line exclude badOption
 	set env  [Env2Dict [dict get' $app env {}]]
 	set senv {}
     }
@@ -7390,7 +7434,7 @@ proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
 	display "  Copying .ear file"
 	# It is an EAR file, we do not want to unpack it
 	file mkdir $explode_dir
-	file copy $path $explode_dir
+	file copy -- $path $explode_dir
 
     } elseif {[file extension $path] in {.jar .war .zip}} {
 	display "  Exploding file"
@@ -7404,7 +7448,7 @@ proc ::stackato::cmd::app::FileToExplode {explode_dir path} {
 	display "  Copying plain file"
 
 	file mkdir                            $explode_dir
-	file copy [misc full-normalize $path] $explode_dir
+	file copy -- [misc full-normalize $path] $explode_dir
     }
     return
 }
@@ -7453,7 +7497,7 @@ proc ::stackato::cmd::app::DirToExplode {config explode_dir copyunsafe ignorepat
 	    debug.cmd/app {ear-file found = $ear_file}
 	    # It is an EAR file, we do not want to unpack it
 	    file mkdir $explode_dir
-	    file copy $ear_file  $explode_dir
+	    file copy -- $ear_file $explode_dir
 	    return
 	}
 
@@ -7576,7 +7620,7 @@ proc ::stackato::cmd::app::ProcessResources {config explode_dir} {
     set result {}
     foreach resource $resources {
 	set fn [dict getit $resource fn]
-	file delete -force $fn
+	file delete -force -- $fn
 	# adjust filenames sans the explode_dir prefix
 	dict set resource fn [fileutil::stripPath $explode_dir $fn]
 	lappend result $resource
@@ -7797,9 +7841,10 @@ proc ::stackato::cmd::app::IsIgnored {ignorepatterns root path} {
 
 	if {$matchdir && ![file isdirectory $root/$path]} continue
 
-	switch -exact $mode {
+	switch -exact -- $mode {
 	    glob   { set match [string match $mpattern $path] }
 	    regexp { set match [regexp --    $mpattern $path] }
+	    default { error "Bad pattern mode, must not happen" }
 	}
 
 	if {$match} {
@@ -7952,16 +7997,14 @@ proc ::stackato::cmd::app::Copy {nfiles dst root ignorepatterns args} {
 }
 
 proc ::stackato::cmd::app::CopyFile {src dstdir} {
-    switch [file type $src] {
-	link {
-	    set actual [file dirname [file normalize $src/XXX]]
-	}
-	default {
-	    set actual $src
-	}
+    if {[file type $src] eq "link"} {
+	set actual [file dirname [file normalize $src/XXX]]
+    } else {
+	set actual $src
     }
+
     file mkdir [file dirname $dstdir/$src]
-    file copy $actual $dstdir/$src
+    file copy -- $actual $dstdir/$src
     return
 }
 

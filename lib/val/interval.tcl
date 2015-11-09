@@ -101,6 +101,7 @@ proc ::stackato::validate::interval::validate {p x} {
 	d {
 	    set value [expr {int($value * 86400)}]
 	}
+	default { error "Cannot happen" }
     }
 
     debug.validate/interval {= $value}

@@ -31,7 +31,7 @@ namespace eval ::stackato::validate::username-space {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
@@ -92,8 +92,9 @@ proc ::stackato::validate::username-space::validate {p x} {
     }
 
     debug.validate/username-space {FAIL}
-    fail-unknown-thing $p USERNAME "A user" $x \
-	" in space '[$thespace full-name]'"
+    fail-unknown-simple-msg \
+	"[self please [list space-users -o [$thespace @organization @name] [$thespace @name]] Run] to see list of users" \
+	$p USERNAME "A user" $x " in space '[$thespace full-name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

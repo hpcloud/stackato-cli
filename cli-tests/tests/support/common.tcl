@@ -330,16 +330,9 @@ proc already {ptype pname type name {context {}}} {
     return "Found a problem with $ptype \"$pname\": $lead$type named \"$name\" already exists$context. Please use a different name."
 }
 
-proc unexpected {ptype pname type name {context {}}} {
-    if {[string match {A *} $type] ||
-	[string match {An *} $type]} {
-	set lead {}
-    } elseif {[string match {[aeiouAEIOU]*} $type]} {
-	set lead {An }
-    } else {
-	set lead {A }
-    }
-    return "Found a problem with $ptype \"$pname\": $lead$type \"$name\" does not exist$context. Please use a different value."
+proc unexpected {ptype pname type name note {context {}}} {
+    # ptype pname ignored.
+    return "[string totitle $type] \"$name\" does not exist$context. ${note}."
 }
 
 

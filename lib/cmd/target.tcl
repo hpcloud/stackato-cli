@@ -169,6 +169,7 @@ proc ::stackato::cmd::target::Set {config} {
 		 [ask yn "Would you like to see the response returned by '[color name $target]' ? " no])} {
 		ShowRawTargetResponse $client
 	    }
+	    #checker -scope line exclude badInt
 	    exit fail
 	}
 	1 {
@@ -243,6 +244,7 @@ proc ::stackato::cmd::target::Set {config} {
 	    $config @url set $newtarget
 	    Set $config
 	}
+	default { error "Bad validity value $valid outside {0,1,2}, must not happen" }
     }
     return
 }
@@ -384,6 +386,7 @@ proc ::stackato::cmd::target::Switch {config} {
 	    cspace save
 	    display [color good OK]
 	}
+	default { error "Cannot happen" }
     }
 
     debug.cmd/target {/done}

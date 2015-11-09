@@ -12,6 +12,7 @@ package require lambda
 package require dictutil
 package require cmdr::validate ;# Fail utility command.
 package require stackato::mgr::client;# pulls v2 also
+package require stackato::mgr::self
 package require stackato::validate::common
 package require stackato::log
 
@@ -31,8 +32,9 @@ namespace eval ::stackato::validate::zonename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::log::err
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
 }
@@ -72,7 +74,9 @@ proc ::stackato::validate::zonename::validate {p x} {
     }
 
     debug.validate/zonename {FAIL}
-    fail-unknown-thing $p ZONENAME "zone" $x
+    fail-unknown-simple-msg \
+	"[self please placement-zones Run] to see list of zones" \
+	 $p ZONENAME "zone" $x
 }
 
 # # ## ### ##### ######## ############# #####################

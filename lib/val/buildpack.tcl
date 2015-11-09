@@ -11,6 +11,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -30,7 +31,8 @@ namespace eval ::stackato::validate::buildpack {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
 }
@@ -56,7 +58,9 @@ proc ::stackato::validate::buildpack::validate {p x} {
 	return $x
     }
     debug.validate/buildpack {FAIL}
-    fail-unknown-thing $p BUILDPACK "buildpack" $x
+    fail-unknown-simple-msg \
+	"[self please buildpacks Run] to see list of buildpacks" \
+	  $p BUILDPACK "buildpack" $x
 }
 
 # # ## ### ##### ######## ############# #####################

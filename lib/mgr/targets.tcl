@@ -194,7 +194,7 @@ proc ::stackato::mgr::targets::RemoveSSH {url token} {
 
     set todelete {}
     foreach stem [cfile names key] {
-	foreach kf [glob -nocomplain ${stem}*] {
+	foreach kf [glob -nocomplain -- ${stem}*] {
 	    debug.mgr/targets {candidate: $kf}
 	    # Delete key stored per token (old-style), and key stored
 	    # per target (new).

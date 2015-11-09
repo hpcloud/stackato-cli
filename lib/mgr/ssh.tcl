@@ -52,6 +52,8 @@ debug prefix mgr/ssh {[debug caller] | }
 # # ## ### ##### ######## ############# #####################
 ## API
 
+# See also ::stackato::mgr::self -- TODO consolidate
+
 proc ::stackato::mgr::ssh::quote {args} {
     debug.mgr/ssh {}
     set cmd ""
@@ -245,6 +247,7 @@ proc ::stackato::mgr::ssh::copy {config paths theapp instance} {
 		[list "cp -r [join [quote {*}$src]] [quote1 $dst]"] \
 		$theapp $instance
 	}
+	default { error "Cannot happen" }
     }
 
     return
@@ -578,6 +581,7 @@ proc ::stackato::mgr::ssh::CheckSources {paths} {
 		lappend paths  $value
 		dict set ftype $value directory
 	    }
+	    default { error "Cannot happen" }
 	}
     }
     debug.mgr/ssh {==============================}

@@ -44,7 +44,7 @@ test bind-service-1.2 {bind-service, no application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to bind-service.} \
-	 [unexpected input service {service instance} S " in space '[theorg]::[thespace]'"]]
+	 [unexpected input service {service instance} S {Run 'stackato services' to see list of service instances} " in space '[theorg]::[thespace]'"]]
 
 test bind-service-1.3.1 {bind-service, non-admin login is ok} -constraints cfv1 -setup {
     stage-open

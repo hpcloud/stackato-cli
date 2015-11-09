@@ -110,7 +110,8 @@ test rename-space-1.8 {rename-space, missing source} -constraints cfv2 -setup {
     run rename-space bogus bogus-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name space bogus " in organization '[theorg]'"]
+} -returnCodes error \
+    -result [unexpected input name space bogus {Run 'stackato spaces' to see list of spaces} " in organization '[theorg]'"]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

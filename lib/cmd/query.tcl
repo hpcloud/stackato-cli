@@ -399,6 +399,7 @@ proc ::stackato::cmd::query::list-packages {config} {
 proc ::stackato::cmd::query::named-entities {config} {
     debug.cmd/query {}
 
+    # Keep synchronized with ::stackato::validate::entity::validate
     set types [v2 types]
     struct::list delete types managed_service_instance
     struct::list delete types user_provided_service_instance

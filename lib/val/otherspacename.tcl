@@ -13,6 +13,7 @@ package require dictutil
 package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::corg
+package require stackato::mgr::self
 package require stackato::validate::common
 
 debug level  validate/otherspacename
@@ -31,8 +32,9 @@ namespace eval ::stackato::validate::otherspacename {
     #namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::mgr::corg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
 }
@@ -69,7 +71,9 @@ proc ::stackato::validate::otherspacename::validate {o p x} {
 	return $x
     }
     debug.validate/otherspacename {FAIL}
-    fail-unknown-thing $p SPACENAME "space" $x " in organization '[$theorg @name]'"
+    fail-unknown-simple-msg \
+	"[self please [list org [$theorg @name]] Run] to see list of spaces" \
+	$p SPACENAME "space" $x " in organization '[$theorg @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

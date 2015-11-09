@@ -67,7 +67,8 @@ test delete-route-1.6 {delete-route, unknown route} -constraints cfv2 -setup {
     run delete-route -n xxx.[targetdomain]
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name route xxx.[targetdomain]]
+} -returnCodes error \
+    -result [unexpected input name route xxx.[targetdomain] {Run 'stackato routes' to see list of routes}]
 
 test delete-route-1.7 {delete-route, --unused} -setup {
     stage-open

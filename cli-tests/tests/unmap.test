@@ -42,7 +42,7 @@ test unmap-1.2 {unmap, no application} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to unmap.} \
-	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 
 test unmap-1.3 {map, bogus url, not mapped} -setup {
     stage-open
@@ -57,7 +57,7 @@ test unmap-1.3 {map, bogus url, not mapped} -setup {
 } -returnCodes error -result \
     [per-api \
 	 {Error: Invalid url bogus} \
-	 [unexpected input url route bogus " for application 'TEST'"]]
+	 [unexpected input url route bogus {Run 'stackato app TEST' to see list of routes} " for application 'TEST'"]]
 
 test unmap-1.4 {unmap, non-admin login is ok} -setup {
     stage-open

@@ -31,7 +31,7 @@ namespace eval ::stackato::validate::username-org {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::validate::common::refresh-client
@@ -86,7 +86,9 @@ proc ::stackato::validate::username-org::validate {p x} {
     }
 
     debug.validate/username-org {FAIL}
-    fail-unknown-thing $p USERNAME "A user" $x " in organization '[$theorg @name]'"
+    fail-unknown-simple-msg \
+	"[self please [list org-users [$theorg @name]] Run] to see list of users" \
+	$p USERNAME "A user" $x " in organization '[$theorg @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

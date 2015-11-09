@@ -16,6 +16,7 @@ package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
+package require stackato::mgr::self
 package require table
 
 debug level  cmd/orgs
@@ -42,6 +43,7 @@ namespace eval ::stackato::cmd::orgs {
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
 }
 
@@ -108,11 +110,12 @@ proc ::stackato::cmd::orgs::switch {config} {
 	set org [$config @name]
     } trap {CMDR VALIDATE ORGNAME} {e o} {
 	set name [$config @name string]
-	err "Unable to switch to organization \"$name\" (not found, or not a member)"
+	err "Unable to switch to organization \"$name\" (not found, or not a member). [self please orgs Run] to see list of organizations."
     }
 
     if {$org eq {}} {
 	display [color warning {Unable to switch, no organization specified}]
+	display "[self please orgs Run] to see list of organizations."
 	return
     }
 

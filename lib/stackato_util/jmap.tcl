@@ -79,7 +79,7 @@ proc ::stackato::jmap::number {_ s} {
 }
 
 proc ::stackato::jmap::num|string {_ s} {
-    if {[string is double -strict $x]} {
+    if {[string is double -strict $s]} {
 	return $s
     } else {
 	return [map string $s]

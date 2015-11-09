@@ -675,7 +675,7 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	return
     }
 
-    if {![llength $users] && ![dict size $map]} {
+    if {![llength $users] && ![dict size $umap]} {
 	display [color note "No Users"]
 	return
     }
@@ -897,12 +897,12 @@ proc ::stackato::cmd::usermgr::token {config} {
 	err "Need a proper token."
     }
 
-    Debug.cmd/usermgr {token = ($token)}
+    debug.cmd/usermgr {token = ($token)}
 
     set retriever [client restlog [stackato::client new $target $token]]
     set key       [dict get' [$retriever get_ssh_key] sshkey {}]
 
-    Debug.cmd/usermgr {key   = ($key)}
+    debug.cmd/usermgr {key   = ($key)}
 
     # We remove a pre-existing token, this also removes the associated
     # ssh key file. This ensures that a token change on this login

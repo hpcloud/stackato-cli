@@ -72,7 +72,8 @@ test rename-space-quota-1.6 {rename-space-quota, unknown source quota} -constrai
     run rename-space-quota -n [thespacequota] [thespacequota]-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {space quota plan} [thespacequota]]
+} -returnCodes error \
+    -result [unexpected input name {space quota plan} [thespacequota] {Run 'stackato space-quotas' to see list of space quota plans}]
 
 test rename-space-quota-1.7 {rename-space-quota, duplicate destination quota} -constraints s342ge -setup {
     stage-open

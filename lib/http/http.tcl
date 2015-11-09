@@ -256,6 +256,7 @@ proc http::config {args} {
 #        Closes the socket
 
 proc http::Finish {token {errormsg ""} {skipCB 0}} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     global errorInfo errorCode
@@ -303,7 +304,8 @@ proc ::http::CloseSocket {s {token {}}} {
 
     set conn_id {}
     if {$token ne ""} {
-        variable $token
+        #checker -scope line exclude warnVarRef
+	variable $token
         upvar 0 $token state
         if {[info exists state(socketinfo)]} {
 	    set conn_id $state(socketinfo)
@@ -346,6 +348,7 @@ proc ::http::CloseSocket {s {token {}}} {
 #       See Finish
 
 proc http::reset {token {why reset}} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     set state(status) $why
@@ -406,6 +409,7 @@ proc http::geturl {url args} {
 	set http(uid) 0
     }
     set token [namespace current]::[incr http(uid)]
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     LogToken $token
@@ -471,14 +475,16 @@ proc http::geturl {url args} {
 		[info exists type($flag)] &&
 		![string is $type($flag) -strict $value]
 	    } then {
-		unset $token
+		#checker -scope line exclude warnVarRef
+		unset -- $token
 		return -code error \
 		    -errorcode [list HTTP INVALID OPT-VALUE $flag $value] \
 		    "Bad value for $flag ($value), must be $type($flag)"
 	    }
 	    set state($flag) $value
 	} else {
-	    unset $token
+	    #checker -scope line exclude warnVarRef
+	    unset -- $token
 	    return -code error \
 		-errorcode [list HTTP INVALID OPTION $flag] \
 		"Unknown option $flag, can be: $usage"
@@ -491,7 +497,8 @@ proc http::geturl {url args} {
     set isQueryChannel [info exists state(-querychannel)]
     set isQuery [info exists state(-query)]
     if {$isQuery && $isQueryChannel} {
-	unset $token
+	#checker -scope line exclude warnVarRef
+	unset -- $token
 	return -code error \
 	    -errorcode {HTTP GETURL QUERY CONFLICT} \
 	    "Can't combine -query and -querychannel options!"
@@ -559,7 +566,8 @@ proc http::geturl {url args} {
     # Phase one: parse
     if {![regexp -- $URLmatcher $url -> proto user host port srvurl]} {
 	Log Unsupported url
-	unset $token
+	#checker -scope line exclude warnVarRef
+	unset -- $token
 	return -code error \
 	    -errorcode {HTTP URL INVALID SYNTAX} \
 	    "Unsupported URL: $url"
@@ -569,7 +577,8 @@ proc http::geturl {url args} {
 	Log Missing host
 	# Caller has to provide a host name; we do not have a "default host"
 	# that would enable us to handle relative URLs.
-	unset $token
+	#checker -scope line exclude warnVarRef
+	unset -- $token
 	return -code error \
 	    -errorcode [list HTTP URL MISSING HOST $port] \
 	    "Missing host part: $url"
@@ -578,7 +587,8 @@ proc http::geturl {url args} {
     }
     if {$port ne "" && $port > 65535} {
 	Log Invalid port $port
-	unset $token
+	#checker -scope line exclude warnVarRef
+	unset -- $token
 	return -code error \
 	    -errorcode [list HTTP URL INVALID PORT $port] \
 	    "Invalid port number: $port"
@@ -594,7 +604,8 @@ proc http::geturl {url args} {
 	}
 	if {$state(-strict) && ![regexp -- $validityRE $user]} {
 	    Log Illegal encoding in user
-	    unset $token
+	    #checker -scope line exclude warnVarRef
+	    unset -- $token
 	    # Provide a better error message in this error case
 	    if {[regexp {(?i)%(?![0-9a-f][0-9a-f]).?.?} $user bad]} {
 		return -code error \
@@ -623,7 +634,8 @@ proc http::geturl {url args} {
 	    $
 	}
 	if {$state(-strict) && ![regexp -- $validityRE $srvurl]} {
-	    unset $token
+	    #checker -scope line exclude warnVarRef
+	    unset -- $token
 	    # Provide a better error message in this error case
 	    if {[regexp {(?i)%(?![0-9a-f][0-9a-f])..} $srvurl bad]} {
 	    Log Illegal encoding in path
@@ -644,7 +656,8 @@ proc http::geturl {url args} {
     set lower [string tolower $proto]
     if {![info exists urlTypes($lower)]} {
 	Log Illegal url type $proto
-	unset $token
+	#checker -scope line exclude warnVarRef
+	unset -- $token
 	return -code error \
 	    -errorcode [list HTTP URL INVALID PROTOCOL $proto] \
 	    "Unsupported URL type \"$proto\""
@@ -787,6 +800,7 @@ proc http::Connected { token proto phost srvurl} {
     variable http
     variable urlTypes
 
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -973,24 +987,29 @@ proc http::Connected { token proto phost srvurl} {
 # Size - the size of the URL data
 
 proc http::data {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     return $state(body)
 }
 proc http::status {token} {
+    #checker -scope line exclude warnVarRef
     if {![info exists $token]} {
 	return "error"
     }
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     return $state(status)
 }
 proc http::code {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     return $state(http)
 }
 proc http::ncode {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     if {[regexp {[0-9]{3}} $state(http) numeric_code]} {
@@ -1000,16 +1019,19 @@ proc http::ncode {token} {
     }
 }
 proc http::size {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     return $state(currentsize)
 }
 proc http::meta {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     return $state(meta)
 }
 proc http::error {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     if {[info exists state(error)]} {
@@ -1029,6 +1051,7 @@ proc http::error {token} {
 #	unsets the state array
 
 proc http::cleanup {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -1051,6 +1074,7 @@ proc http::cleanup {token} {
 # 	the waiting geturl call
 
 proc http::Connect {token proto phost srvurl} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -1081,6 +1105,7 @@ proc http::Connect {token proto phost srvurl} {
 #	Write the socket and handle callbacks.
 
 proc http::Write {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     set sock $state(sock)
@@ -1152,6 +1177,7 @@ proc http::Write {token} {
 #	Read the socket and handle callbacks.
 
 proc http::Event {sock token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -1170,8 +1196,10 @@ proc http::Event {sock token} {
     if {$state(state) eq "connecting"} {
 	Log connecting
 	if {[catch {gets $sock state(http)} n]} {
+	    Log "hello = $state(http)"
 	    return [Finish $token $n]
 	} elseif {$n >= 0} {
+	    Log "hello = $state(http)"
 	    set state(state) "header"
 	}
     } elseif {$state(state) eq "header"} {
@@ -1315,6 +1343,9 @@ proc http::Event {sock token} {
 			    set state(connection) $requested
 			}
 		    }
+		    default { 
+			# ignore
+		    }
 		}
 		lappend state(meta) $key [string trim $value]
 	    }
@@ -1403,6 +1434,7 @@ proc http::Event {sock token} {
     # catch as an Eof above may have closed the socket already
     if {![catch {eof $sock} eof] && $eof} {
 	Log "Caught eof"
+	#checker -scope line exclude warnVarRef
 	if {[info exists $token]} {
 	    set state(connection) close
 	    Eof $token
@@ -1451,6 +1483,7 @@ proc http::getTextLine {sock} {
 #	This closes the connection upon error
 
 proc http::CopyStart {sock token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -1476,6 +1509,7 @@ proc http::CopyStart {sock token} {
 #	Invokes callbacks
 
 proc http::CopyDone {token count {error {}}} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
@@ -1510,6 +1544,7 @@ proc http::CopyDone {token count {error {}}} {
 proc http::Eof {token {force 0}} {
     Log eof/f$force/$token
 
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
     if {$state(state) eq "header"} {
@@ -1561,11 +1596,13 @@ proc http::Eof {token {force 0}} {
 #        The status after the wait.
 
 proc http::wait {token} {
+    #checker -scope line exclude warnVarRef
     variable $token
     upvar 0 $token state
 
     if {![info exists state(status)] || $state(status) eq ""} {
 	# We must wait on the original variable name, not the upvar alias
+	#checker -scope line exclude warnVarRef
 	vwait ${token}(status)
     }
 
@@ -1679,6 +1716,7 @@ proc http::CharsetToEncoding {charset} {
 	    1 - 2 - 3 {
 		set encoding "iso8859-$num"
 	    }
+	    default { error "Cannot happen" }
 	}
     } else {
 	# other charset, like euc-xx, utf-8,...  may directly map to encoding

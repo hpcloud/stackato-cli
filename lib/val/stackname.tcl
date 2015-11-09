@@ -11,6 +11,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client
 package require stackato::validate::common
 
@@ -30,7 +31,8 @@ namespace eval ::stackato::validate::stackname {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::client
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::v2
@@ -59,7 +61,9 @@ proc ::stackato::validate::stackname::validate {p x} {
 	return $x
     }
     debug.validate/stackname {FAIL}
-    fail-unknown-thing $p STACKNAME "OS stack" $x
+    fail-unknown-simple-msg \
+	"[self please stacks Run] to see list of stacks" \
+	$p STACKNAME "OS stack" $x
 }
 
 # # ## ### ##### ######## ############# #####################

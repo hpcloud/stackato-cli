@@ -282,6 +282,7 @@ proc ::stackato::mgr::client::Make {{infodata {}}} {
 		    puts [color note "Note: Target '[$aclient target]' redirected to: '$newtarget'"]
 		}
 	    }
+	    default { error "Cannot happen" }
 	}
     }
 
@@ -448,6 +449,9 @@ proc ::stackato::mgr::client::check-login {client} {
 
 		targets  remove $target
 		targets  add    $target $newtoken $sshkey
+
+		# OP 302380 - Update in-memory database as well.
+		auth set $newtoken
 		return
 	    }
 	}

@@ -98,7 +98,8 @@ test update-space-1.7 {update-space, missing source} -constraints cfv2 -setup {
     run update-space bogus --newname bogus-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name space bogus " in organization '[theorg]'"]
+} -returnCodes error \
+    -result [unexpected input name space bogus {Run 'stackato spaces' to see list of spaces} " in organization '[theorg]'"]
 
 TODO update-space --(no-)default
 

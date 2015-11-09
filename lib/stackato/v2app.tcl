@@ -21,6 +21,10 @@ stackato v2 register app
 oo::class create ::stackato::v2::app {
     superclass ::stackato::v2::base
 
+    # Used in various methods for access to superclass (v2::base)
+    # instance data:
+    #	variable mydata
+
     # # ## ### ##### ######## #############
     ## State
     #

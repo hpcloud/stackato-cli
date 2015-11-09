@@ -92,7 +92,8 @@ test delete-user-1.5 {delete-user, unknown user} -setup {
     run delete-user unknown[pid]@as
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [unexpected input email {A user} unknown*@as]
+} -returnCodes error -match glob \
+-result [unexpected input email user unknown*@as {Run 'stackato users' to see list of users}]
 
 test delete-user-1.6 {delete-user, with associated application} -constraints {knownBug cfv2} -setup {
     stage-open

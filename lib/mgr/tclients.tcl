@@ -46,11 +46,11 @@ proc ::stackato::mgr::tclients::get {} {
 	# copying it to the disk and reading from there.
 
 	set tmp [fileutil::tempfile stackato_stockclients_]
-	file copy -force $stockclients $tmp
+	file copy -force -- $stockclients $tmp
 
 	set stock [lindex [tclyaml readTags file $tmp] 0 0]
 
-	file delete -force $tmp
+	file delete -force -- $tmp
 
     } else {
 	set stock [lindex [tclyaml readTags file $stockclients] 0 0]

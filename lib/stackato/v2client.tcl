@@ -1552,6 +1552,12 @@ oo::class create ::stackato::v2::client {
 	# url with the target server. This method allows the callers
 	# to access any url they desire.
 
+	if {$content_type ne {}} {
+	    http::config -accept $content_type
+	} else {
+	    http::config -accept */*
+	}
+
 	my DoRequest GET $url $content_type
     }
 

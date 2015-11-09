@@ -40,6 +40,7 @@ test files-1.2 {files, bogus app} -setup {
     remove-appdir
     stage-close
 } -returnCodes error -result [unexpected input application application A \
+				  {Run 'stackato apps' to see list of applications} \
 				  " in space '[theorg]::[thespace]'"]
 
 # # ## ### ##### ######## ############# #####################
@@ -108,6 +109,49 @@ test files-1.4 {files, explicit app} -setup {
     remove-test-app node-env
     stage-close
 } -match glob -result [per-api $flist1 $flist2]
+
+# Various access attempts, existing and missing files, escaping the box, ...
+
+test files-1.5 {files, existing file} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run files node-env run.pid
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result *
+# we care only that this does not result in a error. The actual content is irrelevant.
+
+test files-1.6 {files, escaped foiled} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run files node-env ..
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result {(0)..: No such file or directory}
+
+test files-1.7 {files, bogus file} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run files node-env bogus
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -returnCodes error -match glob -result {{text/plain; charset=utf-8} {Forbidden: lstat /var/lib/docker/aufs/mnt/*/home/stackato/bogus: no such file or directory
+}}
 
 TODO files --target, --group, multiple dependent apps.
 TODO files - path spec.

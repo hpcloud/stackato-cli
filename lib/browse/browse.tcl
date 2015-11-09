@@ -142,6 +142,8 @@ proc ::browse::Fail {url msg} {
     if {[catch {package present Tk}]} {
 	return -code error -errorcode {BROWSE FAIL} $msg 
     } else {
+	# Tk is present. Tk commands are present.
+	#checker -scope line exclude warnUndefProc
 	tk_messageBox \
 	    -title "Error displaying URL" \
 	    -icon error \

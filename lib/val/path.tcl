@@ -35,7 +35,7 @@ namespace eval ::stackato::validate::path::rfile {
 proc ::stackato::validate::path::rfile::default  {p}   { return {} }
 proc ::stackato::validate::path::rfile::release  {p x} { return }
 proc ::stackato::validate::path::rfile::complete {p x} {
-    return [struct::list filter [glob ${x}*] [lambda {x} {
+    return [struct::list filter [glob -- ${x}*] [lambda {x} {
 	if {![file exists   $x]} {return 0}
 	if {![file isfile   $x]} {return 0}
 	if {![file readable $x]} {return 0}
@@ -64,7 +64,7 @@ namespace eval ::stackato::validate::path::rwfile {
 proc ::stackato::validate::path::rwfile::default  {p}   { return {} }
 proc ::stackato::validate::path::rwfile::release  {p x} { return }
 proc ::stackato::validate::path::rwfile::complete {p x} {
-    return [struct::list filter [glob ${x}*] [lambda {x} {
+    return [struct::list filter [glob -- ${x}*] [lambda {x} {
 	if {![file exists   $x]} {return 0}
 	if {![file isfile   $x]} {return 0}
 	if {![file readable $x]} {return 0}
@@ -130,7 +130,7 @@ namespace eval ::stackato::validate::path::rdir {
 proc ::stackato::validate::path::rdir::default  {p}   { return {} }
 proc ::stackato::validate::path::rdir::release  {p x} { return }
 proc ::stackato::validate::path::rdir::complete {p x} {
-    return [struct::list filter [glob ${x}*] [lambda {x} {
+    return [struct::list filter [glob -- ${x}*] [lambda {x} {
 	if {![file exists      $x]} {return 0}
 	if {![file isdirectory $x]} {return 0}
 	if {![file readable    $x]} {return 0}

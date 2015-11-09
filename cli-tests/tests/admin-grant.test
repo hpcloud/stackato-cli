@@ -59,7 +59,8 @@ test admin-grant-1.4 {admin grant, bogus user} -setup {
     run admin grant bogus@test
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result [unexpected input * {A user} bogus@test]
+} -returnCodes error -match glob \
+    -result [unexpected input * user bogus@test {Run 'stackato users' to see list of users}]
 
 test admin-grant-1.5 {admin grant} -setup {
     stage-open

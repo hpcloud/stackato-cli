@@ -81,7 +81,8 @@ test quota-rename-1.6 {quota rename, unknown source quota} -constraints cfv2 -se
     run quota rename -n testquota testquota2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {quota plan} testquota]
+} -returnCodes error \
+    -result [unexpected input name {quota plan} testquota {Run 'stackato quotas' to see list of quota plans}]
 
 test quota-rename-1.7 {quota rename, duplicate destination quota} -constraints cfv2 -setup {
     stage-open

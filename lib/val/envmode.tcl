@@ -25,7 +25,7 @@ namespace eval ::stackato::validate::envmode {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail
 
     variable legalvalues {append preserve replace}
 }
@@ -46,7 +46,7 @@ variable legalvalues
 	return $x
     }
     debug.validate/envmode {FAIL}
-    fail-unknown-thing $p ENVMODE "env-mode" $x
+    fail $p ENVMODE "one of 'append', 'preserve', or 'replace'" $x
 }
 
 # # ## ### ##### ######## ############# #####################

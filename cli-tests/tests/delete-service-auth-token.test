@@ -62,7 +62,8 @@ test delete-service-auth-token-1.4 {client delete-service-auth-token, admin logi
     run delete-service-auth-token -n L
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input label {service auth token} L]
+} -returnCodes error \
+    -result [unexpected input label {service auth token} L {Run 'stackato service-auth-tokens' to see list of service auth tokens}]
 
 test delete-service-auth-token-1.5 {client delete-service-auth-token} -constraints cfv2 -setup {
     stage-open
@@ -83,7 +84,8 @@ test delete-service-auth-token-1.6 {client delete-service-auth-token, unknown la
     run delete-service-auth-token -n [theorg]-token
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input label {service auth token} [theorg]-token]
+} -returnCodes error \
+    -result [unexpected input label {service auth token} [theorg]-token {Run 'stackato service-auth-tokens' to see list of service auth tokens}]
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

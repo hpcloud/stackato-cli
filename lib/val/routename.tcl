@@ -14,6 +14,7 @@ package require lambda
 package require url
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -33,8 +34,9 @@ namespace eval ::stackato::validate::routename {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
 }
 
@@ -79,7 +81,9 @@ proc ::stackato::validate::routename::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/routename {FAIL}
-    fail-unknown-thing $p ROUTENAME "route" $x
+    fail-unknown-simple-msg \
+	"[self please routes Run] to see list of routes" \
+	$p ROUTENAME "route" $x
 }
 
 # # ## ### ##### ######## ############# #####################

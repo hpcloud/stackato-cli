@@ -25,7 +25,7 @@ namespace eval ::stackato::validate::ulmode {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail
 
     variable legalvalues {name related all}
 }
@@ -46,7 +46,7 @@ variable legalvalues
 	return $x
     }
     debug.validate/ulmode {FAIL}
-    fail-unknown-thing $p ULMODE "user listing mode" $x
+    fail $p ULMODE "one of 'name', 'related', or 'all'" $x
 }
 
 # # ## ### ##### ######## ############# #####################

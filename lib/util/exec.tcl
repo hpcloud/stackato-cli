@@ -97,13 +97,14 @@ proc ::exec::clear {} {
     foreach p $pids {
 	catch {
 	    debug.exec {[info level 0] kill $p}
+	    #checker -scope line exclude nonPortCmd
 	    kill $p
 	}
     }
 
     foreach f $cfiles {
 	debug.exec {[info level 0] dele $f}
-	file delete -force $f
+	file delete -force -- $f
     }
 
     set pids {}
@@ -122,6 +123,7 @@ proc ::exec::drop {pid} {
     if {$loc < 0} return
     set pids [lreplace $pids $loc $loc]
     if {[catch {
+	#checker -scope line exclude nonPortCmd
 	kill $pid
     } msg]} {
 	debug.exec {problem: $msg}
@@ -147,7 +149,7 @@ proc ::exec::dropf {path} {
     if {$loc < 0} return
     set files [lreplace $files $loc $loc]
     if {[catch {
-	file delete -force $path
+	file delete -force -- $path
     } msg]} {
 	debug.exec {problem: $msg}
     }

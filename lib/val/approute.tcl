@@ -13,6 +13,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::manifest
 package require stackato::validate::common
@@ -33,7 +34,8 @@ namespace eval ::stackato::validate::approute {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::v2
@@ -87,7 +89,9 @@ proc ::stackato::validate::approute::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/approute {FAIL}
-    fail-unknown-thing $p APPROUTE "route" $x " for application '[$theapp @name]'"
+    fail-unknown-simple-msg \
+	"[self please [list app [$theapp @name]] Run] to see list of routes" \
+	$p APPROUTE "route" $x " for application '[$theapp @name]'"
 }
 
 # # ## ### ##### ######## ############# #####################

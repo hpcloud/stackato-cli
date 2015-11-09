@@ -76,7 +76,8 @@ test delete-space-quota-1.4 {delete-space-quota, unknown space-quota} -constrain
     run delete-space-quota -n [thespacequota]
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name "space quota plan" [thespacequota]]
+} -returnCodes error \
+    -result [unexpected input name "space quota plan" [thespacequota] {Run 'stackato space-quotas' to see list of space quota plans}]
 
 test delete-space-quota-1.5.0 {delete-space-quota} -constraints s342ge -setup {
     stage-open

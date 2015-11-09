@@ -98,7 +98,7 @@ proc ::stackato::cmd::buildpacks::Keeping {config zip buildpack} {
     }
     if {[$config @keep-zip set?]} {
 	debug.cmd/buildpacks {zip  = [$config @keep-zip]}
-	file copy -force $zip [$config @keep-zip]
+	file copy -force -- $zip [$config @keep-zip]
     }
     return
 }
@@ -147,10 +147,16 @@ proc ::stackato::cmd::buildpacks::Ingest {config zv tv} {
 }
 
 proc ::stackato::cmd::buildpacks::Name {zip} {
-    set fname [lindex [split $zip /] end]
+    debug.cmd/buildpacks {}
+    set fname [lindex [split [string trimright $zip /] /] end]
+
+    debug.cmd/buildpacks {fname  = ($fname)}
     if {$fname eq "."} { set fname [file tail [pwd]] }
 
+    debug.cmd/buildpacks {fname' = ($fname)}
     if {[file extension $fname] ne ".zip"} { append fname .zip }
+
+    debug.cmd/buildpacks {==>  ($fname)}
     return $fname
 }
 
@@ -185,18 +191,18 @@ proc ::stackato::cmd::buildpacks::Rewrite {zv tv zpath prefix} {
     display "Strip path prefix \"$prefix\" ... " false
 
     set tmpdir [fileutil::tempfile stackato-buildpack-rewrite-]
-    file delete $tmpdir
-    file mkdir  $tmpdir
+    file delete -- $tmpdir
+    file mkdir     $tmpdir
 
     zipfile::decode::unzipfile $zpath $tmpdir
 
     set zip [Pack $tmpdir/$prefix 0]
     if {$transient} {
 	debug.cmd/buildpacks {Drop old tempfile $zpath}
-	file delete $zpath
+	file delete -- $zpath
     }
 
-    file delete -force $tmpdir
+    file delete -force -- $tmpdir
     set transient 1
 
     display [color good OK]
@@ -288,7 +294,7 @@ proc ::stackato::cmd::buildpacks::BPTmp {} {
     # extension, not by its magic. No .zip => fail.
 
     set tmp [fileutil::tempfile stackato-buildpack-]
-    file delete $tmp
+    file delete -- $tmp
     append tmp .zip
 
     return $tmp
@@ -321,9 +327,11 @@ proc ::stackato::cmd::buildpacks::GetUrl {client url err} {
     try {
 	display "Retrieving ... " false
 
-	$client http_get_raw $url application/octet-stream
+	$client http_get_raw $url ;# accept */*, not application/octet-stream
 
     } on error {e o} {
+	debug.cmd/buildpacks {e = $e}
+	debug.cmd/buildpacks {o = $o}
 	debug.cmd/buildpacks {Closing $chan /err}
 	close $chan
 

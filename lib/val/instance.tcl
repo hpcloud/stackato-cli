@@ -12,6 +12,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::manifest
 package require stackato::validate::common
@@ -33,7 +34,8 @@ namespace eval ::stackato::validate::instance {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::manifest
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
@@ -72,7 +74,9 @@ proc ::stackato::validate::instance::default {p}   {
 	}
 
 	# No instances, abort.
-	fail-unknown-thing $p INSTANCE "instance index" 0 " for application '[$theapp @name]'"
+	fail-unknown-simple-msg \
+	    "No instances available for selection" \
+	    $p INSTANCE "instance index" 0 " for application '[$theapp @name]'"
 
     } else {
 	debug.validate/instance {/v1 = 0}
@@ -131,13 +135,16 @@ proc ::stackato::validate::instance::validate {p x} {
 	set max [lindex $idx end]
 
 	if {$min == $max} {
-	    set note "!= $min"
+	    set note "the integer $min"
 	} else {
-	    set note "outside ${min}-$max"
+	    set note "an integer in the range \[${min}..$max\]"
 	}
 
 	debug.validate/instance {FAIL}
-	fail-unknown-thing $p INSTANCE "instance index" $x " for application '[$theapp @name]' ($note)"
+	fail-unknown-simple-msg \
+	    "Expected $note" \
+	    $p INSTANCE "instance index" $x \
+	    " for application '[$theapp @name]'"
     } else {
 	# v1 ... Validate as plain integer0
 	integer0 validate $p $x

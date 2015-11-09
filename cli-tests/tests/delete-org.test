@@ -64,7 +64,8 @@ test delete-org-1.4 {delete-org, non-admin login is not ok, not seeing org} -con
     run delete-org -n [theorg]-2
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input name organization [theorg]-2]
+} -returnCodes error \
+    -result [unexpected input name organization [theorg]-2 {Run 'stackato orgs' to see list of organizations}]
 
 test delete-org-1.5 {delete-org, persists} -constraints cfv2 -setup {
     stage-open
@@ -84,7 +85,8 @@ test delete-org-1.6 {delete-org, unknown org} -constraints cfv2 -setup {
     run delete-org -n [theorg]-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name organization [theorg]-2]
+} -returnCodes error \
+    -result [unexpected input name organization [theorg]-2 {Run 'stackato orgs' to see list of organizations}]
 
 test delete-org-1.7.0 {delete-org} -constraints cfv2 -setup {
     stage-open

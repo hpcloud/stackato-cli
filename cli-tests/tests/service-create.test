@@ -54,7 +54,7 @@ test create-service-1.3 {create-service, bogus service} -setup {
 } -returnCodes error \
     -result [per-api \
 		 {[bogus] is not a valid service choice} \
-		 [unexpected input vendor service bogus]]
+		 [unexpected input vendor service bogus {Run 'stackato service-plans' to see list of service plans and vendors (types)}]]
 
 set counter 0
 foreach vendor [services] {

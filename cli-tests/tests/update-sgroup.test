@@ -76,7 +76,8 @@ test update-security-group-1.1.1 {update-security-group, non-admin login is not 
     run delete-security-group -n [thesecgroup]
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input security_group security_group [thesecgroup]]
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
 # Instead of a [not-authorized] return the sgroups are simply hidden from the user.
 
 # The next series is mostly testing the rule-validation done in and by the target.
@@ -132,7 +133,8 @@ test update-security-group-1.4 {update-security-group, unknown security-group} -
     run update-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input security_group security_group [thesecgroup]]
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
 
 test update-security-group-1.5.0 {update-security-group} -constraints s342ge -setup {
     stage-open

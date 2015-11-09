@@ -96,7 +96,8 @@ test update-buildpack-1.6 {update-buildpack, unknown buildpacks} -constraints s3
     run update-buildpack -n clitestbuildpack
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {A buildpack} clitestbuildpack]
+} -returnCodes error \
+    -result [unexpected input name buildpack clitestbuildpack {Run 'stackato buildpacks' to see list of buildpacks}]
 
 test update-buildpack-1.7 {update-buildpack --enable/--disable conflict} -constraints s34ge -setup {
     stage-open

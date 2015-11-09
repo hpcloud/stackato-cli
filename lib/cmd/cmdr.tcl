@@ -6470,4 +6470,4 @@ proc jump@ {package cmd} {
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.2.2
+package provide stackato::cmdr 3.2.3

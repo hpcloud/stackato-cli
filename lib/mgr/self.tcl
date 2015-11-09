@@ -148,14 +148,42 @@ proc ::stackato::mgr::self::topdir {} {
 }
 
 proc ::stackato::mgr::self::please {cmd {prefix {Please use}}} {
+    debug.mgr/self {}
+    # Treat cmd as list of words, and quote words
+
     set msg "$prefix '"
     if {![stackato-cli exists *in-shell*] ||
 	![stackato-cli get    *in-shell*]} {
 	# Not in a shell, full message.
 	append msg [me] " "
     }
-    append msg $cmd '
+    append msg [join [quote {*}$cmd] { }] '
     return $msg
+}
+
+# See also ::stackato::mgr::ssh -- TODO consolidate
+
+proc ::stackato::mgr::self::quote {args} {
+    debug.mgr/self {}
+    set cmd ""
+    foreach w $args {
+	lappend cmd [quote1 $w]
+    }
+    return $cmd
+}
+
+proc ::stackato::mgr::self::quote1 {w} {
+    debug.mgr/self {}
+    if {
+	[string match "*\[ \"'()\$\|\{\}\]*" $w] ||
+	[string match "*\]*"                 $w] ||
+	[string match "*\[\[\]*"             $w]
+    } {
+	set map [list \" \\\"]
+	return \"[string map $map $w]\"
+    } else {
+	return $w
+    }
 }
 
 proc ::stackato::mgr::self::me {} {

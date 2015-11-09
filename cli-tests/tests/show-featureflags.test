@@ -63,7 +63,7 @@ test feature-flag-1.3 {feature-flag, unknown feature-flag} -constraints s342ge -
     run feature-flag bogus
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name "feature flag" bogus]
+} -returnCodes error -result [unexpected input name "feature flag" bogus {Run 'stackato feature-flags' to see list of feature flags}]
 
 test feature-flag-1.4.0 {feature-flag, table} -constraints s342ge -setup {
     stage-open

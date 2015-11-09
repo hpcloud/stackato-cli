@@ -127,7 +127,7 @@ proc ::stackato::mgr::ctarget::Store {url} {
 }
 
 proc ::stackato::mgr::ctarget::Remove {} {
-    file delete -force [cfile get target]
+    file delete -force -- [cfile get target]
 }
 
 # # ## ### ##### ######## ############# #####################

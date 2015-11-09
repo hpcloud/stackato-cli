@@ -12,6 +12,7 @@ package require lambda
 package require dictutil
 package require cmdr::validate
 package require stackato::mgr::client;# pulls v2 also
+package require stackato::mgr::self
 package require stackato::validate::common
 
 debug level  validate/orgname
@@ -26,12 +27,13 @@ namespace eval ::stackato::validate {
 }
 
 namespace eval ::stackato::validate::orgname {
-    namespace export default validate complete release
+    namespace export default validate complete release acceptable
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::v2
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::validate::common::refresh-client
 }
 
@@ -58,7 +60,9 @@ proc ::stackato::validate::orgname::validate {p x} {
 	return $x
     }
     debug.validate/orgname {FAIL}
-    fail-unknown-thing $p ORGNAME "organization" $x
+    fail-unknown-simple-msg \
+	"[self please orgs Run] to see list of organizations" \
+	$p ORGNAME "organization" $x
 }
 
 # # ## ### ##### ######## ############# #####################

@@ -33,6 +33,7 @@ proc http::geturl {url args} {
 
     if {[info exists cache($req)]} {
 	set token [namespace current]::[incr http(uid)]
+	#checker -scope line exclude warnVarRef
 	variable $token
 	upvar 0 $token state
 	reset $token
@@ -104,6 +105,9 @@ proc ::mock::parse {response} {
 		connection {
 		    set state(connection) \
 			[string trim [string tolower $value]]
+		}
+		default {
+		    # ignore
 		}
 	    }
 	    lappend state(meta) $key [string trim $value]

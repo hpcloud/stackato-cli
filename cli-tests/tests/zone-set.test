@@ -87,7 +87,8 @@ test zone-set-1.5 {set-placement-zone, bogus zone} -constraints s32ge -setup {
     run set-placement-zone -n __bogus__
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input zone zone __bogus__]
+} -returnCodes error \
+    -result [unexpected input zone zone __bogus__ {Run 'stackato placement-zones' to see list of zones}]
 
 # # ## ### ##### ######## ############# #####################
 

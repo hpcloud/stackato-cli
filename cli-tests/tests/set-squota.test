@@ -88,7 +88,8 @@ test set-space-quota-1.4 {set-space-quota, unknown space-quota} -constraints s34
     run set-space-quota [thespacequota]
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name "space quota plan" [thespacequota]]
+} -returnCodes error \
+    -result [unexpected input name "space quota plan" [thespacequota] {Run 'stackato space-quotas' to see list of space quota plans}]
 
 test set-space-quota-1.5.0 {set-space-quota, space} -constraints s342ge -setup {
     stage-open

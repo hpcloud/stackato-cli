@@ -440,7 +440,7 @@ proc ::stackato::mgr::logstream::TailRun {config} {
     variable pid {}
 
     debug.mgr/logstream {}
-    dict with config {}
+    dict with config {} ;# --> client, max, etc.
 
     set done [list ::stackato::mgr::logstream::TailNext $config]
 
@@ -631,7 +631,7 @@ proc ::stackato::mgr::logstream::show1-poll {config} {
     # - plogfile:  glob   - file name
     # - plogtext:  glob   - log text
 
-    dict with config {}
+    dict with config {} ;# --> client, max, etc.
 
     debug.mgr/logstream { Filter Source    |$pattern| }
     debug.mgr/logstream { Filter Instance  |$pinstance| }
@@ -904,6 +904,8 @@ proc ::stackato::mgr::logstream::Skip {lines} {
 }
 
 proc ::stackato::mgr::logstream::Filter {record} {
+    # Variables dynamically put into calling scope with 'dict with'.
+    #checker -scope local exclude warnUndefinedUpvar
     upvar 1 \
 	pnewer    pnewer    \
 	plogfile  plogfile  \
@@ -912,6 +914,7 @@ proc ::stackato::mgr::logstream::Filter {record} {
 	pattern   pattern
 
     dict with record {} ; # => timestamp, instance, source, text, filename
+    #checker -scope local exclude warnUndefinedVar
 
     # Filter for time.
     if {$pnewer >= $timestamp} {
@@ -980,11 +983,16 @@ proc ::stackato::mgr::logstream::HighMap {} {
     HM+ warning WARNING
     HM+ warning WARN
 
+    # highmap is put dynamically into scope from HM.
+    #checker -scope local exclude warnUndefinedVar
     proc ::stackato::mgr::logstream::HighMap {} [list return $highmap ]
     return $highmap
 }
 
 proc ::stackato::mgr::logstream::HM+ {color pattern} {
+    # Variables dynamically created in calling scope. Checker likely
+    # confused by the redefine for memoization.
+    #checker -scope local exclude warnUndefinedUpvar
     upvar 1 highmap highmap
     lappend highmap $pattern [color $color $pattern]
     return

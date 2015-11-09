@@ -11,6 +11,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -21,7 +22,7 @@ debug prefix validate/securitygroup {[debug caller] | }
 ## Definition
 
 namespace eval ::stackato::validate {
-    namespace export security_group
+    namespace export securitygroup
     namespace ensemble create
 }
 
@@ -30,7 +31,8 @@ namespace eval ::stackato::validate::securitygroup {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
 }
@@ -60,7 +62,9 @@ proc ::stackato::validate::securitygroup::validate {p x} {
 	return $x
     }
     debug.validate/securitygroup {FAIL}
-    fail-unknown-thing $p SECURITYGROUP "security_group" $x
+    fail-unknown-simple-msg \
+	"[self please security-groups Run] to see list of security groups" \
+	  $p SECURITYGROUP "security group" $x
 }
 
 # # ## ### ##### ######## ############# #####################

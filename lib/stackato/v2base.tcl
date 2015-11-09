@@ -1198,7 +1198,7 @@ oo::class create ::stackato::v2::base {
 
 	    # Make it a full inline.
 	    # Ok with Tcl, only a reference with a shared Tcl_Obj.
-	    dict set $myjson entity $jname $json
+	    dict set myjson entity $jname $json
 
 	} elseif {[dict exists $myjson entity ${jname}_url]} {
 	    debug.v2/base {url}
@@ -2101,6 +2101,9 @@ oo::class create ::stackato::v2::base {
 	    }
 	    double {
 		return ::cmdr::validate::double
+	    }
+	    default {
+		# Ignore, not special
 	    }
 	}
 

@@ -287,7 +287,7 @@ proc ::tunnel::Tunnel {args} {
     if {$_(scheme) in {http https}} {
 	return [tunnel::http new {*}$args]
     }
-    if 0 {if {$_(scheme) eq "ws"} {
+    if {0} {if {$_(scheme) eq "ws"} {
 	return [tunnel::ws new {*}$args]
     }}
     return -code error "Invalid url"

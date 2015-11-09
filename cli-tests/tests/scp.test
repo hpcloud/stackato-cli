@@ -21,8 +21,8 @@ test scp-1.0 {scp, no app} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected option --application application tests] \
-	 [unexpected option --application application tests " in space '[theorg]::[thespace]'"]]
+	 [unexpected option --application application tests {Run 'stackato apps' to see list of applications}] \
+	 [unexpected option --application application tests {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 # -match glob -result [no-application-q scp]
 
 test scp-1.1 {scp, empty application} -setup {

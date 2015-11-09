@@ -43,7 +43,7 @@ test delete-service-1.2 {delete-service, bogus service} -setup {
 } -returnCodes error \
     -result [per-api \
 		 {Service [bogus] is not a valid service choice} \
-		 [unexpected input service {service instance} bogus " in space '[theorg]::[thespace]'"]]
+		 [unexpected input service {service instance} bogus {Run 'stackato services' to see list of service instances} " in space '[theorg]::[thespace]'"]]
 
 test delete-service-1.3 {delete-service, --all vs service name} -setup {
     stage-open

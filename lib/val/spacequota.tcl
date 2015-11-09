@@ -10,6 +10,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -29,7 +30,8 @@ namespace eval ::stackato::validate::spacequota {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
 }
@@ -62,7 +64,9 @@ proc ::stackato::validate::spacequota::validate {p x} {
 	return $x
     }
     debug.validate/spacequota {FAIL}
-    fail-unknown-thing $p SPACEQUOTA "space quota plan" $x
+    fail-unknown-simple-msg \
+	"[self please space-quotas Run] to see list of space quota plans" \
+	$p SPACEQUOTA "space quota plan" $x
 }
 
 # # ## ### ##### ######## ############# #####################

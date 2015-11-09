@@ -52,7 +52,8 @@ test delete-security-group-1.1.1 {delete-security-group, non-admin login is not 
     be-admin
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input security_group security_group [thesecgroup]]
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
 # Instead of a [not-authorized] return the sgroups are simply hidden from the user.
 
 # # ## ### ##### ######## ############# #####################
@@ -75,7 +76,8 @@ test delete-security-group-1.4 {delete-security-group, unknown security-group} -
     run delete-security-group -n [thesecgroup]
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input security_group security_group [thesecgroup]]
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
 
 test delete-security-group-1.5.0 {delete-security-group} -constraints s342ge -setup {
     stage-open

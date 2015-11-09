@@ -12,6 +12,7 @@ package require lambda
 package require dictutil
 package require cmdr::validate
 package require stackato::mgr::client
+package require stackato::mgr::self
 package require stackato::validate::common
 
 debug level  validate/username
@@ -30,8 +31,9 @@ namespace eval ::stackato::validate::username {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::mgr::client
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::v2
 }
@@ -89,7 +91,9 @@ proc ::stackato::validate::username::validate {p x} {
 	}
     }
     debug.validate/username {FAIL}
-    fail-unknown-thing $p USERNAME "A user" $x
+    fail-unknown-simple-msg \
+	"[self please users Run] to see list of users" \
+	 $p USERNAME "A user" $x
 }
 
 # # ## ### ##### ######## ############# #####################

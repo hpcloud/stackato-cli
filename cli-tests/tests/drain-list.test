@@ -31,8 +31,8 @@ test drain-list-1.1 {drain list, no application} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected input application application appdir] \
-	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 # -match glob -result [no-application {drain list}]
 
 test drain-list-1.2 {drain list, non-admin login is ok} -setup {

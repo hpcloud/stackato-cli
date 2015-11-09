@@ -1860,6 +1860,8 @@ proc ::stackato::mgr::manifest::LoadFile {path} {
     variable outmanifest
     if {[info exists outmanifest]} {
 	debug.mgr/manifest/core {=== OUTPUT MANIFEST}
+	debug.mgr/manifest/core {[yaml dump-retag $outmanifest]}
+	debug.mgr/manifest/core {===========================================}
 
 	set out [TransformASStackato $outmanifest]
 

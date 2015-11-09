@@ -59,8 +59,7 @@ oo::class create ::stackato::mgr::framework::standalone {
 	    } elseif {$e eq ".zip"} {
 		return [my detect_runtime_from_zip $path]
 	    }
-
-	} {
+	} else {
 	    cd::indir $path {
 		fileutil::traverse T .
 		set contents [T files]

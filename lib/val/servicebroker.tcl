@@ -10,6 +10,7 @@ package require Tcl 8.5
 package require struct::list
 package require lambda
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::validate::common
 
@@ -29,8 +30,9 @@ namespace eval ::stackato::validate::servicebroker {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
     namespace import ::stackato::validate::common::refresh-client
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::v2
 }
@@ -57,7 +59,9 @@ proc ::stackato::validate::servicebroker::validate {p x} {
 	return [lindex $matches 0]
     }
     debug.validate/servicebroker {FAIL}
-    fail-unknown-thing $p SERVICEBROKER "service broker" $x
+    fail-unknown-simple-msg \
+	"[self please service-brokers Run] to see list of service brokers" \
+	$p SERVICEBROKER "service broker" $x
 }
 
 # # ## ### ##### ######## ############# #####################

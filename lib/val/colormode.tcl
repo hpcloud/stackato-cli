@@ -25,7 +25,7 @@ namespace eval ::stackato::validate::colormode {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail
 
     variable legalvalues {always auto never}
 }
@@ -46,7 +46,7 @@ variable legalvalues
 	return $x
     }
     debug.validate/colormode {FAIL}
-    fail-unknown-thing $p COLORMODE "color-mode" $x
+    fail $p COLORMODE "one of 'always', 'auto', or 'never'" $x
 }
 
 # # ## ### ##### ######## ############# #####################

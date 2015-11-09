@@ -83,7 +83,8 @@ test delete-space-1.6 {delete-space, unknown space} -constraints cfv2 -setup {
     run delete-space -n [thespace]-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name space [thespace]-2 " in organization '[theorg]'"]
+} -returnCodes error -result \
+    [unexpected input name space [thespace]-2 {Run 'stackato spaces' to see list of spaces} " in organization '[theorg]'"]
 
 test delete-space-1.7.0 {delete-space} -constraints cfv2 -setup {
     stage-open

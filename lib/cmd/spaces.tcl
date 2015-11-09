@@ -17,6 +17,7 @@ package require stackato::mgr::context
 package require stackato::mgr::corg
 package require stackato::mgr::cspace
 package require stackato::mgr::ctarget
+package require stackato::mgr::self
 package require stackato::v2
 package require table
 
@@ -44,6 +45,7 @@ namespace eval ::stackato::cmd::spaces {
     namespace import ::stackato::mgr::corg
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::mgr::ctarget
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
 }
 
@@ -98,15 +100,17 @@ proc ::stackato::cmd::spaces::switch {config} {
 	set space [$config @name]
     } trap {CMDR VALIDATE SPACENAME} {e o} {
 	set name [$config @name string]
-	err "Unable to switch to space \"$name\" (not found, or not a member)"
+	err "Unable to switch to space \"$name\" (not found, or not a member). [self please spaces Run] to see list of spaces."
     }
 
     if {$org eq {}} {
 	display [color warning {Unable to switch, no organization specified}]
+	display "[self please orgs Run] to see list of organizations."
 	return
     }
     if {$space eq {}} {
 	display [color warning {Unable to switch, no space specified}]
+	display "[self please spaces Run] to see list of spaces."
 	return
     }
 

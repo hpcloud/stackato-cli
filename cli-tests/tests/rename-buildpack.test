@@ -108,7 +108,8 @@ test rename-buildpack-1.7 {rename-buildpack, unknown buildpack} -constraints s34
     run rename-buildpack -n clitestbuildpack clitestbuildpack2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {A buildpack} clitestbuildpack]
+} -returnCodes error \
+    -result [unexpected input name buildpack clitestbuildpack {Run 'stackato buildpacks' to see list of buildpacks}]
 
 test rename-buildpack-1.8 {rename-buildpack, duplicate destination} -constraints s34ge -setup {
     stage-open

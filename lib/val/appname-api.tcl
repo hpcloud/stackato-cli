@@ -11,6 +11,7 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
+package require stackato::mgr::self
 package require stackato::mgr::client
 package require stackato::mgr::cspace
 package require stackato::validate::common
@@ -31,7 +32,8 @@ namespace eval ::stackato::validate::appname-api {
     namespace ensemble create
 
     namespace import ::cmdr::validate::common::complete-enum
-    namespace import ::cmdr::validate::common::fail-unknown-thing
+    namespace import ::cmdr::validate::common::fail-unknown-simple-msg
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::cspace
     namespace import ::stackato::validate::common::refresh-client
@@ -103,7 +105,9 @@ proc ::stackato::validate::appname-api::validate {p x} {
     }
 
     debug.validate/appname-api {FAIL}
-    fail-unknown-thing $p APPNAME-API "application" $x
+    fail-unknown-simple-msg \
+	"[self please apps Run] to see list of applications" \
+	$p APPNAME-API "application" $x
 }
 
 # # ## ### ##### ######## ############# #####################

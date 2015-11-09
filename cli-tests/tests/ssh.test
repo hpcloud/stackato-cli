@@ -21,8 +21,8 @@ test ssh-1.0 {ssh, no app} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected option --application application tests] \
-	 [unexpected option --application application tests]]
+	 [unexpected option --application application tests {Run 'stackato apps' to see list of applications}] \
+	 [unexpected option --application application tests {Run 'stackato apps' to see list of applications}]]
 # -match glob -result [no-application-q ssh]
 
 test ssh-1.1 {ssh, empty application} -setup {
@@ -35,8 +35,8 @@ test ssh-1.1 {ssh, empty application} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected option --application application appdir] \
-	 [unexpected option --application application appdir]]
+	 [unexpected option --application application appdir {Run 'stackato apps' to see list of applications}] \
+	 [unexpected option --application application appdir {Run 'stackato apps' to see list of applications}]]
 # -match glob -result [no-application-q ssh]
 
 # # ## ### ##### ######## ############# #####################

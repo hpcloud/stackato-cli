@@ -423,7 +423,7 @@ proc ::stackato::cmd::servicemgr::DisplayServicePlans {config theplans {header y
 	} {
 	    if {![$plan $a defined?]} {
 		lappend details n/a
-	    } {
+	    } else {
 		#append bits [expr {[$plan $a] ? "$l" : "-"}]
 		lappend details [expr {[$plan $a] ? "yes" : "no"}]
 	    }

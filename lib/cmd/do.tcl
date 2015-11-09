@@ -70,6 +70,7 @@ proc ::stackato::cmd::do::IT {verbose args} {
 	puts [color note [string repeat ^ $c]]
 	# should limit by #columns.
     }
+    #checker -scope line exclude badInt
     return [expr {![exit state]}]
 }
 

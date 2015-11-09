@@ -324,13 +324,17 @@ oo::class create ::REST {
 		if {$waiter eq {}} {
 			# async, wait for completion.
 			debug.rest {waiting $var}
+			#-- Using global variable name
+			#checker -scope line exclude warnVarRef
 			vwait $var
 			debug.rest {waiting $var done: $waiter}
 		} ; # else already set, no waiting.
 
 		# Retrieve results, and release variable.
 		set r $waiter
-		unset $var
+		#-- Using global variable name
+		#checker -scope line exclude warnVarRef
+		unset -- $var
 
 		# Handle the waiter results: reset, and return
 		# reset: Cannot happen here.
@@ -800,7 +804,7 @@ proc ::REST::initialize {} {
 		# only register it with 'exec' to be removed on exit.
 
 		set tmp [fileutil::tempfile stackato_certs_]
-		file copy -force $cafile $tmp
+		file copy -force -- $cafile $tmp
 		exec::clear-on-exit $tmp
 		set cafile $tmp
 	}
@@ -926,12 +930,12 @@ proc ::REST::verify {cmd args} {
 	variable acode $rc
 	variable amsg  $err
 
-	if 0 {switch -glob $err {
+	if {0} {switch -glob -- $err {
 		{unable to get local issuer cert*} -
 		{cert* not trusted} {
 			# suppress errors about a broken validation chain.
 			set acode 1
-		}
+		} default {}
 	}}
 
     # The information I'm interested in is whether or not the cert
@@ -1001,6 +1005,9 @@ proc ::REST::verify {cmd args} {
 proc ::REST::Match {peers certcn} {
 	variable debug
 	if {$debug} {
+		# Possible checker limitation on complex code. Unable to repro the
+		# warnings when testing with a less complex example.
+		#checker -scope local exclude warnUndefinedUpvar
 		upvar 1 prefix prefix cmd cmd
 	}
 

@@ -112,7 +112,8 @@ test user-info-1.7 {user introspection, explicit user requires cfv2, bad user} -
     run user-info foo
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name {A user} foo]
+} -returnCodes error \
+    -result [unexpected input name user foo {Run 'stackato users' to see list of users}]
 
 test user-info-1.8 {user introspection, explicit user requires cfv2} -constraints cfv2 -setup {
     stage-open

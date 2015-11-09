@@ -23,8 +23,8 @@ test health-1.0 {health, undeployed application} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected input application application node-env] \
-	 [unexpected input application application node-env " in space '[theorg]::[thespace]'"]]
+	 [unexpected input application application node-env {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application node-env {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 
 test health-1.1 {health, no application} -setup {
     stage-open
@@ -35,8 +35,8 @@ test health-1.1 {health, no application} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected input application application tests] \
-	 [unexpected input application application tests " in space '[theorg]::[thespace]'"]]
+	 [unexpected input application application tests {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application tests {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 # -match glob -result [no-application health]
 
 test health-1.2 {health, no application} -setup {
@@ -49,8 +49,8 @@ test health-1.2 {health, no application} -setup {
     stage-close
 } -returnCodes error -result \
     [per-api \
-	 [unexpected input application application appdir] \
-	 [unexpected input application application appdir " in space '[theorg]::[thespace]'"]]
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
 # -match glob -result [no-application health]
 
 # # ## ### ##### ######## ############# #####################

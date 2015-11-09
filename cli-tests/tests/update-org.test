@@ -65,7 +65,8 @@ test update-org-1.4 {update-org, non-admin login is not ok} -constraints cfv2 -s
     run delete-org -n [theorg]-2
     remove-non-admin
     stage-close
-} -returnCodes error -result [unexpected input name organization [theorg]-2]
+} -returnCodes error \
+    -result [unexpected input name organization [theorg]-2 {Run 'stackato orgs' to see list of organizations}]
 
 test update-org-1.5 {update-org} -constraints cfv2 -setup {
     stage-open
@@ -110,7 +111,8 @@ test update-org-1.8 {update-org, missing source} -constraints cfv2 -setup {
     run update-org bogus --newname bogus-2
 } -cleanup {
     stage-close
-} -returnCodes error -result [unexpected input name organization bogus]
+} -returnCodes error \
+    -result [unexpected input name organization bogus {Run 'stackato orgs' to see list of organizations}]
 
 TODO update-org --(no-)default, --quota (see set-quota as well)
 
