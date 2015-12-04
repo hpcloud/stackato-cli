@@ -1,1 +1,1 @@
-Error: Application failed to sta*
+Error: *failed to sta*

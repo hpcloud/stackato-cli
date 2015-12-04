@@ -52,7 +52,10 @@ test instances-1.5 {instances, non-admin login is ok} -setup {
     stage-open
     go-admin
     go-non-admin
-    make-test-app
+    # Do proper upload of bits
+    de-route TEST
+    indir [example a.original.node-env] { run push --as TEST -n }
+    #make-test-app
 } -body {
     run instances TEST
 } -cleanup {
@@ -90,14 +93,18 @@ test instances-1.6.2.0 {instances, stopped, cannot report actual instances} -con
 test instances-1.6.2.1 {instances, stopped, cannot report actual instances} -constraints s32ge -setup {
     stage-open
     go-admin
-    make-test-app
+    # Do proper upload of bits
+    de-route node-env
+    indir [example a.original.node-env] { run push --as TEST -n }
+    run stop TEST
+    #make-test-app
 } -body {
     run instances TEST
 } -cleanup {
     remove-test-app
     remove-appdir
     stage-close
-} -result {No running instances for [TEST]}
+} -returnCodes error -result {Error 220001: Instances error: Request failed for app: TEST as the app is in stopped state. (400)}
 
 # # ## ### ##### ######## ############# #####################
 

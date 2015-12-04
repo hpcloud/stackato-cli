@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # Provide multipart/form-data upload for http
 # This is specialized (slimmed down and adapted) to VMC protocol
 # idiosyncrasies. This variant is for CFv2.

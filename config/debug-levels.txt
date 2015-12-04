@@ -140,6 +140,7 @@ validate/notservicebroker
 validate/notspacequota
 validate/notusername
 validate/orgname
+validate/orgname-user
 validate/otherspacename
 validate/path
 validate/quotaname

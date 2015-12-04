@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 ## Framework storage class. Derived from the base class, i.e.

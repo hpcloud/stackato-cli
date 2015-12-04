@@ -34,10 +34,10 @@
         "sso_enabled" *: *,*
         "stack_guid" *: "*",
         "stack_url" *: "/v2/stacks/*",
-        "staging_failed_reason" *: "null",
+        "staging_failed_reason" *: null,
         "staging_task_id" *: "*",
         "state" *: "STARTED",
-        "system_env_json" *: *
+        "system_env_json" *: *,
         "version" *: "*"
     },
     "metadata" : {

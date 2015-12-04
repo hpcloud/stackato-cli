@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -35,6 +39,8 @@ oo::class create ::stackato::v2::quota_definition {
 
 	# v3.4+
 	my Attribute total_droplets             integer label {Max Number of Droplets     }
+
+	my Attribute instance_memory_limit      integer label {Instance Memory Limit      }
 
 	#my SearchableOn name
 	next $url

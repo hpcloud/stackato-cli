@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -598,7 +602,8 @@ proc ::stackato::cmd::usermgr::ListV2 {config client} {
 	if {[$client is-stackato]} {
 	    # stackato target, client uses the new efficient list
 	    # format, we can go deep.
-	    set depth 3
+	    # [bug 104423 - new maximum depth is 2 - would like to have 3 here]
+	    set depth 2
 	} else {
 	    # CF target, client sticks to the old list format, balance
 	    # recursion to individual requests, go not as deep.

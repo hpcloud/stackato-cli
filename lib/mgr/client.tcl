@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -41,7 +45,7 @@ namespace eval ::stackato::mgr::client {
 	hasdrains chasdrains is-stackato \
 	is-stackato-opt close-restlog license-status \
 	max-version-opt min-version-opt rawc has-plain \
-	has-authenticated
+	has-authenticated stage-check
     namespace ensemble create
 
     namespace import ::cmdr::color
@@ -840,6 +844,36 @@ proc ::stackato::mgr::client::license-status {client {onlyover 1} {prefix {}}} {
     lappend map @S $serial
 
     display $prefix[string map $map $msg]
+}
+
+proc ::stackato::mgr::client::stage-check {theapp label script} {
+    debug.mgr/client {}
+
+    if {$label ne {}} { append label ": " }
+
+    try {
+	uplevel 1 $script
+    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+	# Staging in progress. Might also be an application without bits.
+
+	debug.mgr/client {ph? [$theapp @package_hash defined?]}
+	debug.mgr/client {di? [$theapp @docker_image defined?]}
+	debug.mgr/client {ph ([expr {[$theapp @package_hash defined?] ? "[$theapp @package_hash]" : "n/a"}])}
+	debug.mgr/client {di ([expr {[$theapp @docker_image defined?] ? "[$theapp @docker_image]" : "n/a"}])}
+
+	if {(![$theapp @package_hash defined?] || ([$theapp @package_hash] eq "")) &&
+	    (![$theapp @docker_image defined?] || ([$theapp @docker_image] eq ""))} {
+	    # Application has no bits, cannot be (170002 staging in-progress).
+	    # Should have been (150001). Emulating that now.
+	    err "${label}The app package is invalid: bits have not been uploaded"
+	}
+
+	err "${label}$e"
+	return
+    } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
+	err "${label}Application failed to stage"
+    }
+    return
 }
 
 # # ## ### ##### ######## ############# #####################

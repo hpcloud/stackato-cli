@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -255,7 +259,8 @@ proc ::stackato::cmd::orgs::list {config} {
     set ir quota_definition,spaces,domains,space_quota_definitions
     if {$full} {
 	lappend titles Applications Services
-	set depth 3
+	# [bug 104423 - new maximum depth is 2 - would like to have 3 here]
+	set depth 2
 	append ir ,apps
 	# ,service_instances -- Don't include this.
 	# Doing so would preempt the 'user-provided=1' below,

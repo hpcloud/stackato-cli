@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -15,7 +19,6 @@ package require exec
 package require json
 package require lambda
 package require sha1 2
-package require fileutil::traverse
 package require struct::list
 package require struct::set
 package require table
@@ -48,6 +51,7 @@ package require stackato::validate::memspec
 package require stackato::validate::routename
 package require stackato::validate::stackname
 package require stackato::validate::zonename
+package require stackato::yaml
 
 # # ## ### ##### ######## ############# #####################
 
@@ -103,6 +107,7 @@ namespace eval ::stackato::cmd::app {
     namespace import ::stackato::validate::stackname
     namespace import ::stackato::validate::zonename
     namespace import ::stackato::v2
+    namespace import ::stackato::yaml
 
     variable resetinfo "If needed use option --reset to apply the ignored local changes."
 }
@@ -949,7 +954,9 @@ proc ::stackato::cmd::app::Restage {config theapp} {
     set appname [$theapp @name]
 
     display "Restaging application \[[color name $appname]\] ... " false
-    $theapp restage!
+    client stage-check $theapp "" {
+	$theapp restage!
+    }
     display [color good OK]
 
     debug.cmd/app {/done}
@@ -1726,15 +1733,15 @@ proc ::stackato::cmd::app::Url2Route {config theapp url rollback} {
 		set msg "Does not exist. [self please $cmd] to create the domain and add it to the $wherelong."
 	    }
 	    set msg "Unknown domain '$domain': $msg"
-	    display "" ; # Force new line.
-	    display [color bad $msg]
 
 	    # Force application rollback, per caller's instruction.
 	    if {$rollback} {
+		display \n[color bad $msg]
 		Delete 0 1 $config $theapp
+		err "Reminder: $msg, forced the rollback"
+	    } else {
+		err $msg
 	    }
-
-	    err "Reminder: $msg, forced the rollback"
 	}
     }
 
@@ -2486,14 +2493,8 @@ proc ::stackato::cmd::app::SIv2 {config theapp} {
     debug.cmd/app {/v2: $theapp ('[$theapp @name]' in [$theapp @space full-name] of [ctarget get])}
     # CFv2 API...
 
-    try {
+    client stage-check $theapp "Unable to show instances" {
 	set instances [$theapp instances]
-    } trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
-	# Staging in progress.
-	err "Unable to show instances: $e"
-	return
-    } trap {STACKATO CLIENT V2 STAGING FAILED} {e o} {
-	err "Unable to show instances: Application failed to stage"
     }
 
     set instances [dict sort $instances -dict]
@@ -3401,6 +3402,7 @@ proc ::stackato::cmd::app::ConfigureAppV2 {theapp update interact starting defer
     } trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} - \
       trap {STACKATO CLIENT V2 UNKNOWN REQUEST} {e o} - \
       trap {STACKATO CLIENT V2 AUTHERROR}       {e o} - \
+      trap {STACKATO CLIENT V2 INVALID RELATION} {e o} - \
       trap {STACKATO CLIENT V2 TARGETERROR}     {e o} {
 	# Bug 101992
 	if {!$update} {
@@ -3790,7 +3792,13 @@ proc ::stackato::cmd::app::Update {config theapp {interact 0}} {
 	# For the zero-downtime switch we have to know the time of the
 	# youngest instance, so that we can now when a new instance is
 	# started (after that). See WaitV2 below for the use.
-	set threshold [Youngest [$theapp instances]]
+	try {
+	    set threshold [Youngest [$theapp instances]]
+	} trap {STACKATO CLIENT V2 STAGING IN-PROGRESS} {e o} {
+	    # APAAS 2718: Catch "in-progress" => The old instances are
+	    # already gone. Do a normal wait for new instances.
+	    set threshold -1
+	}
 	debug.cmd/app/wait {Threshold = $threshold}
     }
 
@@ -4986,7 +4994,15 @@ proc ::stackato::cmd::app::AppUrl {config appname frameobj} {
 
     # Note: Can pull manifest data only here.
     # During cmdr processing current app is not known.
-    if {[$config @url set?]} {
+    #
+    # Note: The options @no-urls and @url reset each other during
+    # cmdline processing. Only the last one specified takes effect.
+
+    if {[$config @no-urls]} {
+	set urls {}
+	set appdefined 1
+	debug.cmd/app {options = no urls, no default}
+    } elseif {[$config @url set?]} {
 	set urls [$config @url]
 	set appdefined 0
 	# This is ok, because in this branch urls.empty() is not possible.
@@ -5478,6 +5494,7 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 		set creds [dict get $sconfig credentials]
 		debug.cmd/app {UPSI creds = ($creds)}
 
+		#   v-vendor
 		CreateAndBind $client \
 		    {} $sname $creds $theapp \
 		    $known $bound
@@ -5489,6 +5506,7 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 		    # We have only the service name.
 		    # It must exist, and we can only bind it.
 
+		    #   v-vendor  v-details
 		    CreateAndBind $client \
 			{} $sname {} $theapp \
 			$known $bound
@@ -5500,8 +5518,23 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 		    set theplan [LocateService $client $sconfig]
 		    debug.cmd/app {MSI plan = $theplan}
 
+		    # Support tags and arbitrary service parameters
+		    # (aka ASP). For the latter we retrieve tagged
+		    # yaml from the manifest, and immediately convert
+		    # it to the equivalent json (which is where we
+		    # need the yaml type-tags).
+
+		    set tags  [dict get' $sconfig tags {}]
+		    set asp   [yaml 2json [manifest service-details-in-tyaml $sname parameters]]
+
+		    debug.cmd/app {MSI tags = ($tags)}
+		    debug.cmd/app {MSI asp  = ($asp)}
+
+		    # See <**> for where this gets used.
+		    set details [list $tags $asp]
+
 		    CreateAndBind $client \
-			$theplan $sname {} $theapp \
+			$theplan $sname $details $theapp \
 			$known $bound
 		}
 	    }
@@ -5517,6 +5550,7 @@ proc ::stackato::cmd::app::AppServices {config theapp} {
 	    # 'core' && plan == 'D100', which might be wrong for this
 	    # service type.
 
+	    #                             details-v
 	    set theservice [CreateAndBind $client \
 				$theharbor $sname {} $theapp \
 				$known $bound]
@@ -5843,8 +5877,9 @@ proc ::stackato::cmd::app::ListKnown2 {} {
     # (multi-application push).
     $thespace @service_instances decache
 
+    # [bug 104423 - new maximum depth is 2 - would like to have 3 here]
     foreach service [$thespace @service_instances get* {
-	depth         3
+	depth         2
 	user-provided true
     }] {
 	set     details {}
@@ -6295,8 +6330,8 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
     #           v2: plan instance |
     #           v2! plan can be empty => no creation, no matching.
 
-    # Under v2 vendor eq "" indicates UPSI and details == credentials.
-    #          vendor ne "" is MSI, and details is ignored.
+    # Under v2 vendor eq "" indicates UPSI and details == (credentials, syslog-uri).
+    #          vendor ne "" indicates MSI, and details == (tags, parameters)
 
     # Both vendor == credentials == "" means that the service must exist.
     # It cannot be created, only found and bound. Checking of requested
@@ -6354,6 +6389,8 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 		    # theservice has a plan, i.e. is an MSI. Check that we
 		    # were are given an MSI as well, and that it is the same
 		    # in terms of plans.
+		    ##
+		    # TODO: should possibly check tags and parameters as well, now
 
 		    if {$vendor eq {}} {
 			ServiceConflict $service user-provided [$theplan name]
@@ -6390,8 +6427,10 @@ proc ::stackato::cmd::app::CreateAndBind {client vendor service details theapp {
 	}
 
 	if {$vendor ne {}} {
-	    # MSI
-	    set theservice [service create-with-banner $client $vendor $service 1]
+	    # MSI <**>
+	    lassign $details tags asp
+
+	    set theservice [service create-with-banner $client $vendor $service $tags $asp 1]
 	} else {
 	    # UPSI
 	    set theservice [service create-udef-with-banner $client $details $service 1]
@@ -6599,6 +6638,7 @@ proc ::stackato::cmd::app::ChooseNewServices {client theapp services} {
 		 $default_name]
 
 	CreateAndBind $client $theplan $service_name {} $theapp
+	#                                     details^
 
 	lappend bound $service_name $mdetails
 
@@ -6705,6 +6745,9 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
     }
 
     if {[$config @service set?]} {
+	set thespace [$theapp @space]
+	set known    [$thespace @service_instances @name]
+
 	set servicename [$config @service]
 
 	set services [struct::list filter $services [lambda {x s} {
@@ -6712,9 +6755,13 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 	} $servicename]]
 
 	if {![llength $services]} {
-	    err "Service \[$servicename\] is not known."
+	    if {$servicename in $known} {
+		err "Service \[$servicename\] is not bound to application \[[$theapp @name]\]."
+	    } else {
+		err "Service \[$servicename\] does not exist in space \[[$thespace @name]\]."
+	    }
 	} elseif {[llength $services] > 1} {
-	    err "More than one service found; the name ambiguous."
+	    err "More than one service found; the name is ambiguous."
 	}
     } else {
 	# No service specified, auto-select it.
@@ -6742,7 +6789,7 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
 	# end XXX
 
 	if {[llength $services] > 1} {
-	    err "More than one service found; you must specify the service name.\nWe have: [join [lsort -dict $snames] {, }]"
+	    err "More than one service found; you must specify the service name.\nWe have: [join [Names [lsort -dict $snames]] {, }]"
 	} elseif {![llength $services]} {
 	    err "No services supporting dbshell found."
 	}
@@ -6762,10 +6809,18 @@ proc ::stackato::cmd::app::DbShellV2 {config theapp} {
     return [$service @name]
 }
 
+proc ::stackato::cmd::app::Names {list} {
+    set r {}
+    foreach w $list {
+	lappend r [color name $w]
+    }
+    return $r
+}
+
 proc ::stackato::cmd::app::AcceptDbshell {vendor} {
     # See also ::stackato::cmd::servicemgr::AcceptTunnel, consolidate
     expr {$vendor in {
-	oracledb mysql redis mongodb postgresql
+	oracledb mysql redis mongodb postgresql mssql2012 mssql2014
     }}
 }
 
@@ -6812,12 +6867,20 @@ proc ::stackato::cmd::app::OpenBrowser {config theapp} {
 	debug.cmd/app {/v2}
 
 	set theapp [appname validate [$config @application self] $theapp]
+	if {[$theapp stopped?]} {
+	    err "Application \[$appname\] is stopped."
+	}
+
 	set uri [$theapp uri]
 	set appname [$theapp @name]
     } else {
 	debug.cmd/app {/v1}
 
 	set app [$client app_info $theapp]
+	if {[dict getit $app state] eq "STOPPED"} {
+	    err "Application \[$appname\] is stopped."
+	}
+
 	set uri [lindex [dict get $app uris] 0]
 	set appname $theapp
     }

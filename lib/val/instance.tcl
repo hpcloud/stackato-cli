@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 ## -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 ## Stackato - Validation Type - Instance Index
@@ -12,9 +16,9 @@ package require struct::list
 package require lambda
 package require dictutil
 package require cmdr::validate
-package require stackato::mgr::self
 package require stackato::mgr::client;# pulls v2 also
 package require stackato::mgr::manifest
+package require stackato::mgr::self
 package require stackato::validate::common
 package require stackato::validate::integer0
 
@@ -35,8 +39,9 @@ namespace eval ::stackato::validate::instance {
 
     namespace import ::cmdr::validate::common::complete-enum
     namespace import ::cmdr::validate::common::fail-unknown-simple-msg
-    namespace import ::stackato::mgr::self
+    namespace import ::stackato::mgr::client
     namespace import ::stackato::mgr::manifest
+    namespace import ::stackato::mgr::self
     namespace import ::stackato::v2
     namespace import ::stackato::validate::common::refresh-client
     namespace import ::stackato::validate::integer0
@@ -44,7 +49,6 @@ namespace eval ::stackato::validate::instance {
 
 proc ::stackato::validate::instance::default {p}   {
     debug.validate/instance {}
-
     # Used as 'generate' callback, defering use from cli declaration to ''completion''.
     if {[[refresh-client $p] isv2]} {
 	debug.validate/instance {/v2}
@@ -59,7 +63,9 @@ proc ::stackato::validate::instance::default {p}   {
 
 	manifest user_1app_do theapp {
 	    if {$theapp ni {api {}}} {
-		set imap [$theapp instances]
+		client stage-check $theapp "Unable to determine a default instance index" {
+		    set imap [$theapp instances]
+		}
 	    }
 	} keep
 	if {$theapp in {api {}}} { return 0 }
@@ -89,7 +95,9 @@ proc ::stackato::validate::instance::complete {p x} {
     if {[[refresh-client $p] isv2]} {
 	# v2 - query application for instances
 	set theapp [$p config @application]
-	set candidates [dict keys [$theapp instances]]
+	client stage-check $theapp "Unable to complete instance index" {
+	    set candidates [dict keys [$theapp instances]]
+	}
 	complete-enum $candidates 0 $x
     } else {
 	# v1 - no completion
@@ -113,7 +121,9 @@ proc ::stackato::validate::instance::validate {p x} {
 
 	manifest user_1app_do theapp {
 	    if {$theapp ne "api"} {
-		set imap [$theapp instances]
+		client stage-check $theapp "Unable to validate instance index" {
+		    set imap [$theapp instances]
+		}
 	    }
 	}
 

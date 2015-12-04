@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -94,7 +98,16 @@ oo::class create ::stackato::v2::app {
 	my Attribute droplet_count integer
 
 	# --- Stackato >3.4 --- Docker image support (Bring Your Own Docker (as application)).
-	my Attribute docker_image null|string
+	my Attribute docker_image null|string          label {Docker       }
+
+	my Attribute package_hash          null|string
+	my Attribute package_state         null|string
+	my Attribute package_updated_at    null|string    label {Last uploaded}
+
+	my Attribute staging_failed_reason null|string    label {Stage Failure}
+	my Attribute staging_task_id       null|string
+
+	my Attribute health_check_type     null|string label {Health Check Type}
 
 	#my SearchableOn name
 	#my SearchableOn space

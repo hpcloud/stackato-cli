@@ -5,6 +5,10 @@
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
+# # ## ### ##### ######## ############# #####################
 ## Tunneling. Http Tunnels. Created only indirectly through
 ## the 'tunnel' package. Do not create directly.
 

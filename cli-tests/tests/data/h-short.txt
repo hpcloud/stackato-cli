@@ -308,6 +308,7 @@ stackato hide-service-plan [OPTIONS] <name> [<organization>]
     Stackato 3 specific command.
 
 stackato history
+    Manage the command history.
 
 stackato history clear
     Clear the saved history.

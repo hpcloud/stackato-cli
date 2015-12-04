@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -43,13 +47,14 @@ namespace eval ::stackato::cmd::quotas {
     # required is only for creation. The marked attributes must be
     # present in the new quota. The others get defaults from the CC.
     variable map {
-	non_basic_services_allowed 1 {ID paid-services-allowed}
-	total_services             1 {ID services}
-	memory_limit               1 {MEM mem}
-	trial_db_allowed           0 {ID trial-db-allowed}
-	allow_sudo                 0 {ID allow-sudo}
-	total_routes               1 {ID routes}
-	total_droplets             0 {ID droplets}
+	non_basic_services_allowed 1 {Permitted paid-services-allowed}
+	total_services             1 {ID        services}
+	memory_limit               1 {MEM       mem}
+	instance_memory_limit      0 {MEM       instance-mem}
+	trial_db_allowed           0 {Permitted trial-db-allowed}
+	allow_sudo                 0 {Permitted allow-sudo}
+	total_routes               1 {ID        routes}
+	total_droplets             0 {ID        droplets}
     }
 }
 
@@ -188,21 +193,22 @@ proc ::stackato::cmd::quotas::list {config} {
 	return
     }
 
-    [table::do t {Name Paid? Services Memory {Trial DB?} Sudo? Routes Droplets} {
+    [table::do t {Name Paid? Services Memory {Instance Memory} {Trial DB?} Sudo? Routes Droplets} {
 	# TODO: Might be generalizable via attr listing + labeling
 	foreach qd $thequotas {
-	    lappend values [$qd @name]
-	    lappend values [$qd @non_basic_services_allowed]
+	    lappend values [color name [$qd @name]]
+	    lappend values [Permitted [$qd @non_basic_services_allowed]]
 	    lappend values [$qd @total_services]
-	    lappend values [psz [MB [$qd @memory_limit]]]
+	    lappend values [MEM [$qd @memory_limit]]
+	    lappend values [MEM [$qd @instance_memory_limit]]
 
 	    if {[$qd @trial_db_allowed defined?]} {
-		lappend values [$qd @trial_db_allowed]
+		lappend values [Permitted [$qd @trial_db_allowed]]
 	    } {
 		lappend values N/A
 	    }
 
-	    lappend values [$qd @allow_sudo]
+	    lappend values [Permitted [$qd @allow_sudo]]
 
 	    if {[$qd @total_routes defined?]} {
 		lappend values [$qd @total_routes]
@@ -295,9 +301,16 @@ proc ::stackato::cmd::quotas::select-for {what p {mode noauto}} {
 # # ## ### ##### ######## ############# #####################
 
 proc ::stackato::cmd::quotas::ID  {x} { return $x }
-proc ::stackato::cmd::quotas::MEM {x} { psz [MB $x] }
+proc ::stackato::cmd::quotas::MEM {x} {
+    if {$x < 0} { return [color note unlimited] }
+    return [psz [MB $x]]
+}
 
 # # ## ### ##### ######## ############# #####################
+
+proc ::stackato::cmd::quotas::Permitted {x} {
+    expr {$x ? "[color note allowed]" : "disallowed"}
+}
 
 proc ::stackato::cmd::quotas::MB {x} {
     expr {$x * 1024 * 1024}

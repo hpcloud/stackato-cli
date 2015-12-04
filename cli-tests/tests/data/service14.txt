@@ -7,7 +7,7 @@
 | Provider      | core *|
 | Version       | 5.5 *|
 | Plan          | free *|
-| - Description | dummy description *|
+| - Description | N/A *|
 | - Free        | 1 *|
 | - Public      | 1 *|
 | Dashboard     | null *|

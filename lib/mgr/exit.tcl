@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -234,6 +238,7 @@ proc ::stackato::mgr::exit::attempt {script} {
       trap {STACKATO CLIENT V2 NOTFOUND}    {e o} - \
       trap {STACKATO CLIENT V2 STAGING}     {e o} - \
       trap {STACKATO CLIENT V2 INVALID REQUEST} {e o} - \
+      trap {STACKATO CLIENT V2 INVALID RELATION} {e o} - \
       trap {STACKATO CLIENT V2 BADTARGET}   {e o} {
 	debug.mgr/exit {H $o}
 	say! [color bad [wrap $e]]

@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -268,8 +272,6 @@ proc ::stackato::cmd::spacequotas::list {config} {
 	    lappend values [$sq @total_services]
 	    lappend values [$sq @total_routes]
 	    lappend values [Permitted [$sq @non_basic_services_allowed]]
-
-
 
 	    $t add {*}$values
 	    unset values

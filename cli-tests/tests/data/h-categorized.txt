@@ -612,7 +612,8 @@ Miscellaneous
     stackato guid <type> [<name>]                     Map the specified name
                                                       into a uuid, given the
                                                       type
-    stackato history                                  
+    stackato history                                  Manage the command
+                                                      history
     stackato named-entities                           List the entity types
                                                       usable for 'guid'
     stackato quota                                    Management of quota plans
@@ -626,7 +627,8 @@ Global Options
     --color MODE                Set color mode (always|auto|never) of the
                                 client. Default is auto, which activates color
                                 when in a proper terminal.
-    --help                      Show the main help of the client, and stop.
+    --help                      Show the help of the client (main or current
+                                command), and stop.
     --no-prompt                 Disable interactive queries.
     --no-skip-ssl-validation    Complementary alias of --skip-ssl-validation.
     --non-interactive           Alias of --no-prompt.

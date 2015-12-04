@@ -104,7 +104,7 @@ test zone-set-2.0 {set-placement-zone, implicit app, set without actual change} 
     remove-test-app appdir
     remove-appdir
     stage-close
-} -result "No manifest\nSetting placement zone of \"appdir\" to \"default\" ... Unchanged"
+} -result "No manifest\nChanging placement zone of \"appdir\":\n  Already \"default\", nothing to be done."
 
 test zone-set-2.1 {set-placement-zone, explicit app, set without actual change} -constraints s32ge -setup {
     stage-open
@@ -116,7 +116,7 @@ test zone-set-2.1 {set-placement-zone, explicit app, set without actual change} 
     remove-test-app
     remove-appdir
     stage-close
-} -result "Setting placement zone of \"TEST\" to \"default\" ... Unchanged"
+} -result "Changing placement zone of \"TEST\":\n  Already \"default\", nothing to be done."
 
 # # ## ### ##### ######## ############# #####################
 

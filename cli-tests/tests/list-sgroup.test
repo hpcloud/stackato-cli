@@ -62,7 +62,7 @@ test security-groups-1.1.0 {security-groups, login required} -setup {
     stage-close
 } -returnCodes error -result [login-required]
 
-test security-groups-1.1.1 {security-groups, non-admin login is not ok} -constraints s342ge -setup {
+test security-groups-1.1.1 {security-groups, non-admin login is ok} -constraints s342ge -setup {
     stage-open
     go-admin
     run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
@@ -74,7 +74,8 @@ test security-groups-1.1.1 {security-groups, non-admin login is not ok} -constra
     run delete-security-group -n [thesecgroup]
     remove-non-admin
     stage-close
-} -returnCodes error -result [not-authorized]
+} -match glob -result "Security-Groups: *\nNo Security Groups"
+# -returnCodes error -result [not-authorized]
 
 # # ## ### ##### ######## ############# #####################
 

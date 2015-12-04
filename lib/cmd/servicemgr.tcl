@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -322,7 +326,8 @@ proc ::stackato::cmd::servicemgr::ListInstancesV2 {config client} {
     # Note: The global query does not handle the user-provided flag,
     # requiring us to perform a second call to get the user provided
     # instances as well.
-    set     provisioned [v2 service_instance list 3 \
+    # [bug 104423 - new maximum depth is 2 - would like to have 3 here]
+    set     provisioned [v2 service_instance list 2 \
 			     include-relations space,organization,service_bindings,app]
     lappend provisioned {*}[v2 user_provided_service_instance list]
 
@@ -742,7 +747,14 @@ proc ::stackato::cmd::servicemgr::CreateV2 {config client} {
 	# Ask user for the credential keys, then the credentials,
 	# and save these directly.
 
-	set creds [CollectCredentials $config]
+	if {[$config @tag set?]} {
+	    err "Option --tag not allowed for user-provided service."
+	}
+	if {[$config @parameters set?]} {
+	    err "Option --parameters not allowed for user-provided service."
+	}
+
+	set creds  [CollectCredentials $config]
 
 	set service [service create-udef-with-banner $client $creds $name $picked]
     } else {
@@ -750,7 +762,10 @@ proc ::stackato::cmd::servicemgr::CreateV2 {config client} {
 	    err "Option --credentials not allowed for non-user-provided service."
 	}
 
-	set service [service create-with-banner $client $plan $name $picked]
+	set tags [$config @tag]
+	set asp  [GetASP $config]
+
+	set service [service create-with-banner $client $plan $name $tags $asp $picked]
     }
 
     if {[$config @application set?]} {
@@ -971,6 +986,11 @@ proc ::stackato::cmd::servicemgr::ShowV2 {config} {
 
 	    if {$p ne {}} { $t add Provider $p }
 	    if {$v ne {}} { $t add Version  $v }
+
+	    ## Note: Not getting tags and parameters back from the target.
+	    ## Might need a newer build.
+	    #   $t add Tags       [join [$service @tags] {, }]
+	    #   $t add Parameters [$service @parameters]
 
 	    $t add Plan            [color name [$plan @name]]
 	    $t add "- Description" [$plan @description]
@@ -1837,7 +1857,7 @@ proc ::stackato::cmd::servicemgr::ProcessService1 {client service} {
 proc ::stackato::cmd::servicemgr::AcceptTunnel {vendor} {
     # See also ::stackato::cmd::app::AcceptDbshell, consolidate
     expr {$vendor in {
-	oracledb mysql redis mongodb postgresql
+	oracledb mysql redis mongodb postgresql mssql2012 mssql2014
     }}
 }
 
@@ -1900,6 +1920,22 @@ proc ::stackato::cmd::servicemgr::CollectCredentials {config} {
     }
 
     return $creds
+}
+
+proc ::stackato::cmd::servicemgr::GetASP {config} {
+    debug.cmd/servicemgr {}
+
+    # Bail out quickly if nothing got specified
+    if {![$config @parameters set?]} { return {} }
+
+    # Read and validate the asp a bit.
+    set asp [fileutil::cat [$config @parameters]]
+    try {
+	json::json2dict $asp
+    } trap {JSON} {e o} {
+	err "Bad json data for arbitrary service parameters: $e"
+    }
+    return $asp
 }
 
 # # ## ### ##### ######## ############# #####################

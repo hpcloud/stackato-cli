@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -15,6 +19,7 @@ package require Tcl 8.5
 package require tclyaml
 package require dictutil ; # dict sort
 package require cmdr::color
+package require json::write
 
 # # ## ### ##### ######## ############# #####################
 
@@ -26,7 +31,8 @@ namespace eval ::stackato::yaml {
     namespace export dump-tagged dump-retag \
 	tag!warn tag! tags! tags!do tag-of value-of deep-merge \
 	strip-mapping-key-tags strip-tags retag-mapping-keys \
-	cmap cseq cval dict validate-exact validate-glob
+	cmap cseq cval dict validate-exact validate-glob \
+	2json
 
     namespace ensemble create
 
@@ -36,7 +42,8 @@ namespace eval ::stackato::yaml {
 # Danger! Ensure that regular dict commands used here are
 # ::-qualified, i.e. ::dict
 namespace eval ::stackato::yaml::dict {
-    namespace export set get get' exists find find-tagged
+    namespace export set get get' exists find find-tagged \
+	get-tagged get-tagged'
     namespace ensemble create
 }
 
@@ -47,6 +54,27 @@ debug prefix yaml {[debug caller] | }
 
 debug level  yaml/resolve
 debug prefix yaml/resolve {[debug caller] | }
+
+# # ## ### ##### ######## ############# #####################
+## Recursive conversion of a semi-tagged yaml structure into equivalent json
+## Semi: mapping keys are without tags already.
+
+proc ::stackato::yaml::2json {tyaml} {
+    lassign $tyaml tag value
+    switch -exact -- $tag {
+	scalar { return [json::write string $value] }
+	sequence {
+	    set r {}
+	    foreach item $value { lappend r [2json $item] }
+	    return [json::write array {*}$r]
+	}
+	mapping {
+	    set r {}
+	    foreach {k v} $value { lappend r $k [2json $v] }
+	    return [json::write object {*}$r]
+	}
+    }
+}
 
 # # ## ### ##### ######## ############# #####################
 ## Constructor for tagged yaml structures.
@@ -353,6 +381,17 @@ proc ::stackato::yaml::dict::get {dict args} {
     return $result
 }
 
+proc ::stackato::yaml::dict::get-tagged {dict args} {
+    debug.yaml {}
+
+    if {![find-tagged $dict result {*}$args]} {
+	return -code error "key path '$args' not known in dictionary"
+    }
+
+    debug.yaml {==> $result}
+    return $result
+}
+
 proc ::stackato::yaml::dict::get' {dict args} {
     debug.yaml {}
 
@@ -360,6 +399,21 @@ proc ::stackato::yaml::dict::get' {dict args} {
     ::set args    [lrange $args 0 end-1]
 
     if {![find $dict result {*}$args]} {
+	debug.yaml {==> (default) $default}
+	return $default
+    }
+
+    debug.yaml {==> (found) $result}
+    return $result
+}
+
+proc ::stackato::yaml::dict::get-tagged' {dict args} {
+    debug.yaml {}
+
+    ::set default [lindex $args end]
+    ::set args    [lrange $args 0 end-1]
+
+    if {![find-tagged $dict result {*}$args]} {
 	debug.yaml {==> (default) $default}
 	return $default
     }

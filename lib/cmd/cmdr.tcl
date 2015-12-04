@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -1569,7 +1573,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		State holding the ev-group to operate on.
 	    } {
 		generate [lambda {p} {
-		    stackato::log::err "No group specified"
+		    stackato::log::err "Please specify either --running, or --staging for the respective group."
 		}]
 	    }
 	}
@@ -3194,6 +3198,23 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		when-set [call@mgr client isv2]
 		validate [call@vtype http-header]
 	    }
+	    option tag {
+		A user-specified tag. Multiple tags are possible.
+		This is restricted to regular services.
+	    } {
+		alias t
+		argument text
+		when-set [call@mgr client isv2]
+		validate str
+		list
+	    }
+	    option parameters {
+		Path to the file holding the arbitrary service parameters, json formatted.
+	    } {
+		alias p
+		validate [call@vtype path rfile]
+		when-set [call@mgr client isv2]
+	    }
 	    # ================================================
 	    input name {
 		The name of the new service.
@@ -3922,6 +3943,16 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		validate str
 		list
 		#generate [call@mgr manifest urls]
+		# Clear a previous @no-urls
+		when-set [lambda {p x} { $p config @no-urls reset }]
+	    }
+	    option no-urls {
+		Tell client that the application is a worker with no urls to map.
+	    } {
+		alias no-routes
+		presence
+		# Clear previously collected @url
+		when-set [lambda {p x} { $p config @url reset }]
 	    }
 	    option domain {
 		The default domain to use for the url of the application.
@@ -3953,6 +3984,9 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		of mega- and gigabytes. Without a unit-suffix mega-bytes are
 		assumed. As the base-unit megabytes must specified as integers.
 		Gigabytes can be specified as fractions.
+
+		The minimum value for --disk is 512 MB; the maximum value is
+		2 GB. This is a per-instance limit.
 	    } {
 		validate [call@vtype memspec]
 		#generate [call@mgr manifest mem]
@@ -5106,7 +5140,7 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 	    } {
 		defered ;# backend intercepts validation failure for bespoke message
 		optional
-		validate [call@vtype orgname]
+		validate [call@vtype orgname-user]
 		generate [call@mgr corg select-for {switch to}]
 	    }
 	    state space {
@@ -6023,6 +6057,21 @@ cmdr create stackato-cli [::stackato::mgr::self::me] {
 		validate [call@vtype memspec]
 	    }
 
+	    option instance-mem {
+		Amount of memory application instances can use.
+
+		Use the suffices 'M' and 'G' for the convenient specification
+		of mega- and gigabytes. Without a unit-suffix mega-bytes are
+		assumed. As the base-unit megabytes must specified as integers.
+		Gigabytes can be specified as fractions.
+
+		Also accepts -1 and "unlimited" for unlimited memory.
+	    } {
+		alias i
+		default 2048
+		validate [call@vtype memspecplus]
+	    }
+
 	    option allow-sudo {
 		Applications can use sudo in their container.
 	    } ;# boolean
@@ -6470,4 +6519,4 @@ proc jump@ {package cmd} {
 
 # # ## ### ##### ######## ############# #####################
 ## Ready. Vendor (VMC) version tracked: 0.3.14.
-package provide stackato::cmdr 3.2.3
+package provide stackato::cmdr 3.2.4

@@ -2,11 +2,12 @@
 +-*-+-*-+
 | Key                         | Value *|
 +-*-+-*-+
-| Paid Services Allowed       | 1 *|
+| Paid Services Allowed       | allowed *|
 | Max Number Of Services      | 300 *|
 | Memory Limit                | 200.0M *|
-| Trial Database Allowed      | 0 *|
-| Allow use of 'sudo' by Apps | 1 *|
+| Instance Memory Limit       | unlimited *|
+| Trial Database Allowed      | disallowed *|
+| Allow use of 'sudo' by Apps | allowed *|
 | Max Number of Routes        | * |
 | Max Number of Droplets      | * |
 +-*-+-*-+

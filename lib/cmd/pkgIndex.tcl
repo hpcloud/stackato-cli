@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 #checker -scope global exclude warnUndefinedVar
 # var in question is 'dir'.
 if {![package vsatisfies [package provide Tcl] 8.5]} {
@@ -37,4 +41,4 @@ package ifneeded stackato::cmd::spaces        0        [list source [file join $
 package ifneeded stackato::cmd::target        0        [list source [file join $dir target.tcl]]
 package ifneeded stackato::cmd::usermgr       0        [list source [file join $dir usermgr.tcl]]
 package ifneeded stackato::cmd::zones         0        [list source [file join $dir zones.tcl]]
-package ifneeded stackato::cmdr               3.2.3    [list source [file join $dir cmdr.tcl]]
+package ifneeded stackato::cmdr               3.2.4    [list source [file join $dir cmdr.tcl]]

@@ -5,6 +5,10 @@
 ## See file doc/license.txt for the license terms.
 
 # # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
+# # ## ### ##### ######## ############# #####################
 ## Tunneling. Instances open a tunnel specified by url and manage the
 ## flow of data through it.
 #

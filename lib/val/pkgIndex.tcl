@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 #checker -scope global exclude warnUndefinedVar
 # var in question is 'dir'.
 if {![package vsatisfies [package provide Tcl] 8.5]} {
@@ -44,6 +48,7 @@ package ifneeded stackato::validate::notspacename        0 [list source [file jo
 package ifneeded stackato::validate::notspacequota       0 [list source [file join $dir notspacequota.tcl]]
 package ifneeded stackato::validate::notusername         0 [list source [file join $dir notusername.tcl]]
 package ifneeded stackato::validate::orgname             0 [list source [file join $dir orgname.tcl]]
+package ifneeded stackato::validate::orgname-user        0 [list source [file join $dir orgname-user.tcl]]
 package ifneeded stackato::validate::otherspacename      0 [list source [file join $dir otherspacename.tcl]]
 package ifneeded stackato::validate::path                0 [list source [file join $dir path.tcl]]
 package ifneeded stackato::validate::percent             0 [list source [file join $dir percent.tcl]]

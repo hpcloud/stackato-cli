@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -565,6 +569,7 @@ oo::class create ::stackato::v2::base {
     export =
 
     method invalidate {} {
+	debug.v2/base {}
 	# Clear all data, forces a reload on next access to any attribute.
 	set myjson     {}
 	set mydelete   0
@@ -574,6 +579,7 @@ oo::class create ::stackato::v2::base {
     }
 
     method change {k v} {
+	debug.v2/base {}
 	dict set mydiff $k $v
 	return
     }
@@ -1942,7 +1948,13 @@ oo::class create ::stackato::v2::base {
 
 	    # types = dict integer url string boolean
 	    switch -exact -- $type {
-		json        { }
+		json {
+		    # For 'raw' json we must not perform any
+		    # down-conversion, the 'delta' will not do
+		    # anything with it either. I.e. this is pure
+		    # identity type.
+		    if {$hint eq "raw"} { set type string }
+		}
 		boolean     { set hint nbool   }
 		double      { set hint nnumber }
 		integer     { set hint nnumber }

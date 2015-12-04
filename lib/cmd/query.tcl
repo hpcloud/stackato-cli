@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -627,46 +631,54 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	    # z :: name <=> guid. NOT entity.
 	} else {
 	    # placement zone not supported by target.
-	    set z "N/A (not supported by target)"
+	    set z [color note "N/A (not supported by target)"]
 	}
 
-	foreach {var attr hilit} {
-	    bldp buildpack            name
-	    dbld detected_buildpack   name
-	    htim health_check_timeout {}
-	    ssoe sso_enabled          {}
-	    desc description          {}
-	    mini min_instances        {}
-	    maxi max_instances        {}
-	    mint min_cpu_threshold    {}
-	    maxt max_cpu_threshold    {}
-	    auts autoscale_enabled    {}
-	    rere restart_required     {}
-	    dimg docker_image         name
+	foreach {var attr hilit op} {
+	    bldp  buildpack            name {}
+	    dbld  detected_buildpack   name {}
+	    htim  health_check_timeout {}   {}
+	    ssoe  sso_enabled          {}   {}
+	    desc  description          {}   {}
+	    mini  min_instances        {}   {}
+	    maxi  max_instances        {}   {}
+	    mint  min_cpu_threshold    {}   {}
+	    maxt  max_cpu_threshold    {}   {}
+	    auts  autoscale_enabled    {}   {}
+	    rere  restart_required     {}   {}
+	    dimg  docker_image         name {}
+	    stack stack                name {Get @name}
+	    pkuat package_updated_at   {}   {}
 	} {
 	    if {[$theapp @$attr defined?]} {
 		upvar 0 $var thevar
+		# Extract from app instance
 		set thevar [$theapp @$attr]
+		# Transform, if required.
+		if {[llength $op]} { set thevar [{*}$op $thevar] }
+		# Colorize, if required
 		if {($hilit ne {}) && ($thevar ne {})} {
 		    set thevar [color $hilit $thevar]
 		}
 	    } else {
-		# attribute not supported by target.
-		set $var "N/A (not supported by target)"
+		# Attribute not supported by target.
+		set $var [color note "N/A (not supported by target)"]
 	    }
 	}
 
 	$t add Description      $desc
 	$t add Routes           [join [Uprefix [lsort -dict [$theapp uris]]] \n]
 	$t add {Placement Zone} $z
-	$t add {SSO Enabled}    $ssoe
+	$t add {SSO Enabled}    [Bool note {} $ssoe]
 
 	$t add State                [app state-color [$theapp @state]]
-	$t add {Restart required}   [expr {$rere ? "[color note yes]" : "no"}]
+	$t add {Restart required}   [Bool note {} $rere]
 	$t add $htitle              $health
 	$t add {- Check Timeout}    $htim
+	$t add Stack                $stack
 	$t add Buildpack            $bldp
 	$t add {Detected Buildpack} $dbld
+	$t add {Last uploaded}      $pkuat ;# Maybe TODO reparse and format into local timezone.
 	$t add {Docker Image}       $dimg
 	$t add Instances            [$theapp @total_instances]
 	$t add Memory               [psz [MB [$theapp @memory]]]
@@ -705,6 +717,18 @@ proc ::stackato::cmd::query::AppinfoV2 {config} {
 	}
     }] show display
     return
+}
+
+proc ::stackato::cmd::query::Bool {ycolor ncolor x} {
+    set x [expr {$x ? "yes":"no"}]
+    if { $x && ($ycolor ne {})} { return [color $ycolor $x] }
+    if {!$x && ($ncolor ne {})} { return [color $ncolor $x] }
+    return $x
+}
+
+proc ::stackato::cmd::query::Get {args} {
+    set obj [lindex $args end]
+    return [$obj {*}[lrange $args 0 end-1]]
 }
 
 proc ::stackato::cmd::query::MB {x} {
@@ -1081,9 +1105,9 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 
     set full [$config @full]
     if {$full} {
-	set titles {Application \# Mem Health Restart URLs Services Drains}
+	set titles {Application \# Mem Disk Health Restart URLs Services Drains}
     } else {
-	set titles {Application \# Mem Health URLs Services}
+	set titles {Application \# Mem Disk Health URLs Services}
     }
 
     [table::do t $titles {
@@ -1096,11 +1120,12 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 		  set health [color bad 0%]
 	    }
 
-	    set row {}
-	    lappend row  [$app @name]
-	    lappend row  [$app @total_instances]
-	    lappend row  [$app @memory]
-	    lappend row  $health
+	    set name         [color name [$app @name]]
+	    set numinstances [$app @total_instances]
+	    set mem          [psz [MB [$app @memory]]]     ;# @[unit MB]
+	    set disk         [psz [MB [$app @disk_quota]]] ;# @[unit MB]
+	    set uris         [join [Uprefix [lsort -dict [$app uris]]] \n]
+	    set services     [join [lsort -dict [$app services]] \n]
 
 	    if {$full} {
 		if {[$app @restart_required defined?] &&
@@ -1109,16 +1134,13 @@ proc ::stackato::cmd::query::AppListV2 {config} {
 		} else {
 		    set restart ""
 		}
-		lappend row $restart
-	    }
 
-	    lappend row [join [Uprefix [lsort -dict [$app uris]]] \n]
-	    lappend row [join [lsort -dict [$app services]] \n]
-	    if {$full} {
-		lappend row [join [lsort -dict [DrainListV2 $app]] \n]
-	    }
+		set drains [join [lsort -dict [DrainListV2 $app]] \n]
 
-	    $t add {*}$row
+		$t add $name $numinstances $mem $disk $health $restart $uris $services $drains
+	    } else {
+		$t add $name $numinstances $mem $disk $health $uris $services
+	    }
 	}
     }] show display
 

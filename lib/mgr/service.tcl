@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -100,7 +104,7 @@ proc ::stackato::mgr::service::create-udef-with-banner {client creds name {displ
     return $theservice
 }
 
-proc ::stackato::mgr::service::create-with-banner {client theplan name {display_name 0}} {
+proc ::stackato::mgr::service::create-with-banner {client theplan name tags asp {display_name 0}} {
     debug.mgr/service {}
 
     # theplan = v1: vendor/service name
@@ -117,6 +121,13 @@ proc ::stackato::mgr::service::create-with-banner {client theplan name {display_
 	$theservice @name         set $name
 	$theservice @service_plan set $theplan
 	$theservice @space        set [cspace get]
+
+	if {[llength $tags]} {
+	    $theservice @tags set $tags
+	}
+	if {$asp ne {}} {
+	    $theservice @parameters set $asp
+	}
 
 	$theservice commit
 

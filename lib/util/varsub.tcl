@@ -1,10 +1,6 @@
-# -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
-
-## Copyright (c) 2011-2012 ActiveState Software Inc.
-## See file doc/license.txt for the license terms.
-
-# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 
 package require dict
 

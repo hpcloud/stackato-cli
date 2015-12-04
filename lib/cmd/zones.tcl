@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -54,8 +58,6 @@ proc ::stackato::cmd::zones::Set {config theapp} {
     ::set z [[$config @zone] @name]
     # get entity name, for - app zone attribute :: string (not entity ref!)
 
-    display "Setting placement zone of \"[$theapp @name]\" to \"$z\" ... " false
-
     SetCore $config $theapp $z
     return
 }
@@ -68,8 +70,6 @@ proc ::stackato::cmd::zones::unset {config} {
 
 proc ::stackato::cmd::zones::Unset {config theapp} {
     debug.cmd/zones {}
-    display "Drop placement zone from \"[$theapp @name]\" ... " false
-
     SetCore $config $theapp default
     return
 }
@@ -77,19 +77,37 @@ proc ::stackato::cmd::zones::Unset {config theapp} {
 proc ::stackato::cmd::zones::SetCore {config theapp newzone} {
     debug.cmd/zones {}
 
-    if {![$theapp @distribution_zone defined?] ||
-	($newzone ne [$theapp @distribution_zone])} {
+    if {[$theapp @distribution_zone defined?]} {
+	::set oldzone [$theapp @distribution_zone]
+	display "Changing placement zone of \"[color name [$theapp @name]]\":"
+	if {$newzone ne $oldzone} {
+	    display "  From \"[color name $oldzone]\""
+	    display "  To   \"[color name $newzone]\""
 
-	$theapp @distribution_zone set $newzone
-	$theapp commit
+	    $theapp @distribution_zone set $newzone
+	    $theapp commit
 
-	display [color good OK]
+	    display [color good OK]
 
-	app check-app-for-restart $config $theapp
-    } else {
-	display [color note Unchanged]
+	    app check-app-for-restart $config $theapp
+	} else {
+	    display "  Already \"[color name $newzone]\", nothing to be done."
+	}
+	return
     }
 
+    # First time to set the zone...
+
+    display "Changing placement zone of \"[color name [$theapp @name]]\":"
+    display "  From <undefined>"
+    display "  To   \"[color name $newzone]\""
+
+    $theapp @distribution_zone set $newzone
+    $theapp commit
+
+    display [color good OK]
+
+    app check-app-for-restart $config $theapp
     return
 }
 

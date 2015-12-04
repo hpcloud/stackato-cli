@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -468,6 +472,10 @@ proc ::stackato::jmap::map {type data} {
     switch -exact -- $type {
 	{} - string {
 	    return [Quote [json::write string $data]]
+	}
+	raw {
+	    # data is (already) raw json, does not require formatting, at all
+	    return $data
 	}
 	ref {
 	    # detail = type name.

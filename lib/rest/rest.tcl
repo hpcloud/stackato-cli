@@ -1,11 +1,7 @@
-# -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
-
 ## Copyright (c) 2011 Donal Fellows, BSD licensed.
-## Copyright (c) 2011-2012 Modifications by ActiveState Software Inc.
-## See file doc/license.txt for the license terms.
-
-# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 Modifications by ActiveState Software Inc.
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP @date@
 
 package require Tcl 8.5
 package require s-http ;# local copy of http with our hacks, and much more placed Log'ging activity.

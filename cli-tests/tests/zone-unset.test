@@ -83,7 +83,7 @@ test zone-unset-2.0 {unset-placement-zone, implicit app, unset without actual ch
 } -cleanup {
     remove-test-app appdir
     stage-close
-} -result "No manifest\nDrop placement zone from \"appdir\" ... Unchanged"
+} -result "No manifest\nChanging placement zone of \"appdir\":\n  Already \"default\", nothing to be done."
 
 test zone-unset-2.1 {unset-placement-zone, explicit app, unset without actual change} -constraints s32ge -setup {
     stage-open
@@ -94,7 +94,7 @@ test zone-unset-2.1 {unset-placement-zone, explicit app, unset without actual ch
 } -cleanup {
     remove-test-app
     stage-close
-} -result "Drop placement zone from \"TEST\" ... Unchanged"
+} -result "Changing placement zone of \"TEST\":\n  Already \"default\", nothing to be done."
 
 # # ## ### ##### ######## ############# #####################
 cleanupTests

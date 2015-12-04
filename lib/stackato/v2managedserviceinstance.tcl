@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 
@@ -33,6 +37,9 @@ oo::class create ::stackato::v2::managed_service_instance {
 
 	# New in 3.6
 	my Attribute last_operation ndict
+
+	my Attribute parameters "json<raw>"
+	my Attribute tags       list-string
 
 	next $url
     }

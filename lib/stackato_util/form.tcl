@@ -1,11 +1,11 @@
-# -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
-
 ## Copyright (c) 20xx-2012 Unknown, Public domain or similar
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 ## Taken from http://wiki.tcl.tk/13675
 ## and adapted by ActiveState Software Inc.
 
-# # ## ### ##### ######## ############# #####################
 # Provide multipart/formupload for http
 # This is specialized (slimmed down and adapted) to VMC protocol
 # idiosyncrasies.

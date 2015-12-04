@@ -1,3 +1,7 @@
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2011-2015 ActiveState Software Inc
+## (c) Copyright 2015 Hewlett Packard Enterprise Development LP
+
 # -*- tcl -*-
 # # ## ### ##### ######## ############# #####################
 # # ## ### ##### ######## ############# #####################
@@ -326,7 +330,7 @@ proc ::stackato::mgr::manifest::disk= {disk} {
     debug.mgr/manifest/core {}
     variable outmanifest
     InitializeOutManifest
-    yaml dict set outmanifest disk [Cscalar $disk]
+    yaml dict set outmanifest disk_quota [Cscalar $disk]
     return
 }
 
@@ -501,6 +505,22 @@ proc ::stackato::mgr::manifest::name {} {
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
     return [yaml dict get' $currentappinfo name {}]
+}
+
+proc ::stackato::mgr::manifest::service-details-in-tyaml {sname part} {
+    # Access a services details in the manifest, return partially
+    # tagged yaml! We need the type structure.
+    debug.mgr/manifest/core {}
+    InitCurrent
+
+    variable currentappinfo
+    if {![info exists currentappinfo]} { return {} }
+
+    set part [yaml dict get-tagged' $currentappinfo \
+		  services $sname $part {}]
+
+    debug.mgr/manifest/core {==> ($part)}
+    return $part
 }
 
 proc ::stackato::mgr::manifest::services {} {
@@ -721,7 +741,7 @@ proc ::stackato::mgr::manifest::disk {} {
 
     variable currentappinfo
     if {![info exists currentappinfo]} { return {} }
-    set disk [yaml dict get' $currentappinfo disk {}]
+    set disk [yaml dict get' $currentappinfo disk_quota {}]
     if {$disk ne {}} {
 	set disk [memspec validate [$theconfig @disk self] $disk]
     }
@@ -2387,11 +2407,11 @@ proc ::stackato::mgr::manifest::Decompose {yml} {
 
     set s {}
     foreach k {
-	name instances mem memory disk framework services processes
+	name instances mem memory disk disk_quota framework services processes
 	min_version env ignores hooks cron requirements drain subdomain
 	command app-dir url urls depends-on buildpack stack host domain
 	placement-zone placementzone description autoscale sso-enabled
-	timeout force-war-unpacking docker_image
+	timeout force-war-unpacking docker_image no-route
     } {
 	if {![dict exists $value $k]} continue
 	set v [dict get $value $k]
@@ -2453,6 +2473,9 @@ proc ::stackato::mgr::manifest::TransformASStackato {yml} {
 
     # Consolidate different spellings for mem|memory
     set value [T_Memory $value]
+
+    # Consolidate different spellings for disk(_quota)
+    set value [T_Disk $value]
 
     # Url processing. Merge up all possible inputs into a single list.
     set value [T_Urls $value]
@@ -2950,6 +2973,9 @@ proc ::stackato::mgr::manifest::TransformCFManifestApp {a yml} {
     # Consolidate different spellings for mem|memory
     set value [T_Memory $value]
 
+    # Consolidate different spellings for disk(_quota)
+    set value [T_Disk $value]
+
     # Url processing. Merge up all possible inputs into a single list.
     set value [T_Urls $value]
 
@@ -3012,6 +3038,10 @@ proc ::stackato::mgr::manifest::T_Memory {value} {
     debug.mgr/manifest/core {}
 
     # Consolidate different spellings for mem|memory
+    # 'memory' is the official value.
+    # If both 'mem' and 'memory' are present then the _former_ has
+    # priority.
+
     if {[dict exists $value mem]} {
 	dict set value memory [dict get $value mem]
 	dict unset value mem
@@ -3020,9 +3050,29 @@ proc ::stackato::mgr::manifest::T_Memory {value} {
     return $value
 }
 
+proc ::stackato::mgr::manifest::T_Disk {value} {
+    debug.mgr/manifest/core {}
+
+    # Consolidate different spellings for disk(_quota)
+    # 'disk_quota' is the official value.
+    # If both 'disk' and 'disk_quota' are present then the latter has
+    # priority.
+
+    if {[dict exists $value disk_quota]} {
+	# Drop a possible 'disk', disk_quota has priority.
+	dict unset value disk
+    } elseif {[dict exists $value disk]} {
+	# disk_quota does not exist, rewrite the 'disk' to it.
+	dict set value disk_quota [dict get $value disk]
+	dict unset value disk
+    } ;# else neither is known, nothing to be done.
+
+    return $value
+}
+
 proc ::stackato::mgr::manifest::T_Urls {value} {
     # Merge up all possible inputs into a single list.
-    # I.e. url, urls, and (host|subdomain)+domain
+    # I.e. no-route, url, urls, and (host|subdomain)+domain
     # become -> urls.
 
     debug.mgr/manifest/core {}
@@ -3084,6 +3134,20 @@ proc ::stackato::mgr::manifest::T_Urls {value} {
 	set host {${name}}
 	lappend urls [Cscalar ${host}.${domain}]
 	incr hasurls
+    }
+
+    # Check for route suppression via no-route: true
+    if {[dict exists $value no-route]} {
+	yaml tags!do [dict get $value no-route] "key \"no-route\"" tag data {
+	    scalar {
+		ValidateBoolean [Cscalar $data] "key \"no-route\""
+		if {$data} {
+		    set hasurls 1 ;# claim to have a list!
+		    set urls {}   ;# this list is empty!
+		}
+		dict unset value no-route
+	    }
+	}
     }
 
     if {$hasurls} {
@@ -3323,6 +3387,7 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 	    instances   -
 	    memory      -
 	    disk        -
+	    disk_quota  -
 	    runtime     -
 	    path        -
 	    buildpack   -
@@ -3360,9 +3425,16 @@ proc ::stackato::mgr::manifest::ValidateStructure {yml} {
 				    version -
 				    label  -
 				    vendor -
-				    type   { yaml tag! scalar $value "key \"$akey\"" }
+				    syslog -
+				    type   {
+					yaml tag! scalar $value "key \"$akey\""
+				    }
+				    parameters -
 				    credentials {
 					yaml tag! mapping $value "key \"$akey\""
+				    }
+				    tags {
+					yaml tag! sequence $value "key \"$akey\""
 				    }
 				    * {
 					upvar 1 key ekey

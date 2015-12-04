@@ -20,7 +20,7 @@ test set-env-group-1.0.1 {set-env-group, wrong args, not enough} -setup {
     run set-environment-variable-group -n
 } -cleanup {
     stage-close
-} -returnCodes error -match glob -result {Error: No group specified}
+} -returnCodes error -match glob -result {Error: Please specify either --running, or --staging for the respective group.}
 
 test set-env-group-1.0.2 {set-env-group, wrong args, too many} -setup {
     stage-open
