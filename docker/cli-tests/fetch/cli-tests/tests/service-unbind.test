@@ -1,0 +1,132 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## unbind-service
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test unbind-service-1.0 {unbind-service, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run unbind-service S A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test unbind-service-1.1 {unbind-service, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+    make-test-app appdir
+} -body {
+    indir [appdir] { run unbind-service -n }
+} -cleanup {
+    remove-test-app appdir
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'service'}
+
+test unbind-service-1.2 {unbind-service, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run unbind-service -n S }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Expected an application name for input "application", got "appdir"} \
+	 [unexpected input service {service instance} S "in space '[thespace]'"]]
+
+test unbind-service-1.3 {unbind-service, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    run create-service filesystem test-service
+    make-test-app
+    run bind-service test-service TEST
+} -body {
+    run unbind-service test-service TEST
+} -cleanup {
+    run delete-service -n test-service
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test unbind-service-1.4.1 {unbind-service} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app
+    run bind-service test-service TEST
+} -body {
+    run unbind-service test-service TEST
+} -cleanup {
+    run delete-service -n test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Unbinding Service test-service from TEST ... OK}
+
+test unbind-service-1.4.2 {unbind-service} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service -n --plan free filesystem test-service
+    make-test-app
+    run bind-service test-service TEST
+} -body {
+    run unbind-service test-service TEST
+} -cleanup {
+    run delete-service -n test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Unbinding test-service from TEST ... OK}
+
+test unbind-service-1.5.1 {unbind-service, persistent} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app
+    run bind-service test-service TEST
+} -body {
+    run unbind-service test-service TEST
+    run apps
+} -cleanup {
+    run delete-service -n test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match anti-glob -result {*| TEST* | 0* | STOPPED* | * | test-service |*}
+
+test unbind-service-1.5.2 {unbind-service, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service -n --plan free filesystem test-service
+    make-test-app
+    run bind-service test-service TEST
+} -body {
+    run unbind-service test-service TEST
+    run apps
+} -cleanup {
+    run delete-service -n test-service
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match anti-glob -result {*| TEST* | 0* | STOPPED* | * | test-service |*}
+
+# todo: unbinding services from a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

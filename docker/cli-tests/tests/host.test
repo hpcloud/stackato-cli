@@ -1,0 +1,237 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+return
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## host file operations
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test host-list-1.0 {host list, nothing} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host list --hostfile $hf
+    set all
+} -cleanup {
+    unset hf
+    stage-close
+} -result {0 {} {}}
+
+test host-list-1.1 {host list, something} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+} -body {
+    run host list --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local}
+
+# # ## ### ##### ######## ############# #####################
+
+test host-add-1.0 {host add, wrong args, not enough} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host add -n
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test host-add-1.1 {host add, wrong args, not enough} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host add -n IP
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test host-add-1.2 {host add, persistence} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host add  --hostfile $hf 192.168.8.15 test test.local
+    run host list --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local}
+
+test host-add-1.3 {host add, multiple ips, block separation} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host add  --hostfile $hf 192.168.8.15 test test.local
+    run host add  --hostfile $hf 192.168.8.16 godot
+    run host list --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local
+ 
+192.168.8.16 godot}
+
+test host-add-1.4 {host add, name conflict} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+} -body {
+    run host add --hostfile $hf 192.168.8.16 test
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -result {Error: Unable to add, at least one of
+	test
+already has a mapping}
+
+# # ## ### ##### ######## ############# #####################
+
+test host-remove-1.0 {host remove, nothing in empty} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host remove --hostfile $hf
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {}
+
+test host-remove-1.1 {host remove, nothing in non-empty} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+} -body {
+    run host remove --hostfile $hf
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local}
+
+test host-remove-1.2 {host remove, by ip in non-empty} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+    run host add --hostfile $hf 192.168.8.16 godot godot.local
+} -body {
+    run host remove --hostfile $hf 192.168.8.16
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local}
+
+test host-remove-1.3 {host remove, by name in non-empty} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+    run host add --hostfile $hf 192.168.8.16 godot godot.local
+} -body {
+    run host remove --hostfile $hf godot
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local
+ 
+192.168.8.16 godot.local}
+
+test host-remove-1.4 {host remove, mixed in non-empty} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+    run host add --hostfile $hf 192.168.8.16 godot godot.local
+} -body {
+    run host remove --hostfile $hf godot 192.168.8.15
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.16 godot.local}
+
+# # ## ### ##### ######## ############# #####################
+
+test host-update-1.0 {host update, wrong args, not enough} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host update -n
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test host-update-1.1 {host update, wrong args, not enough} -setup {
+    stage-open
+    set hf [touch hosts]
+} -body {
+    run host update -n IP
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test host-update-1.2 {host update, ok} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+    run host add --hostfile $hf 192.168.8.16 godot godot.local
+} -body {
+    run host update --hostfile $hf 192.168.8.16 talbot
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local
+ 
+192.168.8.16 talbot}
+
+test host-update-1.3 {host update, unknown ip, becomes add} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+} -body {
+    run host update --hostfile $hf 192.168.8.16 talbot
+    run host list   --hostfile $hf
+} -cleanup {
+    unset hf
+    stage-close
+} -result {192.168.8.15 test
+192.168.8.15 test.local
+ 
+192.168.8.16 talbot}
+
+test host-update-1.4 {host update, name conflict} -setup {
+    stage-open
+    set hf [touch hosts]
+    run host add --hostfile $hf 192.168.8.15 test test.local
+} -body {
+    run host update --hostfile $hf 192.168.8.16 test
+} -cleanup {
+    unset hf
+    stage-close
+} -returnCodes error -result {Error: Unable to add, at least one of
+	test
+already has a mapping}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

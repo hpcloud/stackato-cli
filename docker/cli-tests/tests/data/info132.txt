@@ -1,0 +1,15 @@
+{
+    "allow_debug"            : true,
+    "authorization_endpoint" : "*/uaa",
+    "build"                  : "*",
+    "description"            : "*",
+    "name"                   : "*",
+    "stackato"               : {
+        "UUID"             : "*",
+        "license_accepted" : true
+    },
+    "support"                : "*",
+    "token_endpoint"         : "*/uaa",
+    "vendor_version"         : "v*",
+    "version"                : "2"
+}

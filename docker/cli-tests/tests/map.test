@@ -1,0 +1,190 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## map
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test map-1.0 {map, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run map A I X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test map-1.1 {map, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run map -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test map-1.2 {map, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run map -n A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: The application [appdir] is not deployed. Please deploy it, or choose a different application to map.}
+
+test map-1.3.1 {map, bogus url, CFv1} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 700: Invalid URI: 'bogus' (400)}
+
+test map-1.3.2.1 {map, bogus url, CFv2, S3.0} -constraints s30le -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+	 "Error: Unknown domain '': Does not exist. Please use 'stackato map-domain' to create the domain and add it to the space '[thespace]'."
+
+test map-1.3.2.2 {map, bogus url, CFv2, S3.2+} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] { run map TEST bogus }
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+	 "Error: Reminder: Unknown domain '': Does not exist. Please use 'stackato create-domain' to create the domain and add it to the org '[theorg]'., forced the rollback"
+
+test map-1.4 {map, non-admin login is ok} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+} -cleanup {
+    remove-test-app
+    if {$isv2} {
+	# Old clients need this, after fix of 102833 the client
+	# removes it itself, so this breaks. Catch that.
+	catch { run delete-route -n [mapurl] }
+    }
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+# See also 1.7, 1.8 for users of the result files
+test map-1.5 {map} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+} -cleanup {
+    remove-test-app
+    if {$isv2 } {
+	# Old clients need this, after fix of 102833 the client
+	# removes it itself, so this breaks. Catch that.
+	catch { run delete-route -n [mapurl] }
+    }
+    remove-appdir
+    stage-close
+} -match glob -result \
+    [map [per-api \
+	      [viewFile data/map1.5-cfv1.txt] \
+	      [viewFile data/map1.5-cfv2.txt]] \
+	 @url@ [mapurl] \
+	 @app@ TEST]
+
+test map-1.6 {map, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run map TEST [mapurl]
+    run apps
+} -cleanup {
+    remove-test-app
+    if {$isv2 } {
+	# Old clients need this, after fix of 102833 the client
+	# removes it itself, so this breaks. Catch that.
+	catch { run delete-route -n [mapurl] }
+    }
+    remove-appdir
+    stage-close
+} -match glob -result "*| TEST *| * | STOPPED *| *://[mapurl] *| * |*"
+
+test map-1.7 {map, running app, no! restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run map node-env [mapurl]
+} -cleanup {
+    remove-test-app node-env
+    if {$isv2 } {
+	# Old clients need this, after fix of 102833 the client
+	# removes it itself, so this breaks. Catch that.
+	catch { run delete-route -n [mapurl] }
+    }
+    remove-appdir
+    stage-close
+} -match glob -result \
+    [map [per-api \
+	      [viewFile data/map1.5-cfv1.txt] \
+	      [viewFile data/map1.5-cfv2.txt]] \
+	 @url@ [mapurl] \
+	 @app@ node-env]
+
+test map-1.8 {map, deployed stopped app, no restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n --no-start }
+} -body {
+    run map node-env [mapurl]
+} -cleanup {
+    remove-test-app node-env
+    if {$isv2 } {
+	# Old clients need this, after fix of 102833 the client
+	# removes it itself, so this breaks. Catch that.
+	catch { run delete-route -n [mapurl] }
+    }
+    remove-appdir
+    stage-close
+} -match glob -result \
+    [map [per-api \
+	      [viewFile data/map1.5-cfv1.txt] \
+	      [viewFile data/map1.5-cfv2.txt]] \
+	 @url@ [mapurl] \
+	 @app@ node-env]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

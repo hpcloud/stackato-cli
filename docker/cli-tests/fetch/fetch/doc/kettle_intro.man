@@ -1,0 +1,64 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin kettle_introduction n 1]
+[include include/general.inc]
+[titledesc {Kettle - Introduction to Kettle}]
+[description]
+[include include/welcome_basic.inc]
+
+Kettle is a system to make building Tcl packages quick and easy. More
+importantly, possibly, to make writing the build system for Tcl
+packages easy.
+
+[para] As such kettle is several things:
+
+[list_begin enumerated]
+[enum] A DSL helping you to write build systems for your packages.
+[enum] A package implementing this DSL.
+[enum] An application which can serve as the interpreter for a build
+       file containing commands in the above DSL.
+[list_end]
+
+All of these will be explained in the documentation, although not
+everything is for everybody. I.e. a user of the DSL requires a
+different set of knowledge than a developer working on extending
+kettle's DSL, etc.
+
+[section {Related Documents}]
+
+[list_begin enumerated]
+[enum] [term {Kettle - License}].
+[enum] [term {Kettle - How To Get The Sources}].
+[enum] [term {Kettle - The Installer's Guide}].
+[enum] [term {Kettle - The Developer's Guide}].
+[list_end]
+
+[section {System Architecture}]
+
+The image below provides a basic overview of the system's
+architecture, with a package's custom build file at the top, using DSL
+commands from core layer, under the mediation of the kettle
+application.
+
+[para][image architecture]
+
+[para] The manpages relevant to a user of kettle, i.e. to a package
+developer wishing to use it as the build system for her code are:
+
+[list_begin enumerated]
+[enum] [term {Kettle - Application - Build Interpreter}]
+[enum] [term {Kettle - Build Declarations}]
+[enum] [term {Kettle - Testsuite support}]
+[list_end]
+
+[para] For the developers and maintainers of kettle, and power users
+wishing to extend the system to handle their custom circumstances, we
+additionally have:
+
+[list_begin enumerated]
+[enum] [term {Kettle - The Developer's Guide}]
+[enum] [term {Kettle - Core}]
+[list_end]
+
+[include include/feedback.inc]
+[manpage_end]
+

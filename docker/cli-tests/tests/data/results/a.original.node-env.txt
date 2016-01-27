@@ -1,0 +1,12 @@
+*Application Url:   *://node-env.@BASE@
+*Creating Application * ... OK
+*Uploading Application ?node-env? ... *
+  Checking for bad links ...  OK*
+  Copying to temp space ...  OK
+  Checking for available resources ...  OK
+  Processing resources ... OK
+  Packing application ... OK
+  Uploading (*) ...  OK
+Push Status: OK
+*
+http://node-env.@BASE@/ deployed

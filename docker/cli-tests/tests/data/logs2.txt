@@ -1,0 +1,6 @@
+*T* staging: -----> Downloaded app package (*)*
+*T* staging:        *version*in package.json*
+*T* staging:        *https://devcenter.heroku.com/articles/nodejs-*
+*T* staging: -----> Building runtime environment
+*T* staging: -----> Uploading droplet (*)
+*T* app?stdout.0?: Server running at *

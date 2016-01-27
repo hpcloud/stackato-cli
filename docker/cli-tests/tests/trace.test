@@ -1,0 +1,48 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client trace
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test trace-1.0 {client trace, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run trace X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test trace-1.1 {client trace, after info} -setup {
+    stage-open
+    ref-target
+    run info
+} -body {
+    run trace
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [per-api  \
+	 [viewFile data/trace11cfv1.txt] \
+	 [viewFile data/trace11.txt]]
+
+test trace-1.2 {client trace, after command not talking to target, from clean} -setup {
+    stage-open
+    ref-target
+    file delete [thehome]/.stackato/client/trace-rest
+    run aliases
+} -body {
+    run trace
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: No trace available}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

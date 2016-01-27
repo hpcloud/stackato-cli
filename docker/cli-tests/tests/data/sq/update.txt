@@ -1,0 +1,6 @@
+Changing space quota "@sq@" ... 
+    Setting Instance Memory Limit      : 99 (was 2048)
+    Setting Memory Limit               : 999 (was 2048)
+    Setting Max Number of Routes       : 99 (was 1000)
+    Setting Max Number Of Services     : 99 (was 100)
+Committing ... OK

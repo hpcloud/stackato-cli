@@ -1,0 +1,170 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## env-add
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test env-add-1.0 {env-add, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run env-add A VAR VAL X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test env-add-1.1 {env-add, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run env-add -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test env-add-1.2 {env-add, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run env-add -n VAR VAL }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application env-add]
+
+test env-add-1.3 {env-add, non-admin login is ok} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test env-add-1.4 {env-add} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Adding Environment Variable [VAR=VAL] ... OK}
+
+test env-add-1.5.0 {env-add, persistent} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL
+    run env     TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {+----------+-------+
+| Variable | Value |
++----------+-------+
+| VAR      | VAL   |
++----------+-------+}
+
+test env-add-1.5.1 {env-add, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL
+    run env     TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {User:
++----------+-------+
+| Variable | Value |
++----------+-------+
+| VAR      | VAL   |
++----------+-------+
+System:
++---------------+-------+
+| Variable      | Value |
++---------------+-------+
+| VCAP_SERVICES |       |
++---------------+-------+}
+
+test env-add-1.6 {env-add, running app, restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run env-add node-env VAR VAL
+} -cleanup {
+    remove-test-app node-env
+    remove-appdir
+    stage-close
+} -match glob -result {Adding Environment Variable \[VAR=VAL\] ... 
+*Stopping Application \[node-env\] ... *OK
+*Starting Application \[node-env\] ... *OK
+*//node-env.* deployed}
+
+test env-add-1.7 {env-add, deployed stopped app, no restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n --no-start }
+} -body {
+    run env-add node-env VAR VAL
+} -cleanup {
+    remove-test-app node-env
+    remove-appdir
+    stage-close
+} -result {Adding Environment Variable [VAR=VAL] ... OK}
+
+test env-add-1.8 {env-add, unicode variable name} -constraints knownBug -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR\u4e00 VAL
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result "Adding Environment Variable \[VAR\u4e00=VAL\] ... OK"
+
+test env-add-1.9 {env-add, unicode variable value} -constraints macOrUnix -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env-add TEST VAR VAL\u4e00
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result "Adding Environment Variable \[VAR=VAL\u4e00\] ... OK"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

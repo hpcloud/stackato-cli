@@ -1,0 +1,98 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## user management - delete/remove users
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test delete-user-1.0 {delete-user, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run delete-user N X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test delete-user-1.1 {delete-user, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run delete-user -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test delete-user-1.2 {delete-user, requires login} -setup {
+    stage-open
+    ref-target
+} -body {
+    run delete-user E
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required];#v1
+
+test delete-user-1.3.1 {delete-user, requires admin login} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user -n ex@as --password P
+    go-non-admin
+} -body {
+    run delete-user ex@as
+} -cleanup {
+    be-admin
+    run delete-user ex@as
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted}
+
+test delete-user-1.3.2 {delete-user, requires admin login} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run add-user -n ex@as --email ex@as --password P
+    go-non-admin
+} -body {
+    run delete-user ex@as
+} -cleanup {
+    be-admin
+    run delete-user ex@as
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [unexpected input email {A user} ex@as]
+
+test delete-user-1.4.1 {delete-user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --password P
+} -body {
+    run delete-user e@as
+} -cleanup {
+    stage-close
+} -result {Deleting User ... OK}
+
+test delete-user-1.4.2 {delete-user} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run add-user -n e@as --email ex@as --password P
+} -body {
+    run delete-user e@as
+} -cleanup {
+    stage-close
+} -result {Deleting User ... OK}
+
+test delete-user-1.5 {delete-user, unknown user} -setup {
+    stage-open
+    go-admin
+} -body {
+    run delete-user unknown[pid]@as
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result [unexpected input email {A user} unknown*@as]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

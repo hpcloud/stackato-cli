@@ -1,0 +1,71 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin kettle_sources n 1]
+[include include/general.inc]
+[titledesc {Kettle - How To Get The Sources}]
+[description]
+[include include/welcome.inc]
+
+[para] The audience of this document is anyone wishing to either have
+just a look at Kettle's source code, or build the packages, or to
+extend and modify them.
+
+[para] For builders and developers we additionally provide
+
+[list_begin enum]
+[enum] [term {Kettle - License}].
+[enum] [term {Kettle - The Installer's Guide}].
+[enum] [term {Kettle - The Developer's Guide}].
+[list_end]
+
+respectively.
+
+[section {Source Location}]
+
+The official repository for Kettle can be found at
+[uri http://chiselapp.com/user/andreas_kupries/repository/Kettle]
+
+[section Retrieval]
+
+Assuming that you simply wish to look at the sources, or build a
+specific revision, the easiest way of retrieving it is to:
+
+[list_begin enum]
+[enum] Log into this site, as "anonymous", using the semi-random password in the captcha.
+[enum] Go to the "Timeline".
+[enum] Choose the revision you wish to have and 
+[enum] follow its link to its detailed information page.
+[enum] On that page, choose either the "ZIP" or "Tarball" link to get
+a copy of this revision in the format of your choice.
+[list_end]
+
+[section {Source Code Management}]
+
+For the curious (or a developer-to-be), the sources are managed by the
+[uri http://www.fossil-scm.org {Fossil SCM}].
+
+Binaries for popular platforms can be found directly at its
+[uri http://www.fossil-scm.org/download.html {download page}].
+
+[para]
+
+With that tool available the full history can be retrieved via:
+
+[example {
+    fossil clone \
+        http://chiselapp.com/user/andreas_kupries/repository/Kettle \
+        kettle.fossil
+}]
+
+followed by
+
+[example {
+    mkdir kettle
+    cd kettle
+    fossil open ../kettle.fossil
+}]
+
+to get a checkout of the head of the trunk.
+
+[include include/feedback.inc]
+[manpage_end]
+

@@ -1,0 +1,10 @@
+[section {Related Documents}]
+
+[list_begin enum]
+[enum] [term [vset TITLE_INTRO]]
+[enum] [term [vset TITLE_LICENSE]]
+[enum] [term [vset TITLE_CHANGES]]
+[enum] [term [vset TITLE_SOURCES]]
+[enum] [term [vset TITLE_INSTALL]]
+[enum] [term [vset TITLE_DEV]]
+[list_end]

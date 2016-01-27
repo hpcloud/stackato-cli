@@ -1,0 +1,125 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## services, create
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-service-1.0 {create-service, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run create-service V N A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test create-service-1.1 {create-service} -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-service -n
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 {Error: Need a valid service type} \
+		 {Missing definition for argument 'vendor'}]
+
+test create-service-1.2 {create-service, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run create-service -n V N
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-service-1.3 {create-service, bogus service} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-service -n bogus
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 {[bogus] is not a valid service choice} \
+		 [unexpected input vendor service bogus {Run 'stackato service-plans' to see list of service plans and vendors (types)}]]
+
+set counter 0
+foreach vendor [services] {
+    test create-service-2.$counter.1 "create-service, $vendor, explicit name" -constraints cfv1 -setup {
+	stage-open
+	go-admin
+	go-non-admin
+    } -body {
+	run create-service $vendor test-service
+    } -cleanup {
+	run delete-service -n test-service
+	be-admin
+	remove-non-admin
+	stage-close
+    } -result {Creating new service ... OK}
+
+    test create-service-2.$counter.2 "create-service, $vendor, explicit name" -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	go-non-admin
+    } -body {
+	run create-service --plan free $vendor test-service
+    } -cleanup {
+	run delete-service -n test-service
+	be-admin
+	remove-non-admin
+	stage-close
+    } -result {Creating new service ... OK}
+
+    test create-service-3.$counter.1 "create-service, $vendor, automatic name" -constraints cfv1 -setup {
+	stage-open
+	go-admin
+	go-non-admin
+    } -body {
+	run create-service $vendor
+	regexp {\[([^]]*)\]} $stdout -> thename
+	set stdout
+    } -cleanup {
+	catch { run delete-service -n $thename }
+	be-admin
+	remove-non-admin
+	stage-close
+    } -match glob -result {Creating new service * ... OK}
+
+    test create-service-3.$counter.2 "create-service, $vendor, automatic name" -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	go-non-admin
+    } -body {
+	run create-service --plan free $vendor
+	regexp {\[([^]]*)\]} $stdout -> thename
+	set stdout
+    } -cleanup {
+	catch { run delete-service -n $thename }
+	be-admin
+	remove-non-admin
+	stage-close
+    } -match glob -result {Creating new service * ... OK}
+
+    incr counter
+}
+
+TODO service create - auto-binding to existing application
+TODO service create - service creation in groups
+TODO service create - dup service names
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

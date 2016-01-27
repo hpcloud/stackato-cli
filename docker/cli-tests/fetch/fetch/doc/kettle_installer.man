@@ -1,0 +1,116 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin kettle_install_guide n 1]
+[include include/general.inc]
+[titledesc {Kettle - The Installer's Guide}]
+[description]
+[include include/welcome.inc]
+
+[para] The audience of this document is anyone wishing to build the
+packages, for either themselves, or others.
+
+[para] For a developer intending to extend or modify the packages we
+additionally provide
+
+[list_begin enum]
+[enum] [term {Kettle - License}].
+[enum] [term {Kettle - The Developer's Guide}].
+[list_end]
+
+[para]
+
+Please read [term {Kettle - How To Get The Sources}] first, if that was
+not done already. Here we assume that the sources are already
+available in a directory of your choice.
+
+[para]
+
+[section Requisites]
+
+Before Kettle can be build and used a number of requisites must and/or
+should be installed. These are:
+
+[list_begin enumerated]
+[enum]	The scripting language Tcl.
+	This requisite is mandatory.
+	For details see [sectref Tcl].
+
+[enum]	The package [package tcltest].
+	This requisite is optional.
+	For details see [sectref tcltest].
+
+[enum]	The package [package Tclx].
+	This requisite is optional.
+	For details see [sectref Tclx].
+
+[enum]	The packages [package Tk], [package widget::scrolledwindow],
+	[package widget::listsimple], and [package widget::dialog].
+	These requisites are optional.
+	For details see [sectref Tk] and [sectref Tklib].
+
+[list_end]
+
+This list assumes that the machine where Kettle is to be installed is
+essentially clean. Of course, if parts of the dependencies listed
+below are already installed the associated steps can be skipped. It is
+still recommended to read their sections though, to validate that the
+dependencies they talk about are indeed installed.
+
+[include include/rq_tcl.inc]
+[include include/rq_tclx.inc]
+[include include/rq_tk.inc]
+[include include/rq_tklib.inc]
+[include include/rq_tcltest.inc]
+
+[section {Build & Installation}]
+
+To install Kettle simply run
+
+[example {
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl install
+}]
+
+where [file /path/to/tclsh8.5] is the tclsh of your Tcl installation, and
+[file /path/to/kettle] the location of the Kettle sources on your system.
+
+[para]
+
+This will build the package and application and then places them into
+directories where the [cmd tclsh8.5] will find them. Note that the
+installed kettle application is modified to use the chosen tclsh
+instead of searching for one on the [var PATH].
+
+[para]
+
+On Windows you can invoke the file [file build.tcl] with a
+double-click.  This will pop up a small graphical interface for
+entering the destination and performing the installation. This
+handling of a double-click is restricted to Windows only however.
+
+[para]
+
+On unix the same GUI is acessible by invoking [file build.tcl] using
+[const gui] instead of [const install] in the example above.
+
+[para]
+
+To get help about the methods of [file build.tcl], and their complete
+syntax, invoke [file build.tcl] with argument [method help], i.e., like
+
+[example {
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl help
+}]
+
+Other methods for gfetting various types of help are:
+
+[list_begin enumerated]
+[enum] help-recipes
+[enum] help-options
+[enum] help
+[enum] list-recipes
+[enum] list-options
+[enum] list
+[enum] show-configuration
+[list_end]
+
+[include include/feedback.inc]
+[manpage_end]

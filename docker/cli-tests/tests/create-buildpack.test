@@ -1,0 +1,162 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## create-buildpack
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-buildpack-1.0 {create-buildpack, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-buildpack -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test create-buildpack-1.1 {create-buildpack, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-buildpack -n N
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test create-buildpack-1.2 {create-buildpack, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-buildpack -n N Z X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+
+test create-buildpack-1.3.0 {create-buildpack, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test create-buildpack-1.3.1 {create-buildpack, not allowed for S3.2 or less} -constraints s32le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.3 or later.}
+
+test create-buildpack-1.4 {create-buildpack, login required} -constraints s34ge -setup {
+    stage-open
+    ref-target
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-buildpack-1.5 {create-buildpack, non-admin login} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test create-buildpack-1.6 {create-buildpack, persists} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+    run buildpacks
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -match glob -result "*| * | clitestbuildpack | bp-empty.zip *| yes *| no *|*"
+
+test create-buildpack-1.7 {create-buildpack, duplicate buildpacks} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -returnCodes error -result [already input name {A buildpack} clitestbuildpack]
+
+test create-buildpack-1.8 {create-buildpack --disable, persists} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --disable
+    run buildpacks
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -match glob -result "*| * | clitestbuildpack | bp-empty.zip *| no *| no *|*"
+
+test create-buildpack-1.9 {create-buildpack --lock, persists} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --lock
+    run buildpacks
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -match glob -result "*| * | clitestbuildpack | bp-empty.zip *| yes *| yes *|*"
+
+test create-buildpack-1.10 {create-buildpack --enable/--disable conflict} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --disable --enable
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "--enable" together with "--disable".}
+
+test create-buildpack-1.11 {create-buildpack --lock/--unlock conflict} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --lock --unlock
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "--unlock" together with "--lock".}
+
+test create-buildpack-1.12 {create-buildpack --position, persists} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip --position 1
+    run buildpacks
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -match glob -result "*| 1 *| clitestbuildpack | bp-empty.zip *| yes *| no *|*"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

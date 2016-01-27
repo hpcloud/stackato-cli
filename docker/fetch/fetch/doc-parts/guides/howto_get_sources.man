@@ -1,0 +1,30 @@
+[include parts/definitions.inc]
+[manpage_begin [vset PROJECT]_howto_get_sources [vset MAN_SECTION] [vset VERSION]]
+[include parts/module.inc]
+[titledesc [vset TITLE_SOURCES]]
+[description]
+[include parts/welcome.inc]
+
+[para]
+
+The audience of this document are anyone wishing to either have just a
+look at [vset PTITLE]'s sources, or to build the project, or to extend
+and modify it. The list of [sectref {Related Documents}] provides
+references to information for the latter two.
+
+[section Location]
+
+The official repository of the project is at [uri [vset REPOSITORY]].
+
+[comment { -- @EDIT Please edit to suit for alternate repository locations.}]
+
+[section Retrieval]
+[include parts/retrieve.inc]
+
+[section {Source Code Management}]
+[include parts/scm.inc]
+
+[include parts/related.inc]
+[include parts/feedback.inc]
+[manpage_end]
+

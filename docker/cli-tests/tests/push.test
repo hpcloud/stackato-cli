@@ -1,0 +1,216 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## push
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test push-1.0 {push, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run push A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test push-1.1.1 {push, empty application} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run push -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result \
+    {Error: The framework \[standalone\] needs a non-empty start command.*Please add a "command" key to your stackato.yml}
+
+test push-1.1.2.0 {push, empty application} -constraints s34le -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run push -n }
+} -cleanup {
+    # Failed to stage still means that the app was created.
+    catch { remove-test-app appdir }
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: Application failed to stage: Staging error: cannot get instances since staging failed (400)}
+
+test push-1.1.2.1 {push, empty application} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run push -n }
+} -cleanup {
+    # Failed to stage still means that the app was created.
+    catch { remove-test-app appdir }
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 170003: An app was not successfully detected by any available buildpack (400)}
+
+# # ## ### ##### ######## ############# #####################
+
+TODO push --no-create, --target, --token, --group, --tail
+TODO push --manifest, --path, --no-start, --instances
+TODO push --runtime, --url, --no-framework, --mem, -d
+TODO push --stackato-debug, --env, --copy-unsafe-links,
+TODO push --no-resources
+
+foreach {n cons excode label theapp} {
+     0 {}   ok    plain                                 a.original.node-env
+     1 {}   ok    {application in subdirectory}         appdir
+     2 {}   ok    {env variables}                       env
+     3 {}   ok    {env vars via manifest.yml}           env-manifest.yml
+     4 {}   ok    {staging/run hooks}                   hooks
+     5 {}   ok    {num instances -1}                    instances-1
+     6 {}   ok    {num instances 0}                     instances0
+     7 {}   ok    {num instances 2}                     instances2
+     8 {}   error {min client version check fail}       minclient-bad
+     9 {}   ok    {min client version check ok}         minclient-ok
+    10 {}   error {min server version check fail}       minserver-bad
+    11 {}   ok    {min server version check ok}         minserver-ok
+    12 {}   ok    {install required packages}           requirements
+    13 knownBug   ok    {install package already present}     requirements-already
+    14 {}   error {install unknown package}             requirements-bad
+    15 {}   ok    {url mapping}                         urls
+    23 {}   ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
+    25 {}   ok    {host/domain urls}                    hostdomain
+    30 cfv1 error {unsupported framework}               unframework
+} {
+    set appdir   [example  $theapp]
+    set expected [string map [list @BASE@ [thebase]] [result $theapp]]
+
+    test push-2.$n "push, $label" -constraints $cons -setup {
+	stage-open
+	go-admin
+    } -body {
+	indir $appdir { run push -n }
+    } -cleanup {
+	catch { remove-test-app node-env }
+	stage-close
+    } -returnCodes $excode -match glob -result $expected
+}
+
+test push-2.16 "push, memory -1" -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example memory-1] {
+	catch {
+	    # The minimum forced memory of 20M is not enough, staging
+	    # fails. But the client part we are testing is good.
+	    run push -n
+	}
+    }
+    set stdout
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [string map [list @BASE@ [thebase]] [result memory-1]]
+
+test push-2.17 "push, memory 0" -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example memory0] {
+	catch {
+	    # The minimum forced memory of 20M is not enough, staging
+	    # fails. But the client part we are testing is good.
+	    run push -n
+	}
+    }
+    set stdout
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [string map [list @BASE@ [thebase]] [result memory0]]
+
+foreach {n excode label theapp} {
+    18 ok    {multi app, dependencies}             multi-depends-on
+    19 ok    {multi app, manifest inclusion}       multi-inherit
+    20 ok    {multi app CF manifest}               multi-manifest.yml
+    21 ok    {multi app CF manifest, stackato.yml} multi-stackato.yml-m
+    22 ok    {multi app Stackato}                  multi-stackato.yml-s
+    24 ok    {multi app, dependencies, v2}         multi-depends-on-v2
+} {
+    set appdir   [example  $theapp]
+    set expected [string map [list @BASE@ [thebase]] [result $theapp]]
+
+    test push-2.$n "push, $label" -setup {
+	stage-open
+	go-admin
+    } -body {
+	indir $appdir { run push -n }
+    } -cleanup {
+	catch { remove-test-app node-env1 }
+	catch { remove-test-app node-env2 }
+	stage-close
+    } -returnCodes $excode -match glob -result $expected
+}
+
+TODO push - examples of all possible manifest errors.
+
+foreach {n label theapp expected} {
+    0 {bad hook command syntax} hooks-syntax {Manifest validation error: Expected a yaml scalar for element of sequence key "hooks:pre-running", got a mapping}
+} {
+    set appdir [example  $theapp]
+
+    test push-3.$n "push, manifest error: $label" -setup {
+	stage-open
+	go-admin
+    } -body {
+	indir $appdir { run push -n }
+    } -cleanup {
+	catch { remove-test-app node-env }
+	stage-close
+    } -returnCodes error -match glob -result $expected
+
+}
+
+# # ## ### ##### ######## ############# #####################
+
+test push-4.0-bug99298 "push, plain with --url mapping, bug 99298" -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example a.original.node-env] {
+	run push -n --url e1.[thebase]
+    }
+} -cleanup {
+    catch { remove-test-app node-env }
+    stage-close
+} -match glob -result [map [result a.original.node-env] \
+			   node-env.@BASE@ e1.[thebase] \
+			   @BASE@          [thebase]]
+
+test push-4.1-bug103446 "push, shared services between multiple apps, bug 103446" -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [example shared-multi] {
+	run push -n --no-start
+    }
+} -cleanup {
+    catch { remove-test-app node-env   }
+    catch { remove-test-app node-env-2 }
+    run delete-service -n shared
+    stage-close
+} -match glob -result [map [result shared-multi] \
+			   @BASE@  [thebase] \
+			   @ORG@   [theorg] \
+			   @SPACE@ [thespace]]
+
+
+TODO push with - services + services (Note: Delete services with app! -n --force)
+TODO push with - ignores-empty + ignores (empty list, nothing ignored)
+TODO push with - ignores-other + ignores (.git/, *LOG)
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

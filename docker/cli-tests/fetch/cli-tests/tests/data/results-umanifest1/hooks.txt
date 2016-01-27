@@ -1,0 +1,15 @@
+Using manifest file "@YML@"
+applications:
+  .:
+    command: node app.js
+    memory: 256M
+    name: node-env
+    stackato:
+      hooks:
+        pre-staging:
+        - echo STAGE HANDS CALLED UP
+        post-staging:
+        - echo STAGE READY
+        pre-running:
+        - echo RUNNER UP
+

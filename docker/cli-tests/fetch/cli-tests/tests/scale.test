@@ -1,0 +1,412 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## scale
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test scale-mem-1.2 {mem, bogus mem value} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run scale --mem A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected a memory specification for option "--mem", got "A"}
+
+test scale-mem-1.6 {mem, plain number, megabyte} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem 23
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Memory Reservation ?TEST? to 23M ... 
+Committing changes ...*}
+
+test scale-mem-1.7 {mem, megabyte suffix} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem 23M
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Memory Reservation ?TEST? to 23M ... 
+Committing changes ...*}
+
+test scale-mem-1.8 {mem, gigabyte suffix} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem 0.5G
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Memory Reservation ?TEST? to 512M ... 
+Committing changes ...*}
+
+test scale-mem-1.9 {mem, too small} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem 5
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Memory Reservation ?TEST? to 5M ... 
+Committing changes ...*}
+
+test scale-mem-1.10.1 {mem, below zero} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem -3
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -result {Updating Memory Reservation [TEST] to -3M ... 
+Committing changes ...}
+
+test scale-mem-1.10.2 {mem, below zero} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --mem -3
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 100006: You have specified an invalid amount of memory for your application.}
+
+# # ## ### ##### ######## ############# #####################
+
+test scale-mem-2.0 {mem, scale up, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    # Default is 256
+    run scale node-env -n --mem 260
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Memory Reservation ?node-env? to 260M ... 
+Committing changes ... 
+*stackato?cloud_controller_ng?: Updated app 'node-env' -- ??memory?=>260*}
+
+test scale-mem-2.1 {mem, scale down, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    # Default is 256
+    run scale node-env -n --mem 250
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Memory Reservation ?node-env? to 250M ... 
+Committing changes ... 
+*stackato?cloud_controller_ng?: Updated app 'node-env' -- ??memory?=>250*}
+
+test scale-mem-2.2 {mem, scale up, stopped app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n --no-start }
+} -body {
+    # Default is 256
+    run scale node-env -n --mem 260
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Memory Reservation ?node-env? to 260M ... 
+Committing changes ...*}
+
+test scale-mem-2.3 {mem, scale down, stopped app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n --no-start }
+} -body {
+    # Default is 256
+    run scale node-env -n --mem 250
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Memory Reservation ?node-env? to 250M ... 
+Committing changes ...*}
+
+# # ## ### ##### ######## ############# #####################
+
+test scale-disk-1.2 {disk, bogus disk value} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run scale --disk A }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected a memory specification for option "--disk", got "A"}
+
+test scale-disk-1.6 {disk, plain number, megabyte} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --disk 23
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Disk Reservation ?TEST? to 23M ... 
+Committing changes ...*}
+
+test scale-disk-1.7 {disk, megabyte suffix} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --disk 23M
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Disk Reservation ?TEST? to 23M ... 
+Committing changes ...*}
+
+test scale-disk-1.8 {disk, gigabyte suffix} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --disk 0.5G
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Disk Reservation ?TEST? to 512M ... 
+Committing changes ...*}
+
+test scale-disk-1.9 {disk, too small} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --disk 5
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Disk Reservation ?TEST? to 5M ... 
+Committing changes ...*}
+
+test scale-disk-1.10 {disk, below zero} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --disk -3
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Updating Disk Reservation ?TEST? to -3M ... 
+Committing changes ...*}
+
+# # ## ### ##### ######## ############# #####################
+
+test scale-disk-2.0 {disk, scale up, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    # Default is 256
+    run scale node-env -n --disk 260
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Disk Reservation ?node-env? to 260M ... 
+Committing changes ...*}
+
+test scale-disk-2.1 {disk, scale down, running app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n }
+} -body {
+    # Default is 256
+    run scale node-env -n --disk 250
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Disk Reservation ?node-env? to 250M ... 
+Committing changes ...*}
+
+test scale-disk-2.2 {disk, scale up, stopped app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n --no-start }
+} -body {
+    # Default is 256
+    run scale node-env -n --disk 260
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Disk Reservation ?node-env? to 260M ... 
+Committing changes ...*}
+
+test scale-disk-2.3 {disk, scale down, stopped app} -setup {
+    stage-open
+    go-admin
+    indir [example a.original.node-env] { run push -n --no-start }
+} -body {
+    # Default is 256
+    run scale node-env -n --disk 250
+} -cleanup {
+    run delete node-env
+    stage-close
+} -match glob -result {Updating Disk Reservation ?node-env? to 250M ... 
+Committing changes ...*}
+
+# # ## ### ##### ######## ############# #####################
+
+test scale-instances-1.2 {instances, bogus scale value} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run scale --instances X }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Expected an integer for option "--instances", got "X"}
+
+test scale-instances-1.7 {instances, scale absolute} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --instances 6
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Scaling Application instances up to 6 ...
+Committing changes ...*}
+
+test scale-instances-1.8 {instances, scale absolute, persist} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+} -body {
+    run scale TEST -n --instances 6
+    run apps
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| TEST *| 6 *| STOPPED *| * | * |*}
+
+test scale-instances-1.9 {instances, scale relative up} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 1
+} -body {
+    run scale TEST -n --instances +6
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Scaling Application instances up to 7 ...
+Committing changes ...*}
+
+test scale-instances-1.10 {instances, scale relative up, persist} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 1
+} -body {
+    run scale TEST -n --instances +6
+    run apps
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| TEST *| 7 *| STOPPED *| * | * |*}
+
+test scale-instances-1.11 {instances, scale relative down} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 7
+} -body {
+    run scale TEST -n --instances -3
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {Scaling Application instances down to 4 ...
+Committing changes ...*}
+
+test scale-instances-1.12 {instances, scale relative down, persist} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 7
+} -body {
+    run scale TEST -n --instances -3
+    run apps
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| TEST *| 4 *| STOPPED *| * | * |*}
+
+test scale-instances-1.13 {instances, scale relative down to zero} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 7
+} -body {
+    run scale TEST -n --instances -7
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: There must be at least 1 instance.}
+
+test scale-instances-1.14 {instances, scale relative down below zero} -setup {
+    stage-open
+    go-admin
+    indir [appdir] { run create-app -n TEST }
+    run scale TEST -n --instances 7
+} -body {
+    run scale TEST -n --instances -10
+} -cleanup {
+    run delete TEST
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: There must be at least 1 instance.}
+
+# todo: actual scaling with a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,6 @@
+Domains@Space: * -> @org@ -> @space@
++-*-+-*-+-*-+
+| Name *| Owner | Shared |
++-*-+-*-+-*-+*
+| @domain@ *|       | \*      |*
++-*-+-*-+-*-+

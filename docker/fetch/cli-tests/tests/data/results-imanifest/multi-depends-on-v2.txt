@@ -1,0 +1,15 @@
+Using manifest file "@YML@"
+applications:
+  node-env1:
+    command: node app.js
+    depends-on:
+    - node-env2
+    memory: 256M
+    name: node-env1
+    path: @APPDIR@/n1
+  node-env2:
+    command: node app.js
+    memory: 256M
+    name: node-env2
+    path: @APPDIR@/n2
+

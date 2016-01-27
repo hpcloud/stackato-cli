@@ -1,0 +1,7 @@
+framework:
+  name: node
+processes:
+  web: ~
+command: node app.js
+name: node-env
+mem: 256M

@@ -1,0 +1,1 @@
+/usr/bin/ssh -t -2 -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null stackato@@target@ "echo Uploading... ; mkdir -p \"$HOME/patches\" ; echo 'IyEvYmluL3NoCmVjaG8gVGhpcyBpcyBub3QgYSBwYXRjaCwganVzdCBhIHRlc3QuCmV4aXQgMAo=' | base64 -d - > \"$HOME/patches/patch.sh\" ; chmod u+x \"$HOME/patches/patch.sh\" ; echo Applying... ; \"$HOME/patches/patch.sh\""

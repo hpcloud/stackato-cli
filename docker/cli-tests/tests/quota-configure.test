@@ -1,0 +1,158 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## quota configure
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test quota-configure-1.0 {quota configure, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run quota configure Q X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test quota-configure-1.1 {quota configure, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota configure -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test quota-configure-1.2 {quota requires CFv2 API} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota configure -n Q
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test quota-configure-1.3 {quota configure, not logged in} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run quota configure testquota
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test quota-configure-1.4 {quota configure, non-admin login} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+    go-non-admin
+} -body {
+    run quota configure -n testquota --allow-sudo
+} -cleanup {
+    go-admin
+    run quota delete -n testquota
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test quota-configure-1.5 {quota configure, unknown quota} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run quota configure -n testquota
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name {quota plan} testquota {Run 'stackato quotas' to see list of quota plans}]
+
+test quota-configure-1.6.0 {quota configure, 3.2-} -constraints s32le -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--trial-db-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [viewFile data/qc16conf.txt]
+
+test quota-configure-1.6.1 {quota configure, 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [viewFile data/qc161conf.txt]
+
+test quota-configure-1.7.0 {quota configure, persists, 3.2-} -constraints s32le -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--trial-db-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+    run quota show testquota
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [map [viewFile data/qc17.txt] \
+			   @target@ [thetarget]]
+
+test quota-configure-1.7.1 {quota configure, persists, 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota \
+	--allow-sudo \
+	--paid-services-allowed \
+	--routes 400 \
+	--services 300 \
+	--mem 200
+    run quota show testquota
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -match glob -result [map [viewFile data/qc171.txt] \
+			   @target@ [thetarget]]
+
+
+test quota-configure-1.8 {quota configure --trial-db-allowed, disallowed for 3.4+} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run quota create testquota
+} -body {
+    run quota configure -n testquota --trial-db-allowed
+} -cleanup {
+    run quota delete -n testquota
+    stage-close
+} -returnCodes error \
+    -result {Error: The option --trial-db-allowed requires a target with version 3.2 or earlier.}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

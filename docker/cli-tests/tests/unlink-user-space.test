@@ -1,0 +1,111 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## link-user-space <user> [org]
+## --auditor --manager --developer
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test unlink-user-space-1.0 {unlink-user-space, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-space -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test unlink-user-space-1.1 {unlink-user-space, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-space U O X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test unlink-user-space-1.2 {unlink-user-space, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run unlink-user-space [thespace]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test unlink-user-space-1.3 {unlink-user-space, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run unlink-user-space [theuser] [thespace]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test unlink-user-space-1.4 {unlink-user-space, non-admin login is ok (org manager)} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space -n [thespace]-2 --no-activate
+    go-non-admin
+} -body {
+    run unlink-user-space [theuser] [thespace]-2
+} -cleanup {
+    be-admin
+    run delete-space -n [thespace]-2
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {You are not permitted to access this resource. (403)}
+#[unexpected input user {A user} [theuser] " in space '[thespace]-2'"]
+
+test unlink-user-space-1.5 {unlink-user-space, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space -n [thespace]-2 --no-activate
+    make-non-admin
+    run link-user-space [theuser] [thespace]-2
+} -body {
+    run unlink-user-space [theuser] [thespace]-2
+    run users --mode related
+} -cleanup {
+    remove-non-admin
+    run delete-space -n [thespace]-2
+    stage-close
+} -match anti-glob -result "* [theuser] *|* [theorg]::[thespace]-2 *|*"
+
+foreach {n bits options} {
+    0 A-D --manager
+    1 A-- {--manager --developer}
+    2 -MD --auditor
+    3 AM- --developer
+    4 -M- {--auditor --developer}
+    5 --D {--manager --auditor}
+} {
+    test unlink-user-space-1.6.$n "unlink-user-space $options " -constraints cfv2 -setup {
+	stage-open
+	go-admin
+	run create-space -n [thespace]-2 --no-activate
+	make-non-admin
+	run link-user-space [theuser] [thespace]-2 --auditor --manager --developer
+    } -body {
+	run unlink-user-space [theuser] [thespace]-2 {*}$options
+	run users --mode related
+    } -cleanup {
+	remove-non-admin
+	run delete-space -n [thespace]-2
+	stage-close
+    } -match glob -result "* [theuser] *| $bits [theorg]::[thespace]-2 *|*"
+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

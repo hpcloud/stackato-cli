@@ -1,0 +1,19 @@
+{
+    "entity"   : {
+        "name"            : "@sg@",
+        "rules"           : \[{
+            "destination" : "127.0.0.1",
+            "ports"       : "5-8",
+            "protocol"    : "tcp"
+        }\],
+        "running_default" : false,
+        "spaces_url"      : "/v2/security_groups/*/spaces",
+        "staging_default" : false
+    },
+    "metadata" : {
+        "created_at" : "*-*-*T*:*:*",
+        "guid"       : "*",
+        "updated_at" : "null",
+        "url"        : "/v2/security_groups/*"
+    }
+}

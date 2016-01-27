@@ -1,0 +1,191 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, group querying (listing users)
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test groups-users-1.0 {groups users, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run groups users G X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test groups-users-1.1 {groups users, wrong args, not enough} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups users
+} -cleanup {
+    stage-close
+} -returnCodes error -result "Error: Need a valid group name"
+
+test groups-users-1.2 {groups users, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run groups users G
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test groups-users-1.3 {groups users, admin login required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run groups users G
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 100: Bad request (400)}
+
+test groups-users-1.4 {groups users, bogus group} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups users bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error 100: Bad request (400)}
+
+test groups-users-1.5 {groups users, nothing} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups users test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {No Users}
+
+test groups-users-1.6 {groups users, nothing, json} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups users test-group --json
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {[]}
+
+test groups-users-1.7 {groups users, with users} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user        grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+} -body {
+    run groups users test-group
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user        grouper@test
+    stage-close
+} -result {+--------------+
+| Member       |
++--------------+
+| grouper@test |
++--------------+}
+
+test groups-users-1.8 {groups users, with users, json} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user        grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+} -body {
+    run groups users test-group --json
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user        grouper@test
+    stage-close
+} -result {["grouper@test"]}
+
+# # ## ### ##### ######## ############# #####################
+## Implied group, through current group
+
+test groups-users-1.9 {groups users, current group, nothing} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group         test-group
+} -body {
+    run groups users
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {No Users}
+
+test groups-users-1.10 {groups users, current group, nothing, json} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group         test-group
+} -body {
+    run groups users --json
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {[]}
+
+test groups-users-1.11 {groups users, current group, with users} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user        grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+    run group           test-group
+} -body {
+    run groups users
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user        grouper@test
+    stage-close
+} -result {+--------------+
+| Member       |
++--------------+
+| grouper@test |
++--------------+}
+
+test groups-users-1.12 {groups users, current group, with users, json} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user        grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+    run group           test-group
+} -body {
+    run groups users --json
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user        grouper@test
+    stage-close
+} -result {["grouper@test"]}
+
+test groups-users-2.0 {groups users, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups users
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

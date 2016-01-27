@@ -1,0 +1,405 @@
+
+<html><head>
+<title>kettle_install_guide - Kettle - The Quick Brew System</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/www/doc/files/kettle_installer.html' by tcllib/doctools with format 'html'
+   -->
+<! -- CVS: $Id$ kettle_install_guide.n
+   -->
+<body><div class="doctools">
+<hr> [
+   <a href="../../../../../../home">Home</a>
+| <a href="../../toc.html">Main Table Of Contents</a>
+| <a href="../toc.html">Table Of Contents</a>
+| <a href="../../index.html">Keyword Index</a>
+ ] <hr>
+<h1 class="title">kettle_install_guide(n) 1 doc &quot;Kettle - The Quick Brew System&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>kettle_install_guide - Kettle - The Installer's Guide</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">Requisites</a>
+<ul>
+<li class="subsection"><a href="#subsection1">Tcl</a></li>
+<li class="subsection"><a href="#subsection2">Tclx</a></li>
+<li class="subsection"><a href="#subsection3">Tk</a></li>
+<li class="subsection"><a href="#subsection4">Tklib</a></li>
+<li class="subsection"><a href="#subsection5">tcltest</a></li>
+</ul>
+</li>
+<li class="section"><a href="#section3">Build &amp; Installation</a></li>
+<li class="section"><a href="#section4">Bugs, Ideas, Feedback</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#category">Category</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.</p>
+<p>Please read the document <i class="term"><a href="kettle_intro.html">Kettle - Introduction to Kettle</a></i>,
+if you have not done so already, to get an overview of the whole system.</p>
+<p>The audience of this document is anyone wishing to build the
+packages, for either themselves, or others.</p>
+<p>For a developer intending to extend or modify the packages we
+additionally provide</p>
+<ol class="enumerated">
+<li><p><i class="term"><a href="kettle_license.html">Kettle - License</a></i>.</p></li>
+<li><p><i class="term"><a href="kettle_devguide.html">Kettle - The Developer's Guide</a></i>.</p></li>
+</ol>
+<p>Please read <i class="term"><a href="kettle_sources.html">Kettle - How To Get The Sources</a></i> first, if that was
+not done already. Here we assume that the sources are already
+available in a directory of your choice.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">Requisites</a></h2>
+<p>Before Kettle can be build and used a number of requisites must and/or
+should be installed. These are:</p>
+<ol class="enumerated">
+<li><p>The scripting language Tcl.
+	This requisite is mandatory.
+	For details see <span class="sectref"><a href="#subsection1">Tcl</a></span>.</p></li>
+<li><p>The package <b class="package">tcltest</b>.
+	This requisite is optional.
+	For details see <span class="sectref"><a href="#subsection5">tcltest</a></span>.</p></li>
+<li><p>The package <b class="package">Tclx</b>.
+	This requisite is optional.
+	For details see <span class="sectref"><a href="#subsection2">Tclx</a></span>.</p></li>
+<li><p>The packages <b class="package">Tk</b>, <b class="package">widget::scrolledwindow</b>,
+	<b class="package">widget::listsimple</b>, and <b class="package">widget::dialog</b>.
+	These requisites are optional.
+	For details see <span class="sectref"><a href="#subsection3">Tk</a></span> and <span class="sectref"><a href="#subsection4">Tklib</a></span>.</p></li>
+</ol>
+<p>This list assumes that the machine where Kettle is to be installed is
+essentially clean. Of course, if parts of the dependencies listed
+below are already installed the associated steps can be skipped. It is
+still recommended to read their sections though, to validate that the
+dependencies they talk about are indeed installed.</p>
+<div id="subsection1" class="subsection"><h3><a name="subsection1">Tcl</a></h3>
+<p>As we are building a Tcl package and application it should be pretty
+much obvious that a working installation of Tcl itself is needed, and
+I will not belabor the point.</p>
+<p>Out of the many possibilites use whatever you are comfortable
+with, as long as it provides Tcl 8.5, or higher.
+This may be a Tcl installation provided by your operating system
+distribution, from a distribution-independent vendor, or built by
+yourself.</p>
+<p>Myself, I used (and still use)
+<a href="http://www.activestate.com">ActiveState's</a>
+ActiveTcl 8.5 distribution during development, as I am most familiar
+with it.</p>
+<p><em>(Disclosure: I, Andreas Kupries, work for ActiveState, maintaining ActiveTcl and TclDevKit for them).</em></p>
+<p>This distribution can be found at
+<a href="http://www.activestate.com/activetcl">http://www.activestate.com/activetcl</a>. Retrieve the archive of
+ActiveTcl 8.5 for your platform and install it as directed by
+ActiveState.</p>
+<p>Assuming that ActiveTcl got installed I usually run the command</p>
+<pre class="example">
+    teacup update
+</pre>
+<p>to install all packages ActiveState provides, and the kitchensink, as
+the distribution itself usually contains only the most important set
+of packages. This ensures that the dependencies for Kettle are all
+present, and more.</p>
+<p>If that is not your liking you have to read the other sections
+about Kettle's dependencies to determine the exact set of packages
+required, and install only these using</p>
+<pre class="example">
+    teacup install $packagename
+</pre>
+<p>Both <b class="syscmd">teacup</b> commands above assume that ActiveState's
+TEApot repository at <a href="http://teapot.activestate.com">http://teapot.activestate.com</a> is in the
+list of repositories accessible to <b class="syscmd">teacup</b>. This is automatically
+ensured for the ActiveTcl distribution. Others may have to run</p>
+<pre class="example">
+    teacup archive add http://teapot.activestate.com
+</pre>
+<p>to make this happen.</p>
+<p>For those wishing to build and install Tcl on their own, the
+relevant sources can be found at</p>
+<dl class="definitions">
+<dt>Tcl</dt>
+<dd><p><a href="http://core.tcl.tk/tcl/">http://core.tcl.tk/tcl/</a></p></dd>
+</dl>
+<p>together with the necessary instructions on how to build it.</p>
+<p>If there are problems with building, installing, or using Tcl
+please file a bug against Tcl, or the vendor of your distribution, and
+not Kettle.</p>
+</div>
+<div id="subsection2" class="subsection"><h3><a name="subsection2">Tclx</a></h3>
+<p>The <b class="package">Tclx</b> package is an optional requisite of Kettle.
+If it is not installed/available to Kettle it will continue to work,
+with features depending on Tclx disabled.</p>
+<p>The only feature using <b class="package">Tclx</b> is the colorization of
+output, or rather, the code determining if Kettle should produce
+colorized output by default, or not.</p>
+<p>Without <b class="package">Tclx</b> kettle will (on unix platforms) always
+produce colorized output by default. With <b class="package">Tclx</b> available
+kettle will use it to check if <b class="const">stdout</b> is connected to a proper
+terminal and disable colorized output by default if not.</p>
+<p>Now that enough information is available to decide whether Tclx
+should be used in your environment or not, the information on how to
+get the package.</p>
+<p>Out of the many possibilites for getting Tclx (OS vendor,
+os-independent vendor, building from sources) use whatever you are
+comfortable with.</p>
+<p>For myself, I am most comfortable with using
+<a href="http://www.activestate.com">ActiveState's</a>
+ActiveTcl distribution and TEApot.</p>
+<p>See the previous section (<span class="sectref"><a href="#subsection1">Tcl</a></span>) for disclosure and
+information on how to get it.</p>
+<p>Assuming that ActiveTcl got installed running the command</p>
+<pre class="example">
+    teacup install Tclx
+</pre>
+<p>will install Tclx for your platform, if you have not done the more inclusive</p>
+<pre class="example">
+    teacup update
+</pre>
+<p>to get everything and the kitchensink.</p>
+<p>For those wishing to build and install Tclx on their own, the
+relevant sources can be found at</p>
+<dl class="definitions">
+<dt>Tclx</dt>
+<dd><p><a href="http://sourceforge.net/projects/tclx">http://sourceforge.net/projects/tclx</a></p></dd>
+</dl>
+<p>together with the necessary instructions on how to build it.</p>
+<p>If there are problems with building, installing, or using Tclx
+please file a bug against Tclx, or the vendor of your distribution,
+and not Kettle.</p>
+</div>
+<div id="subsection3" class="subsection"><h3><a name="subsection3">Tk</a></h3>
+<p>Kettle's &quot;gui&quot; recipe requires Tk, obviously, and three packages found
+in Tklib (see next section). If Tk or the other packages are not
+installed the &quot;gui&quot; recipe cannot be used, and attempting to do so
+will fail.</p>
+<p>Beyond that however the rest of Kettle will be fully
+functional.</p>
+<p>Out of the many possibilites for getting Tk use whatever you
+are comfortable with, as long as it provides Tk 8.5, or higher (we use
+the themed widgets, and Tcl 8.5 is our base).
+This may be a Tk package provided by your operating system
+distribution, from a distribution-independent vendor, or built by
+yourself.</p>
+<p>Myself, I used (and still use)
+<a href="http://www.activestate.com">ActiveState's</a>
+ActiveTcl 8.5 distribution during development, as I am most familiar
+with it.</p>
+<p>See the previous section (<span class="sectref"><a href="#subsection1">Tcl</a></span>) for disclosure and
+information on how to get it.</p>
+<p>Assuming that ActiveTcl got installed Tk will be installed as
+well.</p>
+<p>For or those wishing to build and install Tk on their own, the
+relevant sources can be found at</p>
+<dl class="definitions">
+<dt>Tk</dt>
+<dd><p><a href="http://core.tcl.tk/tk/">http://core.tcl.tk/tk/</a></p></dd>
+</dl>
+<p>together with the necessary instructions on how to build it.</p>
+<p>If there are problems with building, installing, or using Tk
+please file a bug against Tk, or the vendor of your distribution, and
+not Kettle.</p>
+</div>
+<div id="subsection4" class="subsection"><h3><a name="subsection4">Tklib</a></h3>
+<p>Kettle's &quot;gui&quot; recipe requires the following three packages found in
+Tklib. If Tk or these packages are not installed the &quot;gui&quot; recipe
+cannot be used, and attempting to do so will fail.</p>
+<ol class="enumerated">
+<li><p><b class="package">widget::scrolledwindow</b></p></li>
+<li><p><b class="package">widget::listsimple</b></p></li>
+<li><p><b class="package">widget::dialog</b></p></li>
+</ol>
+<p>Beyond that however the rest of Kettle will be fully
+functional.</p>
+<p>Out of the many possibilites for getting Tclx (OS vendor,
+os-independent vendor, building from sources) use whatever you are
+comfortable with.
+Well, mostly. The package <b class="package">widget::listsimple</b> currently
+exists only in the CVS repository of Tklib (location at the end of the
+section), and in ActiveState's TEApot.</p>
+<p>For myself, I am most comfortable with using
+<a href="http://www.activestate.com">ActiveState's</a>
+ActiveTcl distribution and TEApot.</p>
+<p>See the previous section (<span class="sectref"><a href="#subsection1">Tcl</a></span>) for disclosure and
+information on how to get it.</p>
+<p>Assuming that ActiveTcl got installed running the commands</p>
+<pre class="example">
+    teacup install widget::scrolledwindow
+    teacup install widget::listsimple
+    teacup install widget::dialog
+</pre>
+<p>will install them for your platform, if you have not done the more
+inclusive</p>
+<pre class="example">
+    teacup update
+</pre>
+<p>to get everything and the kitchensink.</p>
+<p>For those wishing to build and install Tklib on their own, the
+relevant sources can be found at</p>
+<dl class="definitions">
+<dt>Tcllib/Tklib</dt>
+<dd><p><a href="http://sourceforge.net/projects/tcllib">http://sourceforge.net/projects/tcllib</a></p></dd>
+</dl>
+<p>together with the necessary instructions on how to build it.</p>
+<p>If there are problems with building, installing, or using Tklib
+and its packages please file a bug against Tklib, or the vendor of
+your distribution, and not Kettle.</p>
+</div>
+<div id="subsection5" class="subsection"><h3><a name="subsection5">tcltest</a></h3>
+<p>Kettle's &quot;test&quot; recipe requires the <b class="package">tcltest</b> package.  If
+this package is not installed the &quot;test&quot; recipe cannot be used, and
+attempting to do so will fail.</p>
+<p>Note however that the sources of tcltest come with a source
+distribution of Tcl and the package should always be installed
+together with Tcl itself.</p>
+<p>If there are problems with using tcltest please file a bug
+against Tcl, or the vendor of your Tcl distribution, and not Kettle.</p>
+</div>
+</div>
+<div id="section3" class="section"><h2><a name="section3">Build &amp; Installation</a></h2>
+<p>To install Kettle simply run</p>
+<pre class="example">
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl install
+</pre>
+<p>where &quot;<b class="file">/path/to/tclsh8.5</b>&quot; is the tclsh of your Tcl installation, and
+&quot;<b class="file">/path/to/kettle</b>&quot; the location of the Kettle sources on your system.</p>
+<p>This will build the package and application and then places them into
+directories where the <b class="cmd">tclsh8.5</b> will find them. Note that the
+installed kettle application is modified to use the chosen tclsh
+instead of searching for one on the <b class="variable">PATH</b>.</p>
+<p>On Windows you can invoke the file &quot;<b class="file">build.tcl</b>&quot; with a
+double-click.  This will pop up a small graphical interface for
+entering the destination and performing the installation. This
+handling of a double-click is restricted to Windows only however.</p>
+<p>On unix the same GUI is acessible by invoking &quot;<b class="file">build.tcl</b>&quot; using
+<b class="const">gui</b> instead of <b class="const">install</b> in the example above.</p>
+<p>To get help about the methods of &quot;<b class="file">build.tcl</b>&quot;, and their complete
+syntax, invoke &quot;<b class="file">build.tcl</b>&quot; with argument <b class="method">help</b>, i.e., like</p>
+<pre class="example">
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl help
+</pre>
+<p>Other methods for gfetting various types of help are:</p>
+<ol class="enumerated">
+<li><p>help-recipes</p></li>
+<li><p>help-options</p></li>
+<li><p>help</p></li>
+<li><p>list-recipes</p></li>
+<li><p>list-options</p></li>
+<li><p>list</p></li>
+<li><p>show-configuration</p></li>
+</ol>
+</div>
+<div id="section4" class="section"><h2><a name="section4">Bugs, Ideas, Feedback</a></h2>
+<p>This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+<a href="https://chiselapp.com/user/andreas_kupries/repository/Kettle/index">Kettle Tracker</a>.
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p><a href="../../index.html#key0">build tea</a></p>
+</div>
+<div id="category" class="section"><h2><a name="category">Category</a></h2>
+<p>Build support</p>
+</div>
+</div></body></html>

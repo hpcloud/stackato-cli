@@ -1,0 +1,79 @@
+[include parts/definitions.inc]
+[manpage_begin [vset PROJECT]_development [vset MAN_SECTION] [vset VERSION]]
+[include parts/module.inc]
+[titledesc [vset TITLE_DEV]]
+[description]
+[include parts/welcome.inc]
+
+[para]
+
+The audience of this document are anyone wishing to modify
+[vset PTITLE] in any way, shape, or form. This can be a maintainer
+fixing bugs, a developer adding functionality, or patching it to
+accommodate local cicumstances, etc.
+
+[para]
+
+Please read
+
+[list_begin enum]
+[enum][term [vset TITLE_SOURCES]] and
+[enum][term [vset TITLE_INSTALL]]
+[list_end]
+
+first, if that was not done already. Here we assume that the sources
+are already available in a directory of your choice, that it is known
+how to build and install the project, and that all the necessary
+requisites are available.
+
+[comment @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@]
+[comment {
+    @ EDIT Please edit the remainder of the document to suit.
+    Information to consider putting into this documentat are
+
+    - Physical directory structure
+    - Logical structure (file- and package dependencies, for example)
+    - Development Tools required, beyond the tools for building and installation.
+    - System architecture, beyond what a simple user is given (in the introduction).
+    -- Data structures, for example.
+    - Deeper assumptions how pieces work together (Sequence diagrams?)
+}]
+
+[comment @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@]
+[section {Development Tools}]
+
+[vset PTITLE] (currently) does not require tools beyond those needed for
+build and installation.
+
+[comment @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@]
+[section {Demonstration/Example Applications}]
+
+[vset PTITLE] (currently) does not have demonstrations, nor examples.
+
+[comment @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@]
+[section {Directory structure}]
+
+Explain the physical layout (directory structure).
+
+[comment { @EDIT Explain physical layout (directory structure)
+    Kettle: Consider providing standard text blocks explaining
+            doc/
+            doc/figures/
+            embedded/
+}]
+
+[comment @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@]
+[section {Architecture & Concepts}]
+
+[list_begin enumerated]
+[enum] Explain the internal architecture.
+[enum] Explain file dependencies, if any.
+[enum] Explain package dependencies, if any.
+[enum] Explain the internal data structures, if any.
+[enum] Explain entity relationships (UML ERD), if any.
+[enum] Explain important operation sequences (UML SD), if any.
+[list_end]
+
+[include parts/related.inc]
+[include parts/feedback.inc]
+[manpage_end]

@@ -1,0 +1,81 @@
+[comment {-*- tcl -*- --- doctools ---}]
+[manpage_begin kettle_test n 1]
+[include include/general.inc]
+[titledesc {Kettle - Testsuite Support}]
+[description]
+[para]
+[include include/welcome.inc]
+[para]
+
+[list_begin definitions]
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method source] [arg path]]
+
+This command sources the file specified by the [arg path].
+
+In contrast to the builtin [cmd ::source] command, this resolves
+relative paths relative to the [var tcltest::testsDirectory].
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method source*] [arg pattern]]
+
+This command sources all files found in the
+[var tcltest::testsDirectory] and matching the pattern.
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method find] [arg pattern]]
+
+This command returns a list of all files found in the
+[var tcltest::testsDirectory] and matching the pattern.
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method check] [arg name] [arg version]]
+
+This command assumes that the package [arg name] is present, and
+verifies that we are using at least the specified [arg version].
+
+If not the command aborts the testsuite in a manner kettle's test
+controller can detect and respond to.
+
+[para] This is useful for checking the versions of the Tcl core and/or
+tcltest.
+
+[emph Note] that the whole of kettle assumes to be run under at least
+Tcl 8.5, and having tcltest 2 available.
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method require] [arg type] [arg name] [arg arg]...]
+
+This command is a wrapper around Tcl's builtin [cmd {package require}]
+which aborts the testsuite in a manner kettle's test controller can
+detect and respond to if the specified [emph external] package is not
+found.
+
+[para] The [arg type] can be one of [const support], or
+[const testing], indicating the use of the package in the testsuite,
+i.e. a supporting package, or the package under test itself. Exactly
+one package should have this type.
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method local] [arg type] [arg name] [arg arg]...]
+
+This command is like [cmd {kt require}] above, except its search of
+packages is restricted to the local packages provided by the test
+controller, which should be the package under test, and its local
+dependencies, if any.
+
+[comment {- - -- --- ----- -------- ------------- ---------------------}]
+[call [cmd ::kt] [method dictsort] [arg dict]]
+
+This command takes a Tcl dictionary, sorts its contents by its keys
+([cmd {lsort -dict}]), and returns the sorted dictionary.
+
+[para] This is useful to impose a canonical order on dictionary and
+array results whose natural order can change between Tcl versions, or
+package revisions.
+
+[list_end]
+
+[include include/license.inc]
+[include include/feedback.inc]
+[manpage_end]

@@ -1,0 +1,37 @@
+[comment {-*- tcl -*- --- doctools ---}]
+[manpage_begin kettle_app n 1]
+[include include/general.inc]
+[titledesc {Kettle - Application - Build Interpreter}]
+[description]
+[para]
+[include include/welcome.inc]
+[para]
+
+Here we document the kettle application available to a user of kettle,
+i.e. a package developer using (or wishing to use) kettle as the build
+system for their code.
+
+[para] This application resides between the kettle core and the build
+script written by the package developer, as shown in the archtectural
+diagram below.
+
+[para][image arch_app]
+
+[para] For the build (declaration) commands available to build scripts
+based on kettle see [term {Kettle - Build Declarations}].
+
+[section {The kettle application}]
+    [include include/app.inc]
+
+[section {Options}]
+    [include include/options.inc]
+
+[section {Standard Recipes}]
+    [include include/r_standard.inc]
+
+[section {build.tcl Example}]
+    [include include/app_example.inc]
+
+[include include/license.inc]
+[include include/feedback.inc]
+[manpage_end]

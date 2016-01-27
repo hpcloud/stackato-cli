@@ -1,0 +1,142 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## zone management - show zone information
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+## Not suitable for CFv1, or S3.0-
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-show-1.0.1 {placement-zone, wrong args, not enough (forced via no-prompt)} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-show-1.0.2.0 {placement-zone, wrong args, not enough (forced via no-prompt)} -constraints s30le -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-show-1.0.2.1 {placement-zone, wrong args, not enough (forced via no-prompt)} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'zone'}
+
+test zone-show-1.1 {placement-zone, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run placement-zone Z X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong\#args, too many*"
+
+test zone-show-1.2 {placement-zone, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run placement-zone Z
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test zone-show-1.3 {placement-zone, fails for old API} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone Z
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-show-1.4 {placement-zone, pre stackato 3.2} -constraints s30le -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone Z
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-show-2.0 {placement-zone, non-admin login is ok} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run placement-zone default
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-show-2.1 {placement-zone} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone default
+} -cleanup {
+    stage-close
+} -match glob -result [map {@target@ - default
++-*-+
+| DEA *|
++-*-+
+*| * |
+*+-*-+} @target@ [thetarget]]
+
+test zone-show-2.2 {placement-zone, json} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone default --json
+} -cleanup {
+    stage-close
+} -match glob -result {{
+    "entity"   : {
+        "deas" : \[*\],
+        "guid" : "default",
+        "name" : "default"
+    },
+    "metadata" : {
+        "created_at" : *,
+        "guid"       : "default",
+        "updated_at" : *,
+        "url"        : "/v2/zones/default"
+    }
+}}
+
+test zone-show-2.3 {placement-zone, bogus zone} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zone __bogus__
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input zone zone __bogus__ {Run 'stackato placement-zones' to see list of zones}]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

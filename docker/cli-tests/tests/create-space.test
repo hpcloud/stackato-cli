@@ -1,0 +1,117 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## create-space
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-space-1.0 {create-space, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-space -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test create-space-1.1 {create-space, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-space S X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test create-space-1.2 {create-space, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-space testspace
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test create-space-1.3 {create-space, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run create-space testspace
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-space-1.4 {create-space, non-admin login is ok, manager} -constraints cfv2 -setup {
+    # create-space-1.4 - this could be 3.2+
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-space testspace
+} -cleanup {
+    run delete-space -n testspace
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result "*Creating new space \"testspace\" ... OK*"
+
+test create-space-1.5 {create-space, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space testspace
+    run spaces
+} -cleanup {
+    run delete-space -n testspace
+    stage-close
+} -match glob -result "*| x | testspace *|*"
+
+test create-space-1.6 {create-space, duplicate space} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space testspace
+} -body {
+    run create-space testspace
+} -cleanup {
+    run delete-space -n testspace
+    stage-close
+} -returnCodes error -result [already input name space testspace " in organization '[theorg]'"]
+
+test create-space-1.7.0 {create-space} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space [thespace]-2
+} -cleanup {
+    run delete-space -n [thespace]-2
+    stage-close
+} -result [map [viewFile data/cspace17.txt] \
+	       @org@    [theorg]     \
+	       @space@  [thespace]-2 \
+	       @target@ [thetarget]]
+
+test create-space-1.7.1 {create-space, unicode name} -constraints {macOrUnix cfv2} -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-space [thespace]\u4e00
+} -cleanup {
+    run delete-space -n [thespace]\u4e00
+    stage-close
+} -result [map [viewFile data/cspace17.txt] \
+	       @org@    [theorg]         \
+	       @space@  [thespace]\u4e00 \
+	       @target@ [thetarget]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

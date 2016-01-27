@@ -1,0 +1,6 @@
+*total *
+-* 1 stackato * app.js*
+-* 1 stackato * manifest.yml*
+-* 1 stackato * package.json*
+-* 1 stackato * README.md*
+-* 1 stackato * stackato.yml*

@@ -1,0 +1,12 @@
+framework:
+  type: node
+command: node app.js
+name: node-env
+mem: 256M
+autoscale:
+  instances:
+    min: 3
+    max: 15
+  cpu:
+    min: 20
+    max: 80

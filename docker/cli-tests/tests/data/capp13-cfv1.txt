@@ -1,0 +1,4 @@
+*Framework:         node
+Runtime:           Node.js
+Application Url:   *://test.*
+Creating Application ?TEST? in * ... OK

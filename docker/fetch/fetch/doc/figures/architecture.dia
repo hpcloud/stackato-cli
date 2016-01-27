@@ -1,0 +1,74 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+# Kettle architecture Diagram
+
+set ::counter 0
+if {![info exists ::mark]} { set ::mark -1 }
+
+proc xbox {args} {
+    variable ::mark
+    variable ::counter
+
+    if {$mark == $counter} {
+	lappend args color red stroke 2
+    }
+    incr counter
+    return [uplevel 1 [list box {*}$args]]
+}
+
+proc area {label args} {
+    set E [xbox fillcolor lightyellow {*}$args]
+    group {
+	text text $label with nw at [last box nw]
+    }
+    return $E
+}
+
+down
+set boxwidth   [75 mm]
+set movelength  [5 mm]
+
+
+set B [block {
+    set C [area " Core Package: kettle" \
+	       width  [100 mm] \
+	       height [25 mm]]
+
+    block {
+	set fillcolor white
+	set boxwidth  [20 mm]
+	set boxheight [5 mm]
+
+	east
+	xbox tcl
+	move
+	xbox critcl3
+	move
+	xbox tclapp
+	move
+	xbox figures
+	south
+	move
+	xbox doc
+	west
+	move
+	xbox testsuite
+	move
+	xbox depends
+
+    } with s at [[$C s] by [2 mm] north]
+}]
+group {
+    north
+    move
+    set A [area " Applications" \
+	       width  [last block width] \
+	       height [10 mm]]
+    group { text at $A "kettle" }
+    move
+    area " build.tcl (package specific)" \
+	width  [last block width] \
+	height [10 mm]
+}
+
+unset ::mark ::counter
+

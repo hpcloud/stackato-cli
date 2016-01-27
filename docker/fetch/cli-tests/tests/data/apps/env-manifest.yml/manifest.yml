@@ -1,0 +1,21 @@
+applications:
+  .:
+    command: node app.js
+    name: node-env
+    mem: 256M
+    stackato:
+      env:
+        FOO:
+          default: BAR
+        SNAFU:
+          default: CLUSTER
+      hooks:
+        pre-staging:
+        - echo FOO__ = $FOO
+        - echo SNAFU = $SNAFU
+        post-staging:
+        - echo FOO__ = $FOO
+        - echo SNAFU = $SNAFU
+        pre-running:
+        - echo FOO__ = $FOO
+        - echo SNAFU = $SNAFU

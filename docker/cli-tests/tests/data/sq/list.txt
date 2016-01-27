@@ -1,0 +1,6 @@
+Space Quotas: @ta@ -> @or@
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+
+| Name *| Owner Org *| Memory *| Instance Memory *| Services *| Routes *| Paid Services\? *|
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+*
+| @sq@ *| @or@ *| 2.0G *| 2.0G *| 100 *| 1000 *| allowed *|*
++-*-+-*-+-*-+-*-+-*-+-*-+-*-+

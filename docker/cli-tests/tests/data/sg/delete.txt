@@ -1,0 +1,1 @@
+Deleting security group "@sg@" ... OK

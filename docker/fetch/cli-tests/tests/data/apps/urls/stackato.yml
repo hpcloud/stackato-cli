@@ -1,0 +1,6 @@
+name: node-env
+mem: 256M
+urls:
+- e1.${target-base}
+- e2.${target-base}
+command: node app.js

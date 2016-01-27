@@ -1,0 +1,3 @@
+inherit:
+- n1.yml
+- n2.yml

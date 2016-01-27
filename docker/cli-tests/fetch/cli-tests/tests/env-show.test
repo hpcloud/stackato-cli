@@ -1,0 +1,81 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## env
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test env-1.0 {env, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run env A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test env-1.1 {env, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run env }
+} -cleanup {
+    remove-appdir
+   stage-close
+} -returnCodes error -match glob -result [no-application env]
+
+test env-1.2 {env, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run env TEST
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test env-1.3 {env, nothing} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run env TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No Environment Variables}
+
+test env-1.4 {env, something} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run env-add TEST VAR VAL
+} -body {
+    run env TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {+----------+-------+
+| Variable | Value |
++----------+-------+
+| VAR      | VAL   |
++----------+-------+}
+
+# todo: changing the env of a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,643 @@
+Getting Started
+    stackato login [<name>]       Log in to the current or specified target
+                                  with the named user
+    stackato logout [<target>]    Log out of the current, specified, or all
+                                  targets
+    stackato target [<url>]       Set the target API endpoint for the client,
+                                  or report the current target
+
+Applications
+    stackato app [<application>]         Show the information of the specified
+                                         application
+    stackato apps                        List the applications deployed to the
+                                         target
+    stackato list                        List the applications deployed to the
+                                         target
+    stackato releases [<application>]    Show the list of versions for the
+                                         specified application
+    stackato versions [<application>]    Show the list of versions for the
+                                         specified application
+
+    Control
+        stackato migrate <application> <destination>    Move the application to
+                                                        a different space
+        stackato restage [<application>]                Restage an application,
+                                                        regenerate its droplet
+
+    Information
+        stackato crashes [<application>]         List recent application
+                                                 crashes
+        stackato crashlogs [<application>]       Display log information for
+                                                 the application
+        stackato disk [<application>]            Show the disk reservation for
+                                                 a deployed application
+        stackato drain list [<application>]      Show the list of drains
+                                                 attached to the application
+        stackato drains [<application>]          Show the list of drains
+                                                 attached to the application
+        stackato env [<application>]             List the application's
+                                                 environment variables
+        stackato events [<application>]          Show recorded application
+                                                 events, for application or
+                                                 space
+        stackato file <application> [<path>]     Display directory listing or
+                                                 file
+        stackato files <application> [<path>]    Display directory listing or
+                                                 file
+        stackato health [<application>...]       Report the health of the
+                                                 specified application(s)
+        stackato instances [<application>]       List application instances for
+                                                 a deployed application
+        stackato logs [<application>]            Display the application log
+                                                 stream
+        stackato mem [<application>]             Show the memory reservation
+                                                 for a deployed application
+        stackato stats [<application>]           Display the resource usage for
+                                                 a deployed application
+        stackato tail <application> <path>       Monitor file for changes and
+                                                 stream them
+
+    Management
+        stackato create-app [<application>]                   Create an empty
+                                                              application with
+                                                              the specified
+                                                              configuration
+        stackato dbshell [<application>] [<service>]          Invoke
+                                                              interactive db
+                                                              shell for a bound
+                                                              service
+        stackato delete [<application>...]                    Delete the
+                                                              specified
+                                                              application(s)
+        stackato drain add [<application>] <drain> <uri>      Attach a new
+                                                              named drain to
+                                                              the application
+        stackato drain delete [<application>] <drain>         Remove the named
+                                                              drain from the
+                                                              application
+        stackato env-add [<application>] <varname> <value>    Add the specified
+                                                              environment
+                                                              variable to the
+                                                              named application
+        stackato env-del [<application>] <varname>            Remove the
+                                                              specified
+                                                              environment
+                                                              variable from the
+                                                              named application
+        stackato map [<application>] <url>                    Make the
+                                                              application
+                                                              accessible
+                                                              through the
+                                                              specified URL (a
+                                                              route consisting
+                                                              of host and
+                                                              domain)
+        stackato open [<application>]                         Open the url of
+                                                              the specified
+                                                              application in
+                                                              the default web
+                                                              browser
+        stackato push [<application>]                         Configure,
+                                                              create, push,
+                                                              map, and start a
+                                                              new application
+        stackato rename [<application>] [<name>]              Rename the
+                                                              specified
+                                                              application
+        stackato restart [<application>]                      Stop and restart
+                                                              a deployed
+                                                              application
+        stackato restart-instance <application> <instance>    Stop and restart
+                                                              a specific
+                                                              instance of a
+                                                              deployed
+                                                              application
+        stackato rollback [<application>] <version>           Switch to a
+                                                              different version
+                                                              of the
+                                                              application
+        stackato run <command>...                             Run an arbitrary
+                                                              command on a
+                                                              running instance
+        stackato scale [<application>]                        Update the number
+                                                              of instances,
+                                                              memory, disk
+                                                              reservation
+                                                              and/or
+                                                              autoscaling
+                                                              settings for a
+                                                              deployed
+                                                              application
+        stackato scp <paths>...                               Copy files and
+                                                              directories to
+                                                              and from
+                                                              application
+                                                              containers
+        stackato set-env [<application>] <varname> <value>    Add the specified
+                                                              environment
+                                                              variable to the
+                                                              named application
+        stackato ssh [<command>...]                           SSH to a running
+                                                              instance (or
+                                                              target), or run
+                                                              an arbitrary
+                                                              command
+        stackato start [<application>]                        Start a deployed
+                                                              application
+        stackato stop [<application>]                         Stop a deployed
+                                                              application
+        stackato switch-version [<application>] <version>     Switch to a
+                                                              different version
+                                                              of the
+                                                              application
+        stackato unmap [<application>] <url>                  Unregister the
+                                                              application from
+                                                              a URL
+        stackato unset-env [<application>] <varname>          Remove the
+                                                              specified
+                                                              environment
+                                                              variable from the
+                                                              named application
+
+    Placement
+        stackato placement-zone [<zone>]                      Show the list of
+                                                              DEAs associated
+                                                              with the
+                                                              specified
+                                                              placement zone
+        stackato placement-zones                              Show the
+                                                              available
+                                                              placement zones
+        stackato set-placement-zone [<application>] <zone>    Associate the
+                                                              application with
+                                                              a specific
+                                                              placement zone
+        stackato unset-placement-zone [<application>]         Remove the
+                                                              association
+                                                              between
+                                                              application and
+                                                              its current
+                                                              placement zone
+
+Environment Variable Groups
+    stackato environment-variable-group        Show the details of the
+                                               specified environment variable
+                                               group
+    stackato set-environment-variable-group    Set the contents of the
+                                               specified environment variable
+                                               group
+
+Feature Flags
+    stackato disable-feature-flag <name>    Deactivate the specified feature
+    stackato enable-feature-flag <name>     Activate the specified feature
+    stackato feature-flag <name>            Show the details of the specified
+                                            feature flag
+    stackato feature-flags                  Show all known feature flags and
+                                            their status
+
+Services
+    stackato marketplace                          List the supported service
+                                                  plans of the target, for the
+                                                  current or specified space
+    stackato purge-service-offerings <service>    Purge all offerings of the
+                                                  service type from the system
+    stackato service <name>                       Show the information about
+                                                  the named service
+    stackato services                             List the supported and
+                                                  provisioned services of the
+                                                  target
+
+    Authentication Tokens
+        stackato create-service-auth-token [<label>] [<provider>]    Create a
+                                                                     new
+                                                                     service
+                                                                     authentica
+                                                                     tion token
+        stackato delete-service-auth-token [<label>]                 Delete the
+                                                                     specified
+                                                                     service
+                                                                     authentica
+                                                                     tion token
+        stackato service-auth-tokens                                 Show all
+                                                                     service
+                                                                     authentica
+                                                                     tion
+                                                                     tokens
+                                                                     knowns to
+                                                                     the target
+        stackato update-service-auth-token [<label>]                 Update the
+                                                                     specified
+                                                                     service
+                                                                     authentica
+                                                                     tion token
+
+    Brokers
+        stackato add-service-broker [<name>]                   Make the named
+                                                               service broker
+                                                               known
+        stackato create-service-broker [<name>]                Make the named
+                                                               service broker
+                                                               known
+        stackato delete-service-broker [<name>]                Remove the named
+                                                               service broker
+                                                               from the target
+        stackato remove-service-broker [<name>]                Remove the named
+                                                               service broker
+                                                               from the target
+        stackato service-brokers                               Show the list of
+                                                               known service
+                                                               brokers
+        stackato show-service-broker [<name>]                  Show the
+                                                               information of
+                                                               the named
+                                                               service broker
+                                                               from the target
+        stackato update-service-broker [<name>] [<newname>]    Update the
+                                                               target's
+                                                               knowledge of the
+                                                               named service
+                                                               broker
+
+    Management
+        stackato bind-service [<service>] [<application>]              Bind the
+                                                                       named
+                                                                       service to
+                                                                       the
+                                                                       specified
+                                                                       applicatio
+                                                                       n
+        stackato clone-services <source> <application>                 Copy the
+                                                                       service
+                                                                       bindings
+                                                                       of the
+                                                                       source
+                                                                       applicatio
+                                                                       n to the
+                                                                       destinatio
+                                                                       n
+                                                                       applicatio
+                                                                       n
+        stackato create-service [<vendor>] [<name>] [<application>]    Create a
+                                                                       new
+                                                                       provisione
+                                                                       d service,
+                                                                       and
+                                                                       optionally
+                                                                       bind it to
+                                                                       an
+                                                                       applicatio
+                                                                       n
+        stackato delete-service [<service>...]                         Delete the
+                                                                       named
+                                                                       provisione
+                                                                       d service
+        stackato rename-service <service> [<name>]                     Rename the
+                                                                       specified
+                                                                       service
+                                                                       instance
+        stackato tunnel [<service>] [<tunnelclient>]                   Create a
+                                                                       local
+                                                                       tunnel to
+                                                                       a service,
+                                                                       optionally
+                                                                       start a
+                                                                       local
+                                                                       client as
+                                                                       well
+        stackato unbind-service [<service>] [<application>]            Disconnect
+                                                                       the named
+                                                                       service
+                                                                       from the
+                                                                       specified
+                                                                       applicatio
+                                                                       n
+        stackato update-user-provided-service <service>                Update the
+                                                                       credential
+                                                                       s of a
+                                                                       user
+                                                                       provided
+                                                                       service
+
+    Plans
+        stackato hide-service-plan <name> [<organization>]    Hide the
+                                                              specified
+                                                              service-plan from
+                                                              the named
+                                                              organization
+        stackato service-plan <name>                          Show the details
+                                                              of the specified
+                                                              service plan
+        stackato service-plans                                List all
+                                                              available plans
+                                                              of the supported
+                                                              services
+        stackato show-service-plan <name> [<organization>]    Make the
+                                                              specified
+                                                              service-plan
+                                                              visible to the
+                                                              named
+                                                              organization
+        stackato update-service-plan [<name>] [<newname>]     Update the
+                                                              target's
+                                                              knowledge of the
+                                                              named service
+                                                              plan
+
+Introspection
+    Command history
+        stackato history clear          Clear the saved history
+        stackato history limit [<n>]    Limit the size of the history
+        stackato history list [<n>]     Show the saved history of commands
+
+Organizations
+    stackato create-org [<name>]                Create a new organization
+    stackato delete-org [<name>]                Delete the named organization
+    stackato link-user-org <user> [<org>]       Add the specified user to the
+                                                named organization, in various
+                                                roles
+    stackato org [<name>]                       Show the named organization's
+                                                information
+    stackato org-users [<org>]                  Show the users for the
+                                                organization, by role
+    stackato orgs                               List the available
+                                                organizations
+    stackato quota-org [<name>] <quota>         Set the quotas for the current
+                                                or named organization
+    stackato rename-org [<name>] [<newname>]    Rename the named organization
+    stackato switch-org [<name>]                Switch the current organization
+                                                to the named organization
+    stackato unlink-user-org <user> [<org>]     Remove the specified user from
+                                                the named organization, in
+                                                various roles
+    stackato update-org [<name>]                Change one or more attributes
+                                                of an organization in a single
+                                                call
+
+Security Groups
+    stackato bind-security-group <security_group>              Bind the named
+                                                               security group
+                                                               to either the
+                                                               current or
+                                                               specified space,
+                                                               or the running
+                                                               and staging
+                                                               phases
+    stackato create-security-group <security_group> <rules>    Create a new
+                                                               security group
+    stackato delete-security-group <security_group>            Delete the named
+                                                               security group
+    stackato security-group <security_group>                   Show the details
+                                                               of the named
+                                                               security group
+    stackato security-groups                                   Show the known
+                                                               security groups,
+                                                               either all, or
+                                                               just those
+                                                               assigned to the
+                                                               running and
+                                                               staging phases
+    stackato unbind-security-group <security_group>            Drop the named
+                                                               security group
+                                                               from either the
+                                                               current or
+                                                               specified space,
+                                                               or the running
+                                                               and staging
+                                                               phases
+    stackato update-security-group <security_group> <rules>    Modify the named
+                                                               security group
+
+Spaces
+    stackato create-space [<name>]                 Create a new space
+    stackato delete-space [<name>]                 Delete the named space
+    stackato link-user-space <user> [<space>]      Add the specified user to
+                                                   the named space, in various
+                                                   roles
+    stackato rename-space [<name>] [<newname>]     Rename the named space
+    stackato space [<name>]                        Show the named space's
+                                                   information
+    stackato space-users [<space>]                 Show the users for the
+                                                   space, by role
+    stackato spaces                                List the available spaces in
+                                                   the specified organization
+    stackato switch-space [<name>]                 Switch from the current
+                                                   space to the named space
+    stackato unlink-user-space <user> [<space>]    Remove the specified user
+                                                   from the named space, in
+                                                   various roles
+    stackato update-space [<name>]                 Change one or more
+                                                   attributes of a space in a
+                                                   single call
+
+Routes
+    stackato delete-route [<name>...]    Delete the named route
+    stackato routes                      List all available routes in the
+                                         specified space, or all
+
+Domains
+    stackato create-domain <name>    Create a new domain
+    stackato delete-domain <name>    Delete the named domain
+    stackato domains                 List the available domains in the
+                                     specified space, or all
+    stackato map-domain <name>       Add the named domain to an organization or
+                                     space
+    stackato unmap-domain <name>     Remove the named domain from an
+                                     organization or space
+
+Administration
+    stackato admin grant <user>              Grant the named user administrator
+                                             privileges for the current or
+                                             specified target
+    stackato admin list                      Show a list of the administrators
+                                             for the current or specified
+                                             target
+    stackato admin report [<destination>]    Retrieve a report containing the
+                                             logs of the current or specified
+                                             target
+    stackato admin revoke <user>             Revoke administrator privileges
+                                             for the named user at the current
+                                             or specified target
+    stackato frameworks                      List the supported frameworks of
+                                             the target
+    stackato info                            Show the basic system and account
+                                             information
+    stackato runtimes                        List the supported runtimes of the
+                                             target
+    stackato show-token                      Print the current target's token
+    stackato stacks                          List the supported stacks of the
+                                             target
+    stackato targets                         List the available targets, and
+                                             their authorization tokens, if any
+    stackato tokens                          List the available targets, and
+                                             their authorization tokens, if any
+    stackato usage [<userOrGroup>]           Show the current memory allocation
+                                             and usage of the active or
+                                             specified user/group (Stackato 2),
+                                             or the specified or current space
+                                             (Stackato 3)
+    stackato user                            Show the name of the current user
+                                             in the current or specified target
+    stackato user-info [<name>]              Shows the information of a user in
+                                             the current or specified target
+    stackato version                         Print the version number of the
+                                             client
+
+    Buildpacks
+        stackato buildpacks                               Show all buildpacks
+                                                          known to the target,
+                                                          in the order they are
+                                                          checked in during
+                                                          auto-detection
+        stackato create-buildpack <name> <zip|url|dir>    Add a buildpack to
+                                                          the target
+        stackato delete-buildpack [<name>]                Remove the specified
+                                                          buildpack from the
+                                                          target
+        stackato rename-buildpack [<name>] [<newname>]    Change the name of
+                                                          the specified
+                                                          buildpack
+        stackato update-buildpack [<name>]                Change the
+                                                          information known
+                                                          about the specified
+                                                          buildpack
+
+    Colors
+        stackato color list                               Show the current
+                                                          color settings
+        stackato color set <color> <specification>        (Re)define a color
+        stackato color test <specification> [<string>]    Test a color
+                                                          specification
+        stackato color unset <color>...                   Remove a color
+                                                          redefinition
+        stackato colors                                   Show the current
+                                                          color settings
+
+    Groups (Stackato 2)
+        stackato group [<name>]                       Report the current group,
+                                                      or (un)set it
+        stackato groups add-user <group> <user>       Add the named user to the
+                                                      specified group
+        stackato groups create <name>                 Create a new group with
+                                                      the specified name
+        stackato groups delete <name>                 Delete the named group
+        stackato groups delete-user <group> <user>    Remove the named user
+                                                      from the specified group
+        stackato groups limits [<group>]              Show and/or modify the
+                                                      limits applying to
+                                                      applications in the named
+                                                      group
+        stackato groups show                          Show the list of groups
+                                                      known to the target
+        stackato groups users [<group>]               Show the list of users in
+                                                      the named group
+        stackato limits [<group>]                     Show and/or modify the
+                                                      limits applying to
+                                                      applications in the named
+                                                      group
+
+    Quotas
+        stackato quota configure [<name>]           Reconfigure the named quota
+                                                    plan
+        stackato quota create [<name>]              Create a new quota plan
+        stackato quota delete [<name>]              Delete the named quota plan
+        stackato quota list                         List the available quota
+                                                    plans
+        stackato quota rename [<name>] <newname>    Rename the named quota plan
+        stackato quota show [<name>]                Show the details of the
+                                                    named quota plan
+        stackato quotas                             List the available quota
+                                                    plans
+
+    Space Quotas
+        stackato create-space-quota [<name>]              Create a new space
+                                                          quota
+        stackato delete-space-quota [<name>]              Delete the named
+                                                          space quota
+        stackato rename-space-quota [<name>] <newname>    Rename the named
+                                                          space quota
+        stackato set-space-quota [<name>]                 Assign the specified
+                                                          space quota to the
+                                                          current or specified
+                                                          space
+        stackato space-quota [<name>]                     Show the details of
+                                                          the named space quota
+        stackato space-quotas                             List the space quotas
+                                                          owned by the current
+                                                          or specified
+                                                          organization, or all
+        stackato unset-space-quota                        Drop the space quota
+                                                          from the current or
+                                                          specified space
+        stackato update-space-quota [<name>]              Modify the named
+                                                          space quota
+
+    User Management
+        stackato add-user [<name>]      Register a new user in the current or
+                                        specified target
+        stackato delete-user <email>    Delete the named user, and the user's
+                                        applications and services from the
+                                        current or specified target
+        stackato login-fields           Show the names of the credential fields
+                                        needed for a login
+        stackato passwd                 Change the password of the current user
+                                        in the current or specified target
+        stackato register [<name>]      Register a new user in the current or
+                                        specified target
+        stackato token                  Interactively set authentication token
+        stackato unregister <email>     Delete the named user, and the user's
+                                        applications and services from the
+                                        current or specified target
+        stackato users                  Show the list of users known to the
+                                        current or specified target
+
+Convenience
+    stackato alias <name> <command>...    Create a shortcut for a command
+                                          (prefix)
+    stackato aliases                      List the known aliases (shortcuts)
+    stackato unalias <name>               Remove a shortcut by name
+
+Miscellaneous
+    stackato admin                                    A set of adminstrative
+                                                      tasks
+    stackato color                                    Management of terminal
+                                                      colors
+    stackato curl <operation> <path> [<header>...]    Run a raw rest request
+                                                      against the chosen target
+    stackato drain                                    Commands for the
+                                                      management of drains
+                                                      attached to applications
+    stackato groups                                   A collection of commands
+                                                      to manage groups and the
+                                                      users in them
+    stackato guid <type> [<name>]                     Map the specified name
+                                                      into a uuid, given the
+                                                      type
+    stackato history                                  Manage the command
+                                                      history
+    stackato named-entities                           List the entity types
+                                                      usable for 'guid'
+    stackato quota                                    Management of quota plans
+    stackato trace                                    Print the saved REST
+                                                      trace for the last client
+                                                      command to stdout
+
+Global Options
+    --cafile CAFILE             Path to a file containing the CA certificates
+                                to use for validation.
+    --color MODE                Set color mode (always|auto|never) of the
+                                client. Default is auto, which activates color
+                                when in a proper terminal.
+    --help                      Show the help of the client (main or current
+                                command), and stop.
+    --no-prompt                 Disable interactive queries.
+    --no-skip-ssl-validation    Complementary alias of --skip-ssl-validation.
+    --non-interactive           Alias of --no-prompt.
+    --noprompt                  Alias of --no-prompt.
+    --skip-ssl-validation       Disable SSL certificate validation warnings.
+    --version                   Print the version number of the client, and
+                                stop.
+    -?                          Alias of --help.
+    -h                          Alias of --help.
+    -n                          Alias of --no-prompt.
+    -V                          Alias of --version.
+    -v                          Alias of --version.

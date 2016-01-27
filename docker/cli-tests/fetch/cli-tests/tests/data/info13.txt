@@ -1,0 +1,523 @@
+{
+    "allow_debug"      : "true",
+    "build"            : "2222",
+    "description"      : "ActiveState Stackato",
+    "frameworks"       : {
+        "buildpack"  : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "*" : "."
+            }\],
+            "name"           : "buildpack",
+            "runtimes"       : \[{
+                "description" : "ActivePython 2.7",
+                "name"        : "python27",
+                "version"     : "2.7"
+            },{
+                "description" : "ActivePython 3.2",
+                "name"        : "python32",
+                "version"     : "3.2"
+            },{
+                "description" : "ActivePerl 5.14",
+                "name"        : "perl514",
+                "version"     : "5.14"
+            },{
+                "description" : "ActivePerl 5.16",
+                "name"        : "perl516",
+                "version"     : "5.16"
+            },{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            },{
+                "description" : "Node.js",
+                "name"        : "node",
+                "version"     : "0.6.20"
+            },{
+                "description" : "Node.js",
+                "name"        : "node08",
+                "version"     : "0.8.22"
+            },{
+                "description" : "Node.js",
+                "name"        : "node010",
+                "version"     : "0.10.1"
+            },{
+                "description" : "Erlang R14B02",
+                "name"        : "erlangR14B02",
+                "version"     : "R14B02"
+            },{
+                "description" : "PHP 5",
+                "name"        : "php",
+                "version"     : "5.3"
+            },{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \["clojure","go","java","play","pypy"\]
+        },
+        "generic"    : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "*" : "."
+            }\],
+            "name"           : "generic",
+            "runtimes"       : \[{
+                "description" : "ActivePython 2.7",
+                "name"        : "python27",
+                "version"     : "2.7"
+            },{
+                "description" : "ActivePython 3.2",
+                "name"        : "python32",
+                "version"     : "3.2"
+            },{
+                "description" : "ActivePerl 5.14",
+                "name"        : "perl514",
+                "version"     : "5.14"
+            },{
+                "description" : "ActivePerl 5.16",
+                "name"        : "perl516",
+                "version"     : "5.16"
+            },{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            },{
+                "description" : "Node.js",
+                "name"        : "node",
+                "version"     : "0.6.20"
+            },{
+                "description" : "Node.js",
+                "name"        : "node08",
+                "version"     : "0.8.22"
+            },{
+                "description" : "Node.js",
+                "name"        : "node010",
+                "version"     : "0.10.1"
+            },{
+                "description" : "Erlang R14B02",
+                "name"        : "erlangR14B02",
+                "version"     : "R14B02"
+            },{
+                "description" : "PHP 5",
+                "name"        : "php",
+                "version"     : "5.3"
+            },{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "grails"     : {
+            "appservers"     : \[{
+                "description" : "Tomcat",
+                "name"        : "tomcat"
+            },{
+                "description" : "TomEE+",
+                "name"        : "tomee+"
+            }\],
+            "detection"      : \[{
+                "*.war" : "true"
+            }\],
+            "name"           : "grails",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "java_ee"    : {
+            "appservers"     : \[{
+                "description" : "TomEE+",
+                "name"        : "tomee+"
+            },{
+                "description" : "Tomcat",
+                "name"        : "tomcat"
+            }\],
+            "detection"      : \[{
+                "*.war" : "true"
+            }\],
+            "name"           : "java_ee",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "java_web"   : {
+            "appservers"     : \[{
+                "description" : "Tomcat",
+                "name"        : "tomcat"
+            },{
+                "description" : "TomEE+",
+                "name"        : "tomee+"
+            }\],
+            "detection"      : \[{
+                "*.war" : "true"
+            }\],
+            "name"           : "java_web",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "lift"       : {
+            "appservers"     : \[{
+                "description" : "Tomcat",
+                "name"        : "tomcat"
+            },{
+                "description" : "TomEE+",
+                "name"        : "tomee+"
+            }\],
+            "detection"      : \[{
+                "*.war" : "true"
+            }\],
+            "name"           : "lift",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "node"       : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "*.js" : "."
+            }\],
+            "name"           : "node",
+            "runtimes"       : \[{
+                "description" : "Node.js",
+                "name"        : "node",
+                "version"     : "0.6.20"
+            },{
+                "description" : "Node.js",
+                "name"        : "node08",
+                "version"     : "0.8.22"
+            },{
+                "description" : "Node.js",
+                "name"        : "node010",
+                "version"     : "0.10.1"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "perl"       : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "app.psgi" : "."
+            }\],
+            "name"           : "perl",
+            "runtimes"       : \[{
+                "description" : "ActivePerl 5.14",
+                "name"        : "perl514",
+                "version"     : "5.14"
+            },{
+                "description" : "ActivePerl 5.16",
+                "name"        : "perl516",
+                "version"     : "5.16"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "perlcgi"    : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "*" : "."
+            }\],
+            "name"           : "perlcgi",
+            "runtimes"       : \[{
+                "description" : "ActivePerl 5.14",
+                "name"        : "perl514",
+                "version"     : "5.14"
+            },{
+                "description" : "ActivePerl 5.16",
+                "name"        : "perl516",
+                "version"     : "5.16"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "php"        : {
+            "appservers"     : \[{
+                "description" : "Apache",
+                "name"        : "apache"
+            }\],
+            "detection"      : \[{
+                "*.php" : "true"
+            }\],
+            "name"           : "php",
+            "runtimes"       : \[{
+                "description" : "PHP 5",
+                "name"        : "php",
+                "version"     : "5.3"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "play"       : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "lib\/play.*.jar" : "true"
+            }\],
+            "name"           : "play",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "python"     : {
+            "appservers"     : \[\],
+            "detection"      : \[{
+                "*.py" : "."
+            }\],
+            "name"           : "python",
+            "runtimes"       : \[{
+                "description" : "ActivePython 2.7",
+                "name"        : "python27",
+                "version"     : "2.7"
+            },{
+                "description" : "ActivePython 3.2",
+                "name"        : "python32",
+                "version"     : "3.2"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "rack"       : {
+            "appservers"     : \[{
+                "description" : "Thin",
+                "name"        : "thin"
+            }\],
+            "detection"      : \[{
+                "config.ru" : "true"
+            },{
+                "config\/environment.rb" : "false"
+            }\],
+            "name"           : "rack",
+            "runtimes"       : \[{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "rails3"     : {
+            "appservers"     : \[{
+                "description" : "Thin",
+                "name"        : "thin"
+            }\],
+            "detection"      : \[{
+                "config\/application.rb" : "true"
+            },{
+                "config\/environment.rb" : "true"
+            }\],
+            "name"           : "rails3",
+            "runtimes"       : \[{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "sinatra"    : {
+            "appservers"     : \[{
+                "description" : "Thin",
+                "name"        : "thin"
+            }\],
+            "detection"      : \[{
+                "*.rb" : "require 'sinatra'|require \"sinatra\""
+            },{
+                "config.ru" : "false"
+            },{
+                "config\/environment.rb" : "false"
+            }\],
+            "name"           : "sinatra",
+            "runtimes"       : \[{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "spring"     : {
+            "appservers"     : \[{
+                "description" : "Tomcat",
+                "name"        : "tomcat"
+            },{
+                "description" : "TomEE+",
+                "name"        : "tomee+"
+            }\],
+            "detection"      : \[{
+                "*.war" : "true"
+            }\],
+            "name"           : "spring",
+            "runtimes"       : \[{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            }\],
+            "sub_frameworks" : \[\]
+        },
+        "standalone" : {
+            "appservers"     : \[\],
+            "detection"      : null,
+            "name"           : "standalone",
+            "runtimes"       : \[{
+                "description" : "ActivePython 2.7",
+                "name"        : "python27",
+                "version"     : "2.7"
+            },{
+                "description" : "ActivePython 3.2",
+                "name"        : "python32",
+                "version"     : "3.2"
+            },{
+                "description" : "ActivePerl 5.14",
+                "name"        : "perl514",
+                "version"     : "5.14"
+            },{
+                "description" : "ActivePerl 5.16",
+                "name"        : "perl516",
+                "version"     : "5.16"
+            },{
+                "description" : "Java (default)",
+                "name"        : "java",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 6",
+                "name"        : "java6",
+                "version"     : "1.6"
+            },{
+                "description" : "Java 7",
+                "name"        : "java7",
+                "version"     : "1.7"
+            },{
+                "description" : "Node.js",
+                "name"        : "node",
+                "version"     : "0.6.20"
+            },{
+                "description" : "Node.js",
+                "name"        : "node08",
+                "version"     : "0.8.22"
+            },{
+                "description" : "Node.js",
+                "name"        : "node010",
+                "version"     : "0.10.1"
+            },{
+                "description" : "Erlang R14B02",
+                "name"        : "erlangR14B02",
+                "version"     : "R14B02"
+            },{
+                "description" : "PHP 5",
+                "name"        : "php",
+                "version"     : "5.3"
+            },{
+                "description" : "Ruby 1.8.7",
+                "name"        : "ruby18",
+                "version"     : "1.8.7"
+            },{
+                "description" : "Ruby 1.9.3",
+                "name"        : "ruby19",
+                "version"     : "1.9.3"
+            }\],
+            "sub_frameworks" : \[\]
+        }
+    },
+    "maintenance_mode" : "false",
+    "name"             : "vcap",
+    "stackato"         : {
+        "UUID"              : "*",
+        "aok_enabled"       : false,
+        "app_store_enabled" : true,
+        "license_accepted"  : true
+    },
+    "support"          : "stackato-support@activestate.com",
+    "vendor_version"   : "v*",
+    "version"          : "0.999"
+}

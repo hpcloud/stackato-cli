@@ -1,0 +1,107 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## update-space
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test update-space-1.0 {update-space, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-space -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test update-space-1.1 {update-space, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-space -n OLD X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test update-space-1.2 {update-space, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-space testspace
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test update-space-1.3 {update-space, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run update-space testspace --newname testspace-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test update-space-1.4 {update-space, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space testspace --no-activate
+    go-non-admin
+} -body {
+    run update-space testspace --newname testspace-2
+} -cleanup {
+    be-admin
+    run delete-space -n testspace-2
+    remove-non-admin
+    stage-close
+} -result "Changing 'testspace' ...\n    Setting name to \"testspace-2\" ... \nCommitting...OK"
+
+test update-space-1.5 {update-space, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space testspace
+} -body {
+    run update-space testspace --newname testspace-2
+    run spaces
+} -cleanup {
+    run delete-space -n testspace-2
+    stage-close
+} -match glob -result "*| x | testspace-2 *|*"
+
+test update-space-1.6 {update-space, duplicate destination} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-space testspace
+    run create-space testspace-2
+} -body {
+    run update-space testspace --newname testspace-2
+} -cleanup {
+    run delete-space -n testspace
+    run delete-space -n testspace-2
+    stage-close
+} -returnCodes error -result [already option --newname space testspace-2 " in organization '[theorg]'"]
+
+test update-space-1.7 {update-space, missing source} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run update-space bogus --newname bogus-2
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name space bogus {Run 'stackato spaces' to see list of spaces} " in organization '[theorg]'"]
+
+TODO update-space --(no-)default
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

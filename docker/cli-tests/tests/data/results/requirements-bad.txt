@@ -1,0 +1,1 @@
+Failed to stage application:*staging plugin exited with non-zero exit code.*

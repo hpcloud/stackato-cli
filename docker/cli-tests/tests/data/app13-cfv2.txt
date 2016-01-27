@@ -1,0 +1,24 @@
+*node-env
++-*-+-*-+
+| Key *| Value *|
++-*-+-*-+
+| Description *| * |
+| Routes *| *://node-env.* |
+| Placement Zone *| * |
+| SSO Enabled *| * |
+| State *| STARTED *|
+| Restart required *| * |
+| Health *| RUNNING *|
+| Instances *| 1 *|
+| Memory *| 256.0M *|
+| Disk Quota *| 2.0G *|
+| Services *| * |
+| Environment *| * |
+| Drains *| * |
+| Auto Scaling *| * |
+| - Enabled *| * |
+| - Min Instances *| * |
+| - Max Instances *| * |
+| - Min CPU *| * |
+| - Max CPU *| * |
++-*-+-*-+

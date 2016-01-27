@@ -1,0 +1,12 @@
+Using manifest file "@YML@"
+applications:
+  node-env:
+    command: node app.js
+    framework:
+      name: node
+    memory: 256M
+    name: node-env
+    path: @APPDIR@
+    stackato:
+      force-war-unpacking: yes
+      sso-enabled: yes

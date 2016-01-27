@@ -1,0 +1,23 @@
+[include parts/definitions.inc]
+[manpage_begin [vset PROJECT]_introduction [vset MAN_SECTION] [vset VERSION]]
+[include parts/module.inc]
+[titledesc [vset TITLE_INTRO]]
+[description]
+[include parts/welcome.inc]
+
+[comment { -- @EDIT Please edit to suit --
+    [para]
+    What are your goals which drove you here ?
+    [list_begin enumerated][comment {--------------------}]
+    [enum]
+    [list_end][comment {---------------------------------}]
+}]
+
+[section {System Architecture}]
+
+[comment { -- @EDIT Please edit to suit -- }]
+
+[include parts/related.inc]
+[include parts/feedback.inc]
+[manpage_end]
+

@@ -1,0 +1,18 @@
+Test caes to add
+
+- start a running application (log wait-for-quiet should not hang)
+
+- stop a stopped app
+
+- bind an already bound service (log wait-for-quiet should not hang)
+
+- unbind an unbound service
+
+- push app with no url in manifest to space
+  = with no domain mapped
+  = with multiple domains mapped
+  = with one domain mapped
+
+- as above, specify url on command line
+
+- restart a stopped app (should skip stop step)

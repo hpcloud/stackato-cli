@@ -1,0 +1,210 @@
+stackato [OPTIONS]
+    stackato add-service-broker [OPTIONS] [<name>]
+    stackato add-user [OPTIONS] [<name>]
+    stackato admin
+    stackato admin exit
+    stackato admin grant <user>
+    stackato admin help [OPTIONS] [<cmdname>...]
+    stackato admin list [OPTIONS]
+    stackato admin report [OPTIONS] [<destination>]
+    stackato admin revoke <user>
+    stackato alias <name> <command>...
+    stackato aliases [OPTIONS]
+    stackato app [OPTIONS] [<application>]
+    stackato apps [OPTIONS]
+    stackato bind-security-group [OPTIONS] <security_group>
+    stackato bind-service [OPTIONS] [<service>] [<application>]
+    stackato buildpacks [OPTIONS]
+    stackato clone-services [OPTIONS] <source> <application>
+    stackato color
+    stackato color exit
+    stackato color help [OPTIONS] [<cmdname>...]
+    stackato color list
+    stackato color set <color> <specification>
+    stackato color test <specification> [<string>]
+    stackato color unset <color>...
+    stackato colors
+    stackato crashes [OPTIONS] [<application>]
+    stackato crashlogs [OPTIONS] [<application>]
+    stackato create-app [OPTIONS] [<application>]
+    stackato create-buildpack [OPTIONS] <name> <zip|url|dir>
+    stackato create-domain [OPTIONS] <name>
+    stackato create-org [OPTIONS] [<name>]
+    stackato create-security-group [OPTIONS] <security_group> <rules>
+    stackato create-service [OPTIONS] [<vendor>] [<name>] [<application>]
+    stackato create-service-auth-token [OPTIONS] [<label>] [<provider>]
+    stackato create-service-broker [OPTIONS] [<name>]
+    stackato create-space [OPTIONS] [<name>]
+    stackato create-space-quota [OPTIONS] [<name>]
+    stackato curl [OPTIONS] <operation> <path> [<header>...]
+    stackato dbshell [OPTIONS] [<application>] [<service>]
+    stackato delete [OPTIONS] [<application>...]
+    stackato delete-buildpack [OPTIONS] [<name>]
+    stackato delete-domain [OPTIONS] <name>
+    stackato delete-org [OPTIONS] [<name>]
+    stackato delete-route [OPTIONS] [<name>...]
+    stackato delete-security-group [OPTIONS] <security_group>
+    stackato delete-service [OPTIONS] [<service>...]
+    stackato delete-service-auth-token [OPTIONS] [<label>]
+    stackato delete-service-broker [OPTIONS] [<name>]
+    stackato delete-space [OPTIONS] [<name>]
+    stackato delete-space-quota [OPTIONS] [<name>]
+    stackato delete-user [OPTIONS] <email>
+    stackato disable-feature-flag [OPTIONS] <name>
+    stackato disk [OPTIONS] [<application>]
+    stackato domains [OPTIONS]
+    stackato drain
+    stackato drain add [OPTIONS] [<application>] <drain> <uri>
+    stackato drain delete [OPTIONS] [<application>] <drain>
+    stackato drain exit
+    stackato drain help [OPTIONS] [<cmdname>...]
+    stackato drain list [OPTIONS] [<application>]
+    stackato drains [OPTIONS] [<application>]
+    stackato enable-feature-flag [OPTIONS] <name>
+    stackato env [OPTIONS] [<application>]
+    stackato env-add [OPTIONS] [<application>] <varname> <value>
+    stackato env-del [OPTIONS] [<application>] <varname>
+    stackato environment-variable-group [OPTIONS]
+    stackato events [OPTIONS] [<application>]
+    stackato exit
+    stackato feature-flag [OPTIONS] <name>
+    stackato feature-flags [OPTIONS]
+    stackato file [OPTIONS] <application> [<path>]
+    stackato files [OPTIONS] <application> [<path>]
+    stackato frameworks [OPTIONS]
+    stackato group [OPTIONS] [<name>]
+    stackato groups
+    stackato groups add-user [OPTIONS] <group> <user>
+    stackato groups create [OPTIONS] <name>
+    stackato groups delete [OPTIONS] <name>
+    stackato groups delete-user [OPTIONS] <group> <user>
+    stackato groups exit
+    stackato groups help [OPTIONS] [<cmdname>...]
+    stackato groups limits [OPTIONS] [<group>]
+    stackato groups show [OPTIONS]
+    stackato groups users [OPTIONS] [<group>]
+    stackato guid [OPTIONS] <type> [<name>]
+    stackato health [OPTIONS] [<application>...]
+    stackato help [OPTIONS] [<cmdname>...]
+    stackato hide-service-plan [OPTIONS] <name> [<organization>]
+    stackato history
+    stackato history clear
+    stackato history exit
+    stackato history help [OPTIONS] [<cmdname>...]
+    stackato history limit [<n>]
+    stackato history list [<n>]
+    stackato info [OPTIONS]
+    stackato instances [OPTIONS] [<application>]
+    stackato limits [OPTIONS] [<group>]
+    stackato link-user-org [OPTIONS] <user> [<org>]
+    stackato link-user-space [OPTIONS] <user> [<space>]
+    stackato list [OPTIONS]
+    stackato login [OPTIONS] [<name>]
+    stackato login-fields [OPTIONS]
+    stackato logout [OPTIONS] [<target>]
+    stackato logs [OPTIONS] [<application>]
+    stackato map [OPTIONS] [<application>] <url>
+    stackato map-domain [OPTIONS] <name>
+    stackato marketplace [OPTIONS]
+    stackato mem [OPTIONS] [<application>]
+    stackato migrate [OPTIONS] <application> <destination>
+    stackato named-entities [OPTIONS]
+    stackato open [OPTIONS] [<application>]
+    stackato org [OPTIONS] [<name>]
+    stackato org-users [OPTIONS] [<org>]
+    stackato orgs [OPTIONS]
+    stackato passwd [OPTIONS]
+    stackato placement-zone [OPTIONS] [<zone>]
+    stackato placement-zones [OPTIONS]
+    stackato purge-service-offerings [OPTIONS] <service>
+    stackato push [OPTIONS] [<application>]
+    stackato quota
+    stackato quota configure [OPTIONS] [<name>]
+    stackato quota create [OPTIONS] [<name>]
+    stackato quota delete [OPTIONS] [<name>]
+    stackato quota exit
+    stackato quota help [OPTIONS] [<cmdname>...]
+    stackato quota list [OPTIONS]
+    stackato quota rename [OPTIONS] [<name>] <newname>
+    stackato quota show [OPTIONS] [<name>]
+    stackato quota-org [OPTIONS] [<name>] <quota>
+    stackato quotas [OPTIONS]
+    stackato register [OPTIONS] [<name>]
+    stackato releases [OPTIONS] [<application>]
+    stackato remove-service-broker [OPTIONS] [<name>]
+    stackato rename [OPTIONS] [<application>] [<name>]
+    stackato rename-buildpack [OPTIONS] [<name>] [<newname>]
+    stackato rename-org [OPTIONS] [<name>] [<newname>]
+    stackato rename-service [OPTIONS] <service> [<name>]
+    stackato rename-space [OPTIONS] [<name>] [<newname>]
+    stackato rename-space-quota [OPTIONS] [<name>] <newname>
+    stackato restage [OPTIONS] [<application>]
+    stackato restart [OPTIONS] [<application>]
+    stackato restart-instance [OPTIONS] <application> <instance>
+    stackato rollback [OPTIONS] [<application>] <version>
+    stackato routes [OPTIONS]
+    stackato run [OPTIONS] <command>...
+    stackato runtimes [OPTIONS]
+    stackato scale [OPTIONS] [<application>]
+    stackato scp [OPTIONS] <paths>...
+    stackato security-group [OPTIONS] <security_group>
+    stackato security-groups [OPTIONS]
+    stackato service [OPTIONS] <name>
+    stackato service-auth-tokens [OPTIONS]
+    stackato service-brokers [OPTIONS]
+    stackato service-plan [OPTIONS] <name>
+    stackato service-plans [OPTIONS]
+    stackato services [OPTIONS]
+    stackato set-env [OPTIONS] [<application>] <varname> <value>
+    stackato set-environment-variable-group [OPTIONS]
+    stackato set-placement-zone [OPTIONS] [<application>] <zone>
+    stackato set-space-quota [OPTIONS] [<name>]
+    stackato show-service-broker [OPTIONS] [<name>]
+    stackato show-service-plan [OPTIONS] <name> [<organization>]
+    stackato show-token [OPTIONS]
+    stackato space [OPTIONS] [<name>]
+    stackato space-quota [OPTIONS] [<name>]
+    stackato space-quotas [OPTIONS]
+    stackato space-users [OPTIONS] [<space>]
+    stackato spaces [OPTIONS]
+    stackato ssh [OPTIONS] [<command>...]
+    stackato stacks [OPTIONS]
+    stackato start [OPTIONS] [<application>]
+    stackato stats [OPTIONS] [<application>]
+    stackato stop [OPTIONS] [<application>]
+    stackato switch-org [OPTIONS] [<name>]
+    stackato switch-space [OPTIONS] [<name>]
+    stackato switch-version [OPTIONS] [<application>] <version>
+    stackato tail [OPTIONS] <application> <path>
+    stackato target [OPTIONS] [<url>]
+    stackato targets [OPTIONS]
+    stackato token [OPTIONS]
+    stackato tokens [OPTIONS]
+    stackato trace [OPTIONS]
+    stackato tunnel [OPTIONS] [<service>] [<tunnelclient>]
+    stackato unalias <name>
+    stackato unbind-security-group [OPTIONS] <security_group>
+    stackato unbind-service [OPTIONS] [<service>] [<application>]
+    stackato unlink-user-org [OPTIONS] <user> [<org>]
+    stackato unlink-user-space [OPTIONS] <user> [<space>]
+    stackato unmap [OPTIONS] [<application>] <url>
+    stackato unmap-domain [OPTIONS] <name>
+    stackato unregister [OPTIONS] <email>
+    stackato unset-env [OPTIONS] [<application>] <varname>
+    stackato unset-placement-zone [OPTIONS] [<application>]
+    stackato unset-space-quota [OPTIONS]
+    stackato update-buildpack [OPTIONS] [<name>]
+    stackato update-org [OPTIONS] [<name>]
+    stackato update-security-group [OPTIONS] <security_group> <rules>
+    stackato update-service-auth-token [OPTIONS] [<label>]
+    stackato update-service-broker [OPTIONS] [<name>] [<newname>]
+    stackato update-service-plan [OPTIONS] [<name>] [<newname>]
+    stackato update-space [OPTIONS] [<name>]
+    stackato update-space-quota [OPTIONS] [<name>]
+    stackato update-user-provided-service [OPTIONS] <service>
+    stackato usage [OPTIONS] [<userOrGroup>]
+    stackato user [OPTIONS]
+    stackato user-info [OPTIONS] [<name>]
+    stackato users [OPTIONS]
+    stackato version
+    stackato versions [OPTIONS] [<application>]

@@ -1,0 +1,8 @@
+Using manifest file "@YML@"
+applications:
+  .:
+    command: node app.js
+    instances: -1
+    memory: 256M
+    name: node-env
+

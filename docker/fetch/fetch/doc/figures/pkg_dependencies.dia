@@ -1,0 +1,227 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+## ====================================================================
+## DSL for dependency diagram. Default parameters.
+
+set grid [3 mm]
+
+source [file join [file dirname [file normalize [info script]]] dsl_dependencies.inc]
+
+## ====================================================================
+
+proc dsl {text} { box $text color green stroke 2 }
+
+proc cycle {} {
+    arrow <-> stroke 2 color red
+}
+
+## ====================================================================
+## Dependencies, bottom-up, one procedure per package.
+
+# General utilities
+
+proc lambda  {} { box lambda  color red }
+proc strutil {} { box strutil color red }
+proc io      {} { box io      color red }
+proc try     {} { box try     color red }
+
+## ====================================================================
+# The tangled layer (all pieces are cyclically connected)
+
+proc ovalidate {} {
+    box ovalidate color red
+    group {
+	down ; ---> 3 ; lambda
+    }
+}
+
+proc options {} {
+    box options color red
+    group {
+	down ; --- ; l ; --- 3 ; r ; ---> ; # lambda
+    }
+    group {
+	down ; ---> 3 ; strutil
+    }
+    group {
+	down ; --- ; r ; --- 3 ; l ; ---> ; # io
+    }
+    group { west ; cycle ; ovalidate }
+    group {
+	east ; cycle ;
+	group {
+	    box color blue width [120 mm] height [12 mm] stroke 2 \
+		at [last arrow]	    
+	}
+	path
+    }
+}
+
+proc path {} {
+    box path color red
+    group {
+	down ; ---> 3 ; io
+    }
+    group {
+	down ; --- 1.5 ; r ; --- 4 ; l ; ---> 0.5 ; try
+    }
+    group { east ; cycle ; status }
+}
+
+proc status {} {
+    box status color red
+    group {
+	down ; --- ; l ; --- 3 ; r ; ---> ; # io
+    }
+}
+
+if 0 {proc tangle {} {
+    block {
+	east      ; ovalidate
+	arrow <-> ; options
+	arrow <-> ; path
+	arrow <-> ; status
+    } with n at [[[last box] n] by [2 mm] s]
+}
+tangle}
+
+
+## ====================================================================
+
+proc depend {} {
+    dsl depend
+    group {
+	down ; --- ; r ; --- 3 ; l ; ---> ; # option
+    }
+}
+
+proc tool {} {
+    box tool color red
+    group {
+	down ; ---> 3 ; options
+    }
+    group { west ; move ; depend }
+    group { east ; move ; invoke }
+}
+
+proc invoke {} {
+    box invoke color red
+    group { east ; move ; recipe }
+    group {
+	down ; --- ; l ; --- 3 ; r ; ---> ; # options
+    }
+    group {
+	down ; ---> 3 ; # path
+    }
+    group {
+	down ; --- ; r ; --- 3 ; l ; ---> ; # status
+    }
+}
+
+proc recipe {} {
+    box recipe color red
+    group {
+	down ; ---> 3 ; # status
+    }
+}
+
+## ====================================================================
+
+proc figures {} {
+    dsl figures
+    group {
+	down ; ---> 3 ; tool
+    }
+    group { east ; move ; testsuite }
+}
+
+
+proc testsuite {} {
+    dsl testsuite
+    group { east ; move ; tclapp }
+    group {
+	down ; ---> 3 ; # invoke
+    }
+    group {
+	down ; --- ; r ; --- 3 ; l ; ---> ; # recipe
+    }
+}
+
+proc tclapp {} {
+    dsl tclapp
+    group { east ; move ; gui }
+    group {
+	down ; ---> 3 ; # recipe
+    }
+}
+
+proc gui {} {
+    box gui color red
+    group { east ; move ; app }
+    group {
+	down ; --- ; l ; --- 3 ; r ; ---> ; # recipe
+    }
+}
+
+proc app {} {
+    box app color red
+    group {
+	down ; --- 1.5 ; l ; --- 7.5 ; r ; ---> 0.5 ; # recipe
+    }
+}
+
+## ====================================================================
+
+proc doc {} {
+    dsl doc
+    group {
+	east ; move ; move ; move ; move
+	move ; move ; move ; move ; move
+	move ; move
+	std
+    }
+    group {
+	down ; ---> ; figures
+    }
+}
+
+proc std {} {
+    box standard color red
+    group {
+	down ; ---> ; # gui
+    }
+}
+
+## ====================================================================
+
+proc tcl {} {
+    dsl tcl
+    group {
+	east ; move ; critcl3
+    }
+    group {
+	down ; ---> 3 ; doc
+    }
+    group {
+	down ; --- ; r ; --- 3 ; l ; ---> 3 ; # testsuite
+    }
+}
+
+proc critcl3 {} {
+    dsl critcl3
+    group {
+	down ; ---> 5 ; # testsuite
+    }
+    group {
+	down ; --- 1.5 ; l ; --- 3 ; r ; ---> 0.5 ; # doc
+    }
+}
+
+## ====================================================================
+
+proc layout {} {
+    tcl
+}
+
+## ====================================================================
+
+layout

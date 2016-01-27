@@ -1,0 +1,12 @@
+*Updating application 'node-env'...
+*Forcing use of minimum memory requirement: 20M
+*Uploading Application \[node-env\] ... 
+  Checking for bad links ...  OK
+  Copying to temp space ...  OK
+  Checking for available resources ...  OK
+  Processing resources ... OK
+  Packing application ... OK
+  Uploading (1K) ...  OK
+Push Status: OK
+Note that \[node-env\] was not automatically started because it was STOPPED before the update.
+You can start it manually using `stackato start node-env`

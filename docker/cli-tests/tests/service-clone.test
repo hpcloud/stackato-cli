@@ -1,0 +1,196 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## clone-services
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test clone-services-1.0 {clone-services, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run clone-services S D X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test clone-services-1.1 {clone-services, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run clone-services -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test clone-services-1.2 {clone-services, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run clone-services -n S }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test clone-services-1.3 {clone-services, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run clone-services S D }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input source application S {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input source application S {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
+
+test clone-services-1.4.1 {clone-services, non-admin login is ok} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    run create-service filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    run unbind-service test-service SRC
+    run unbind-service test-service DEST
+    run delete-service test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test clone-services-1.4.2 {clone-services, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    run create-service -n --plan free filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    run unbind-service test-service SRC
+    run unbind-service test-service DEST
+    run delete-service -n test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test clone-services-1.5 {clone-services, no services to clone} -setup {
+    stage-open
+    go-admin
+    make-test-app SRC
+    make-test-app DEST
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error: No services to clone}
+
+test clone-services-1.6.1 {clone-services} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    run unbind-service test-service SRC
+    run unbind-service test-service DEST
+    run delete-service test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -result {Binding Service test-service to DEST ... OK}
+
+test clone-services-1.6.2 {clone-services} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service --plan free filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+} -cleanup {
+    run unbind-service    test-service SRC
+    run unbind-service    test-service DEST
+    run delete-service -n test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -result {Binding [test-service] to DEST ... OK}
+
+test clone-services-1.7.1 {clone-services, persistent} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run create-service filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+    run apps
+} -cleanup {
+    run unbind-service test-service SRC
+    run unbind-service test-service DEST
+    run delete-service test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| DEST* | * | STOPPED* | * | test-service |*}
+
+test clone-services-1.7.2 {clone-services, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-service --plan free filesystem test-service
+    make-test-app SRC
+    make-test-app DEST
+    run bind-service test-service SRC
+} -body {
+    run clone-services SRC DEST
+    run apps
+} -cleanup {
+    run unbind-service    test-service SRC
+    run unbind-service    test-service DEST
+    run delete-service -n test-service
+    remove-test-app SRC
+    remove-test-app DEST
+    remove-appdir
+    stage-close
+} -match glob -result {*| DEST* | 1* | STOPPED* | * | test-service |*}
+
+TODO service clone - cloning services from/to running apps.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

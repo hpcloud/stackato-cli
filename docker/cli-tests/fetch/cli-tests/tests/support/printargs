@@ -1,0 +1,8 @@
+#!/bin/bash
+i=0
+for a in "$@"
+do
+	echo -e "<$i>\t" = "'$a'"
+	i=`expr $i + 1`
+done
+exit 0

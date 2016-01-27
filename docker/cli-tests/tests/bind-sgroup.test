@@ -1,0 +1,155 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## bind-security-group
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test bind-security-group-1.0.1 {bind-security-group, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run bind-security-group -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test bind-security-group-1.0.2 {bind-security-group, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run bind-security-group S X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test bind-security-group-1.0.3 {bind-security-group, bad option} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run bind-security-group -n S --bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "Unknown option --bogus*"
+
+test bind-security-group-1.0.4.0 {bind-security-group, option conflict} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run bind-security-group -n S --staging --running
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "--running" together with "--staging".}
+
+test bind-security-group-1.0.4.1 {bind-security-group, option conflict vice versa} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run bind-security-group -n S --running --staging
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "--staging" together with "--running".}
+
+
+test bind-security-group-1.1.0 {bind-security-group, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run bind-security-group [thesecgroup]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test bind-security-group-1.1.1 {bind-security-group, non-admin login is not ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+    go-non-admin
+} -body {
+    run bind-security-group -n [thesecgroup]
+} -cleanup {
+    be-admin
+    run delete-security-group -n [thesecgroup]
+    remove-non-admin
+    stage-close
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
+# Instead of a [not-authorized] return the sgroups are simply hidden from the user.
+
+# # ## ### ##### ######## ############# #####################
+
+test bind-security-group-1.3 {bind-security-group, persists} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -body {
+    run bind-security-group [thesecgroup] --org [theorg] --space [thespace]
+    run security-groups
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -match glob -result "*\n| Name *| \#Rules *| Spaces *| Staging *| Running *|\n*| [thesecgroup] *| 0 *| [theorg]::[thespace] *| 0 *| 0 *|*"
+
+test bind-security-group-1.4 {bind-security-group, unknown security-group} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run bind-security-group [thesecgroup]
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input security_group {security group} [thesecgroup] {Run 'stackato security-groups' to see list of security groups}]
+
+test bind-security-group-1.5.0 {bind-security-group, space} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -body {
+    run bind-security-group [thesecgroup] --org [theorg] --space [thespace]
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -result [map [viewFile data/sg/bind.txt] \
+	       @or@ [theorg] \
+	       @sp@ [thespace] \
+	       @sg@ [thesecgroup]]
+
+test bind-security-group-1.5.1 {bind-security-group, staging} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -body {
+    run bind-security-group [thesecgroup] --staging
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -result [map [viewFile data/sg/bind-staging.txt] \
+	       @sg@ [thesecgroup]]
+
+test bind-security-group-1.5.2 {bind-security-group, running} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -body {
+    run bind-security-group [thesecgroup] --running
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -result [map [viewFile data/sg/bind-running.txt] \
+	       @sg@ [thesecgroup]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

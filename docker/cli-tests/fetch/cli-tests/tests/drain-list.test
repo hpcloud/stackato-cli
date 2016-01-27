@@ -1,0 +1,133 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## env
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test drain-list-1.0 {drain list, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run drain list A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test drain-list-1.1 {drain list, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain list }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result [no-application {drain list}]
+
+test drain-list-1.2 {drain list, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run drain list TEST
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test drain-list-1.3 {drain list, nothing} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain list TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {No Drains}
+
+test drain-list-1.4.1 {drain list, something} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {+-------+-------+-----------------------------------+
+| Name  | Json  | Url                               |
++-------+-------+-----------------------------------+
+| DRAIN | false | tcp://flux.activestate.com:11100/ |
++-------+-------+-----------------------------------+}
+
+test drain-list-1.4.2 {drain list, something} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {+-------+------+-----------------------------------+-*-+
+| Name  | Json | Url                               | Status *|
++-------+------+-----------------------------------+-*-+
+| DRAIN | 0    | tcp://flux.activestate.com:11100/ | * |
++-------+------+-----------------------------------+-*-+}
+
+test drain-list-1.5 {drain list, nothing} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain list --json TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {[]}
+
+test drain-list-1.6 {drain list, something} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain list --json TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result [per-api {\[{
+    "json" : false,
+    "name" : "DRAIN",
+    "uri"  : "tcp://flux.activestate.com:11100/"
+}\]} {\[{
+    "json"   : false,
+    "name"   : "DRAIN",
+    "status" : "*",
+    "uri"    : "tcp://flux.activestate.com:11100/"
+}\]}]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

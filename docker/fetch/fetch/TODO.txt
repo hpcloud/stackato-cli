@@ -1,0 +1,72 @@
+[..] (1)
+	Switch over to cmdr 1 for the cli API.
+
+	- Heavy rewrite of internals, notably option definition and
+	  use to get away from shared options.
+
+[OK] (1a)
+	Store a copy of cmdr framework in the project, to break
+	installation cycle.
+
+	Without: Kettle install requires Cmdr requires Kettle.
+
+[OK] (2)
+	Better integration of the project mgmt features/commands.
+	No special cli code anymore.
+
+[..] (2a)
+	Internal validation types for
+	- available licenses
+	- available requirements text blocks
+	- available DSL commands
+
+[..] (2b)
+	Extend 'requirements set' to detect removed requirements,
+	and remove their files as well.
+
+[..] (4)
+	Command(s) to scan a directory and classify the files in it,
+	for setting up the build.tcl file:
+
+	- Tcl packages
+	- Critcl packages
+	- Documentation
+	- Testsuites
+	- Benchmarks
+	- Tcl applications
+	- Files to Ignore
+
+	This classification should detect variety of files in the
+	above classes even when not marked properly, i.e. missing the
+	proper magic strings.
+
+[..] (5)
+	An outgrowth of (4), validation of the project, i.e. checking
+	it against various rules (must have docs, tests, should have
+	benchmarks) and other external tools, like tclchecker,
+	nagelfar, frink, etc.
+
+[..] (6)
+	Command history
+
+[..] (7)
+	Always generate the testsuite X.* files, store results in the
+	project, as files ignored by default.
+
+	New commands to query this database.
+
+[..] (8)
+	Ditto for benchmarks.
+
+[..] (9)
+	Helper commands to generate testsuite and benchmark skeletons
+	from templates.
+
+[..] (10)
+	Helper commands for easy generation of a new requirements and
+	license blocks. Stored directly into project, or in a local
+	folder Kettle uses for extension information.
+
+[..] (10a)
+	Helper commands to maintain a web database of kettle extensions.
+	(transfer local extensions to global and vice versa)

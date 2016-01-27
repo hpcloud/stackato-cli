@@ -1,0 +1,96 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## organizations, listing
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test orgs-1.0 {orgs, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run orgs X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test orgs-1.1 {orgs, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test orgs-1.2 {orgs, non-admin login ok} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    go-non-admin
+} -body {
+    run orgs
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test orgs-1.3 {orgs} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -match glob -result "Organizations: [thetarget]\n*|   | Name *| Default *| Quota *| Space Quota *| Spaces *| Domains *|\n*| x | [theorg] *| * | * | * | [thespace] *| [targetdomain] *|*+"
+
+test orgs-1.4.0 {orgs, --json} -constraints s30le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --json
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/org140.txt] @@@@ [theorg]]
+
+test orgs-1.4.1 {orgs, --json} -constraints s32ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --json
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/org141.txt] @@@@ [theorg]]
+
+test orgs-1.5 {orgs, --full} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --full
+} -cleanup {
+    stage-close
+} -match glob -result "Organizations: [thetarget]\n*|   | Name *| Default *| Quota *| Spaces *| Domains *| Applications *| Services *|\n*| x | [theorg] *| * | * | [thespace] *| [targetdomain] *|*+"
+
+test orgs-1.6 {orgs, not allowed for CFv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

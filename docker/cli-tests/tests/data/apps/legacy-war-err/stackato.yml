@@ -1,0 +1,6 @@
+force-war-unpacking: no
+framework:
+  name: node
+command: node app.js
+name: node-env
+mem: 256M

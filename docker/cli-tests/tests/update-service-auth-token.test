@@ -1,0 +1,92 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client update-service-auth-token
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test update-service-auth-token-1.0 {client update-service-auth-token, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run update-service-auth-token -n L X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test update-service-auth-token-1.1 {client update-service-auth-token, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-service-auth-token -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'label'}
+
+test update-service-auth-token-1.2 {client update-service-auth-token, CFv2 target required} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-service-auth-token -n L
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test update-service-auth-token-1.3 {client update-service-auth-token, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run update-service-auth-token -n L
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test update-service-auth-token-1.4 {client update-service-auth-token, admin login required, not seeing tokens} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-service-auth-token -n L P --auth-token T
+    go-non-admin
+} -body {
+    run update-service-auth-token -n L
+} -cleanup {
+    go-admin
+    run delete-service-auth-token -n L
+    remove-non-admin
+    stage-close
+} -returnCodes error \
+    -result [unexpected input label {service auth token} L {Run 'stackato service-auth-tokens' to see list of service auth tokens}]
+
+test update-service-auth-token-1.5 {client update-service-auth-token} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-service-auth-token -n [theorg]-token P --auth-token T
+} -body {
+    run update-service-auth-token -n [theorg]-token --auth-token NT
+} -cleanup {
+    run delete-service-auth-token -n [theorg]-token
+    stage-close
+} -result "Updating token \[[theorg]-token\] ... OK"
+
+test update-service-auth-token-1.6 {client update-service-auth-token, unknown label} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run update-service-auth-token -n [theorg]-token
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input label {service auth token} [theorg]-token {Run 'stackato service-auth-tokens' to see list of service auth tokens}]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

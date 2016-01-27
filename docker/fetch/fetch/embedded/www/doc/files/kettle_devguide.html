@@ -1,0 +1,228 @@
+
+<html><head>
+<title>kettle_devguide - Kettle - The Quick Brew System</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/www/doc/files/kettle_devguide.html' by tcllib/doctools with format 'html'
+   -->
+<! -- CVS: $Id$ kettle_devguide.n
+   -->
+<body><div class="doctools">
+<hr> [
+   <a href="../../../../../../home">Home</a>
+| <a href="../../toc.html">Main Table Of Contents</a>
+| <a href="../toc.html">Table Of Contents</a>
+| <a href="../../index.html">Keyword Index</a>
+ ] <hr>
+<h1 class="title">kettle_devguide(n) 1 doc &quot;Kettle - The Quick Brew System&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>kettle_devguide - Kettle - The Developer's Guide</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">Developing for Kettle</a>
+<ul>
+<li class="subsection"><a href="#subsection1">Architecture</a></li>
+<li class="subsection"><a href="#subsection2">Directory structure</a></li>
+</ul>
+</li>
+<li class="section"><a href="#section3">Bugs, Ideas, Feedback</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#category">Category</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.</p>
+<p>Please read the document <i class="term"><a href="kettle_intro.html">Kettle - Introduction to Kettle</a></i>,
+if you have not done so already, to get an overview of the whole system.</p>
+<p>This document is a guide for developers working on Kettle,
+i.e. maintainers fixing bugs, extending the functionality of
+application or package, etc.</p>
+<p>Users of kettle wishing to write their own high-level commands
+linking into the existing foundations should read the
+<i class="term"><a href="kettle.html">Kettle - Core</a></i> document instead, as that is the reference
+manpage to the whole functionality available to them, and likely
+enough to get going.</p>
+<p>Please read</p>
+<ol class="enumerated">
+<li><p><i class="term"><a href="kettle_license.html">Kettle - License</a></i>,</p></li>
+<li><p><i class="term"><a href="kettle_sources.html">Kettle - How To Get The Sources</a></i>, and</p></li>
+<li><p><i class="term"><a href="kettle_installer.html">Kettle - The Installer's Guide</a></i></p></li>
+</ol>
+<p>first, if that was not done already.</p>
+<p>Here we assume that the sources are already available in a directory
+of your choice, and that you not only know how to build and install
+them, but also have all the necessary requisites to actually do
+so. The guide to the sources in particular also explains which source
+code management system is used, where to find it, how to set it up,
+etc.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">Developing for Kettle</a></h2>
+<div id="subsection1" class="subsection"><h3><a name="subsection1">Architecture</a></h3>
+<p>The high-level architecture is shown in the image below:</p>
+<p><img alt="architecture" src="../../image/architecture.png"></p>
+<p>This document is concerned with the lowest level shown, the core
+kettle package itself. The inner boxes of that architectural box show
+the parts which are user-visible, i.e. providing the DSL commands
+explained in <i class="term"><a href="kettle_dsl.html">Kettle - Build Declarations</a></i>.
+For the details we have</p>
+<p><img alt="pkg_dependencies" src="../../image/pkg_dependencies.png"></p>
+<p>In this image we now see all the components found inside of the kettle
+package, their organization into layers and their dependencies. The
+latter is actually a bit simplified, showing only the dependencies
+between adjacent layers and leaving out the dependencies crossing
+layers. Adding them would make the image quite a bit more crowded.</p>
+<p>The green boxes are again the user-visible parts, either for
+the build declarations. The rest is internal. Note how and that the
+components found in the blue box are all dependent on each other,
+i.e. these are in circular dependencies.</p>
+<p>The names in the boxes directly refer to the file names
+containing the code of the component, without the extension,
+&quot;<b class="file">.tcl</b>&quot;.
+The only file not mentioned is &quot;<b class="file">kettle.tcl</b>&quot; which is the
+entrypoint to the package and sources all the others.</p>
+<p>More information about the functionality made available by each
+component is found in <i class="term"><a href="kettle.html">Kettle - Core</a></i>, the reference to all
+commands.</p>
+</div>
+<div id="subsection2" class="subsection"><h3><a name="subsection2">Directory structure</a></h3>
+<dl class="definitions">
+<dt>Helpers</dt>
+<dd></dd>
+<dt>Documentation</dt>
+<dd><dl class="definitions">
+<dt>&quot;<b class="file">doc/</b>&quot;</dt>
+<dd><p>This directory contains the documentation sources. The texts are written
+in <i class="term">doctools</i> format, whereas the figures are a mixture of TeX (math
+formulas), and tklib's <b class="package">dia</b>(gram) package and application.</p></dd>
+<dt>&quot;<b class="file">embedded/</b>&quot;</dt>
+<dd><p>This directory contains the documentation converted to regular manpages
+(nroff) and HTML.
+It is called embedded because these files, while derived, are part of the
+fossil repository, i.e. embedded into it. This enables fossil to access
+and display these files when serving the repositories' web interface.
+The &quot;Command Reference&quot; link at
+<a href="http://chiselapp.com/user/andreas_kupries/repository/Kettle/home">http://chiselapp.com/user/andreas_kupries/repository/Kettle/home</a>
+is, for example, accessing the generated HTML.</p></dd>
+</dl></dd>
+<dt>Package Code, General structure</dt>
+<dd><p>See the second image in section <span class="sectref"><a href="#subsection1">Architecture</a></span>, and the
+associated explanations.</p></dd>
+</dl>
+</div>
+</div>
+<div id="section3" class="section"><h2><a name="section3">Bugs, Ideas, Feedback</a></h2>
+<p>This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+<a href="https://chiselapp.com/user/andreas_kupries/repository/Kettle/index">Kettle Tracker</a>.
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p><a href="../../index.html#key0">build tea</a></p>
+</div>
+<div id="category" class="section"><h2><a name="category">Category</a></h2>
+<p>Build support</p>
+</div>
+</div></body></html>

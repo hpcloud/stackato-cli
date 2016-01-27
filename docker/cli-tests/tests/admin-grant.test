@@ -1,0 +1,91 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## admin grant
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test admin-grant-1.0 {admin grant, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run admin grant -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test admin-grant-1.1 {admin grant, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run admin grant E X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test admin-grant-1.2 {admin-grant, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run admin grant E
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test admin-grant-1.3 {admin grant, admin login required} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run admin grant E
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Error 200: Operation not permitted (403)} \
+	 {You are not permitted to access this resource. (403)}]
+
+test admin-grant-1.4 {admin grant, bogus user} -setup {
+    stage-open
+    go-admin
+} -body {
+    run admin grant bogus@test
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob \
+    -result [unexpected input * user bogus@test {Run 'stackato users' to see list of users}]
+
+test admin-grant-1.5 {admin grant} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    be-admin
+} -body {
+    run admin grant [theuser]
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -result "Granting administrator privileges to \[[theuser]\] ... OK"
+
+test admin-grant-1.6 {admin grant, persists} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    be-admin
+} -body {
+    run admin grant [theuser]
+    run admin list
+} -cleanup {
+    remove-non-admin
+    stage-close
+} -match glob -result "+-*-+\n| Email * |\n+-*-+\n*| [theuser] *|*\n+-*-+"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,27 @@
+@ta@ -> @org@ -> @space@ -> test-service
++---------------+-*-+
+| What          | Value *|
++---------------+-*-+
+| State         | * |
+| Type          | mysql *|
+| Provider      | core *|
+| Version       | 5.5 *|
+| Plan          | free *|
+| - Description | N/A *|
+| - Free        | 1 *|
+| - Public      | 1 *|
+| Dashboard     | null *|
+| Space         | @org@::@space@ *|
+| Credentials   | * |
+|  - host       | * |
+|  - hostname   | * |
+|  - jdbcUrl    | jdbc:mysql://* |
+|  - name       | * |
+|  - node_id    | mysql_node_free_* |
+|  - password   | * |
+|  - port       | * |
+|  - uri        | mysql://* |
+|  - user       | * |
+|  - username   | * |
+| Applications  | * |
++---------------+-*-+

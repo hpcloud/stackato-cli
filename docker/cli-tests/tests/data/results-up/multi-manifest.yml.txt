@@ -1,0 +1,4 @@
+*
+http://node-env1.@BASE@/ deployed*
+*
+http://node-env2.@BASE@/ deployed*

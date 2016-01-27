@@ -1,0 +1,285 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, limits
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+proc restore-limit-defaults {args} {
+    run limits --mem 2048 --services 100 --apps 15 --appuris 4 --drains 2 --sudo 1 {*}$args
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+test limits-1.0 {limits, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run limits G X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test limits-1.1 {limits, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run limits
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+
+test limits-1.2 {limits, non-admin login good enough} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run limits
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test limits-1.3 {limits, user, query} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits
+} -cleanup {
+    stage-close
+} -match glob -result [string map [list @ [adminuser]] {Group: @
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | * |
+| services | * |
+| apps     | * |
+| app_uris | * |
+| drains   | * |
+| sudo     | * |
++----------+-------+}]
+
+test limits-1.4 {limits, user, modify} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -result {Updating Group Limits ... OK}
+
+test limits-1.5 {limits, user, persist} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+    run limits
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -result [string map [list @ [adminuser]] {Group: @
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | 23    |
+| services | 9     |
+| apps     | 8     |
+| app_uris | 7     |
+| drains   | 6     |
+| sudo     | true  |
++----------+-------+}]
+
+# # ## ### ##### ######## ############# #####################
+
+test limits-1.6 {limits, explicit group, query} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run limits test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -match glob -result {Group: test-group
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | * |
+| services | * |
+| apps     | * |
+| app_uris | * |
+| drains   | * |
+| sudo     | * |
++----------+-------+}
+
+test limits-1.7 {limits, explicit group, modify} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run limits test-group --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Updating Group Limits ... OK}
+
+test limits-1.8 {limits, explicit group, persist} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run limits test-group --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+    run limits test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Group: test-group
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | 23    |
+| services | 9     |
+| apps     | 8     |
+| app_uris | 7     |
+| drains   | 6     |
+| sudo     | true  |
++----------+-------+}
+
+# # ## ### ##### ######## ############# #####################
+
+test limits-1.9 {limits, current group, query} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group         test-group
+} -body {
+    run limits
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -match glob -result {Group: test-group
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | * |
+| services | * |
+| apps     | * |
+| app_uris | * |
+| drains   | * |
+| sudo     | * |
++----------+-------+}
+
+test limits-1.10 {limits, current group, modify} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group         test-group
+} -body {
+    run limits test-group --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Updating Group Limits ... OK}
+
+test limits-1.11 {limits, current group, persist} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run group         test-group
+} -body {
+    run limits --mem 23 \
+	--services 9 --apps 8 --appuris 7 --drains 6 \
+	--sudo yes
+    run limits
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Group: test-group
++----------+-------+
+| Limit    | Value |
++----------+-------+
+| memory   | 23    |
+| services | 9     |
+| apps     | 8     |
+| app_uris | 7     |
+| drains   | 6     |
+| sudo     | true  |
++----------+-------+}
+
+# # ## ### ##### ######## ############# #####################
+
+test limits-2.0 {limits, bad app value} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --apps X
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -returnCodes error -result {Expected an integer >= 0 for option "--apps", got "X"}
+
+test limits-2.1 {limits, bad app uri value} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --appuris X
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -returnCodes error -result {Expected an integer >= 0 for option "--appuris", got "X"}
+
+test limits-2.2 {limits, bad drain value} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --drains X
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -returnCodes error -result {Expected an integer >= 0 for option "--drains", got "X"}
+
+test limits-2.3 {limits, bad service value} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --services X
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -returnCodes error -result {Expected an integer >= 0 for option "--services", got "X"}
+
+test limits-2.4 {limits, bad mem value} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run limits --mem X
+} -cleanup {
+    restore-limit-defaults
+    stage-close
+} -returnCodes error -result {Expected a memory specification for option "--mem", got "X"}
+
+# Note: --sudo, as boolean option can work without a boolean value
+# following it. A bad 'value' thus becomes a regular argument.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

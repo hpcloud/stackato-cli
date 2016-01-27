@@ -1,0 +1,21 @@
+{
+    "entity"   : {
+        "active"                            : true,
+        "admin"                             : true,
+        "audited_organizations_url"         : "/v2/users/*/audited_organizations",
+        "audited_spaces_url"                : "/v2/users/*/audited_spaces",
+        "billing_managed_organizations_url" : "/v2/users/*/billing_managed_organizations",
+        "default_space_guid"                : null,
+        "guid"                              : "*",
+        "managed_organizations_url"         : "/v2/users/*/managed_organizations",
+        "managed_spaces_url"                : "/v2/users/*/managed_spaces",
+        "organizations_url"                 : "/v2/users/*/organizations",
+        "spaces_url"                        : "/v2/users/*/spaces"*
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : "*",
+        "url"        : "/v2/users/*"
+    }
+}
