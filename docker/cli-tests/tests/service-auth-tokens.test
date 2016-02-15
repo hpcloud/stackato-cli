@@ -1,0 +1,79 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client service-auth-tokens
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test service-auth-tokens-1.0 {client service-auth-tokens, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run service-auth-tokens X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test service-auth-tokens-1.1 {client service-auth-tokens, CFv2 target required} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run service-auth-tokens
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test service-auth-tokens-1.2 {client service-auth-tokens, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run service-auth-tokens
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test service-auth-tokens-1.3 {client service-auth-tokens, non-admin login ok} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    go-non-admin
+} -body {
+    run service-auth-tokens
+} -cleanup {
+    go-admin
+    remove-non-admin
+    stage-close
+} -match glob -result "Service authentication tokens: *\nNo service auth tokens"
+
+test service-auth-tokens-1.4 {client service-auth-tokens, standard} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run service-auth-tokens
+} -cleanup {
+    stage-close
+} -match glob -result {Service authentication tokens: *
++------------+----------+
+| Label      | Provider |
++------------+----------+
+| filesystem | core     |
+| harbor     | core     |
+| memcached  | core     |
+| mongodb    | core     |
+| mysql      | core     |
+| postgresql | core     |
+| rabbitmq   | core     |
+| rabbitmq3  | core     |
+| redis      | core     |
++------------+----------+}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

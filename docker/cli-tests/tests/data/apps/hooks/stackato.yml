@@ -1,0 +1,10 @@
+command: node app.js
+name: node-env
+mem: 256M
+hooks:
+  pre-staging:
+  - echo STAGE HANDS CALLED UP
+  post-staging:
+  - echo STAGE READY
+  pre-running:
+  - echo RUNNER UP

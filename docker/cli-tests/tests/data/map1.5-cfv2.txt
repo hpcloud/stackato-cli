@@ -1,0 +1,3 @@
+Application \[@app@\] ... 
+  Map *://@url@ ... OK
+Successfully mapped 1 url

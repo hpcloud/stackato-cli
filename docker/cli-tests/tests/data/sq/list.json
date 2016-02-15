@@ -1,0 +1,19 @@
+\[*{
+    "entity"   : {
+        "instance_memory_limit"      : 2048,
+        "memory_limit"               : 2048,
+        "name"                       : "@sq@",
+        "non_basic_services_allowed" : true,
+        "organization_guid"          : "*",
+        "organization_url"           : "/v2/organizations/*",
+        "spaces_url"                 : "/v2/space_quota_definitions/*/spaces",
+        "total_routes"               : 1000,
+        "total_services"             : 100
+    },
+    "metadata" : {
+        "created_at" : "????-??-??T??:??:??*",
+        "guid"       : "*",
+        "updated_at" : "null",
+        "url"        : "/v2/space_quota_definitions/*"
+    }
+}*\]

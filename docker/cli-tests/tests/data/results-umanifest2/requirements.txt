@@ -1,0 +1,16 @@
+Using manifest file "@YML@"
+applications:
+- command: node app.js
+  memory: 256M
+  name: node-env
+  path: .
+  stackato:
+    hooks:
+      post-staging:
+      - echo 'puts tcl[info patchlevel];exit' | tclsh
+      pre-running:
+      - echo 'puts tcl[info patchlevel];exit' | tclsh
+    requirements:
+      ubuntu:
+      - tcl
+

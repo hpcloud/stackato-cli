@@ -1,0 +1,6 @@
+*
+staging:          tcl
+*
+staging:        tcl8.5.11
+*
+http://node-env.@BASE@/ deployed

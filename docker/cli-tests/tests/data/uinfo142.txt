@@ -1,0 +1,14 @@
++-*-+-*-+
+| Key                   | Value *|
++-*-+-*-+
+| Name                  | @usr@ *|
+| Email                 | @usr@ *|
+| Admin                 | 1 *|
+| Spaces                | * |
+| Managed Spaces        | * |
+| Audited Spaces        | * |
+| Organizations         | @org@ *|
+| Managed Organizations | * |
+| Billing Organizations | * |
+| Audited Organizations | * |
++-*-+-*-+

@@ -1,0 +1,5 @@
+*
+Application Url:   *://e1.@BASE@
+Application Url:   *://e2.@BASE@
+*
+http://e1.@BASE@/ deployed

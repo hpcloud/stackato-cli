@@ -1,0 +1,7 @@
+Feature-flags: @ta@
++-*-+-*-+-*-+-*-+
+| Name *| State *| Overridden *| Default *|
++-*-+-*-+-*-+-*-+
+*| private_domain_creation *| enabled *| * | * |
+*| user_org_creation *| disabled *| * | * |
++-*-+-*-+-*-+-*-+

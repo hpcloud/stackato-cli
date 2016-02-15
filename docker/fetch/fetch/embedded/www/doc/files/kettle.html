@@ -1,0 +1,1293 @@
+
+<html><head>
+<title>kettle - Kettle - The Quick Brew System</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/www/doc/files/kettle.html' by tcllib/doctools with format 'html'
+   -->
+<! -- CVS: $Id$ kettle.n
+   -->
+<body><div class="doctools">
+<hr> [
+   <a href="../../../../../../home">Home</a>
+| <a href="../../toc.html">Main Table Of Contents</a>
+| <a href="../toc.html">Table Of Contents</a>
+| <a href="../../index.html">Keyword Index</a>
+ ] <hr>
+<h1 class="title">kettle(n) 1 doc &quot;Kettle - The Quick Brew System&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>kettle - Kettle - Core</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">Overview</a></li>
+<li class="section"><a href="#section3">Build declarations</a></li>
+<li class="section"><a href="#section4">Graphical Interface Support</a></li>
+<li class="section"><a href="#section5">Tool handling</a></li>
+<li class="section"><a href="#section6">Recursive invokations</a></li>
+<li class="section"><a href="#section7">Option database</a></li>
+<li class="section"><a href="#section8">Option Types and Validation</a></li>
+<li class="section"><a href="#section9">Path utilities</a></li>
+<li class="section"><a href="#section10">Recipe database</a></li>
+<li class="section"><a href="#section11">Status management</a></li>
+<li class="section"><a href="#section12">IO virtualization</a></li>
+<li class="section"><a href="#section13">General Utilities</a>
+<ul>
+<li class="subsection"><a href="#subsection1">Anonymous procedures</a></li>
+<li class="subsection"><a href="#subsection2">Error handling</a></li>
+<li class="subsection"><a href="#subsection3">String processing</a></li>
+</ul>
+</li>
+<li class="section"><a href="#section14">License</a></li>
+<li class="section"><a href="#section15">Bugs, Ideas, Feedback</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#category">Category</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+</ul>
+<ul class="syntax">
+<li><a href="#1"><b class="cmd">kettle tcl</b></a></li>
+<li><a href="#2"><b class="cmd">kettle tclapp</b> <i class="arg">path</i></a></li>
+<li><a href="#3"><b class="cmd">kettle critcl3</b></a></li>
+<li><a href="#4"><b class="cmd">kettle depends-on</b> <i class="arg">path</i>...</a></li>
+<li><a href="#5"><b class="cmd">kettle doc-destination</b> <i class="arg">path</i></a></li>
+<li><a href="#6"><b class="cmd">kettle doc</b> <span class="opt">?<i class="arg">docroot</i>?</span></a></li>
+<li><a href="#7"><b class="cmd">kettle figures</b> <span class="opt">?<i class="arg">figroot</i>?</span></a></li>
+<li><a href="#8"><b class="cmd">kettle gh-pages</b></a></li>
+<li><a href="#9"><b class="cmd">kettle testsuite</b> <span class="opt">?<i class="arg">testroot</i>?</span></a></li>
+<li><a href="#10"><b class="cmd">kettle gui</b> <b class="method">make</b></a></li>
+<li><a href="#11"><b class="cmd">kettle tool</b> <b class="method">declare</b> <i class="arg">names</i> <span class="opt">?<i class="arg">validator</i>?</span></a></li>
+<li><a href="#12"><b class="cmd">kettle tool</b> <b class="method">get</b> <i class="arg">name</i></a></li>
+<li><a href="#13"><b class="cmd">kettle</b> <b class="method">invoke</b></a></li>
+<li><a href="#14"><b class="cmd">kettle option</b> <b class="method">define</b></a></li>
+<li><a href="#15"><b class="cmd">kettle option</b> <b class="method">onchange</b></a></li>
+<li><a href="#16"><b class="cmd">kettle option</b> <b class="method">no-work-key</b></a></li>
+<li><a href="#17"><b class="cmd">kettle option</b> <b class="method">exists</b></a></li>
+<li><a href="#18"><b class="cmd">kettle option</b> <b class="method">names</b></a></li>
+<li><a href="#19"><b class="cmd">kettle option</b> <b class="method">help</b></a></li>
+<li><a href="#20"><b class="cmd">kettle option</b> <b class="method">set</b></a></li>
+<li><a href="#21"><b class="cmd">kettle option</b> <b class="method">set-default</b></a></li>
+<li><a href="#22"><b class="cmd">kettle option</b> <b class="method">set!</b></a></li>
+<li><a href="#23"><b class="cmd">kettle option</b> <b class="method">unset</b></a></li>
+<li><a href="#24"><b class="cmd">kettle option</b> <b class="method">get</b></a></li>
+<li><a href="#25"><b class="cmd">kettle option</b> <b class="method">type</b></a></li>
+<li><a href="#26"><b class="cmd">kettle option</b> <b class="method">save</b></a></li>
+<li><a href="#27"><b class="cmd">kettle option</b> <b class="method">load</b></a></li>
+<li><a href="#28"><b class="cmd">kettle option</b> <b class="method">config</b></a></li>
+<li><a href="#29"><b class="cmd">kettle ovalidate</b> <b class="method">enum</b></a></li>
+<li><a href="#30"><b class="cmd">kettle ovalidate</b> <b class="method">any</b></a></li>
+<li><a href="#31"><b class="cmd">kettle ovalidate</b> <b class="method">string</b></a></li>
+<li><a href="#32"><b class="cmd">kettle ovalidate</b> <b class="method">boolean</b></a></li>
+<li><a href="#33"><b class="cmd">kettle ovalidate</b> <b class="method">listsimple</b></a></li>
+<li><a href="#34"><b class="cmd">kettle ovalidate</b> <b class="method">directory</b></a></li>
+<li><a href="#35"><b class="cmd">kettle ovalidate</b> <b class="method">readable.file</b></a></li>
+<li><a href="#36"><b class="cmd">kettle ovalidate</b> <b class="method">path</b></a></li>
+<li><a href="#37"><b class="cmd">kettle path</b> <b class="method">bench-file</b> <i class="arg">path</i></a></li>
+<li><a href="#38"><b class="cmd">kettle path</b> <b class="method">bindir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#39"><b class="cmd">kettle path</b> <b class="method">cat</b> <i class="arg">path</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#40"><b class="cmd">kettle path</b> <b class="method">cathead</b> <i class="arg">path</i> <i class="arg">n</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#41"><b class="cmd">kettle path</b> <b class="method">copy-file</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></li>
+<li><a href="#42"><b class="cmd">kettle path</b> <b class="method">copy-files</b> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#43"><b class="cmd">kettle path</b> <b class="method">critcl3-package-file</b> <i class="arg">file</i></a></li>
+<li><a href="#44"><b class="cmd">kettle path</b> <b class="method">diagram-file</b> <i class="arg">path</i></a></li>
+<li><a href="#45"><b class="cmd">kettle path</b> <b class="method">doctools-file</b> <i class="arg">path</i></a></li>
+<li><a href="#46"><b class="cmd">kettle path</b> <b class="method">dry-barrier</b> <span class="opt">?<i class="arg">dryscript</i>?</span></a></li>
+<li><a href="#47"><b class="cmd">kettle path</b> <b class="method">exec</b> <i class="arg">arg</i>...</a></li>
+<li><a href="#48"><b class="cmd">kettle path</b> <b class="method">fixhashbang</b> <i class="arg">file</i> <i class="arg">shell</i></a></li>
+<li><a href="#49"><b class="cmd">kettle path</b> <b class="method">foreach-file</b> <i class="arg">path</i> <i class="arg">pv</i> <i class="arg">script</i></a></li>
+<li><a href="#50"><b class="cmd">kettle path</b> <b class="method">grep</b> <i class="arg">pattern</i> <i class="arg">data</i></a></li>
+<li><a href="#51"><b class="cmd">kettle path</b> <b class="method">htmldir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#52"><b class="cmd">kettle path</b> <b class="method">in</b> <i class="arg">path</i> <i class="arg">script</i></a></li>
+<li><a href="#53"><b class="cmd">kettle path</b> <b class="method">incdir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#54"><b class="cmd">kettle path</b> <b class="method">install-application</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></li>
+<li><a href="#55"><b class="cmd">kettle path</b> <b class="method">install-file-group</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#56"><b class="cmd">kettle path</b> <b class="method">install-file-set</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#57"><b class="cmd">kettle path</b> <b class="method">install-script</b> <i class="arg">src</i> <i class="arg">dstdir</i> <i class="arg">shell</i></a></li>
+<li><a href="#58"><b class="cmd">kettle path</b> <b class="method">kettle-build-file</b> <i class="arg">path</i></a></li>
+<li><a href="#59"><b class="cmd">kettle path</b> <b class="method">libdir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#60"><b class="cmd">kettle path</b> <b class="method">mandir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#61"><b class="cmd">kettle path</b> <b class="method">norm</b> <i class="arg">path</i></a></li>
+<li><a href="#62"><b class="cmd">kettle path</b> <b class="method">pipe</b> <i class="arg">lv</i> <i class="arg">script</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#63"><b class="cmd">kettle path</b> <b class="method">relative</b> <i class="arg">base</i> <i class="arg">dst</i></a></li>
+<li><a href="#64"><b class="cmd">kettle path</b> <b class="method">relativecwd</b> <i class="arg">dst</i></a></li>
+<li><a href="#65"><b class="cmd">kettle path</b> <b class="method">relativesrc</b> <i class="arg">dst</i></a></li>
+<li><a href="#66"><b class="cmd">kettle path</b> <b class="method">remove-path</b> <i class="arg">base</i> <i class="arg">path</i></a></li>
+<li><a href="#67"><b class="cmd">kettle path</b> <b class="method">remove-paths</b> <i class="arg">base</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#68"><b class="cmd">kettle path</b> <b class="method">rgrep</b> <i class="arg">pattern</i> <i class="arg">data</i></a></li>
+<li><a href="#69"><b class="cmd">kettle path</b> <b class="method">scan</b> <i class="arg">label</i> <i class="arg">root</i> <i class="arg">predicate</i></a></li>
+<li><a href="#70"><b class="cmd">kettle path</b> <b class="method">script</b></a></li>
+<li><a href="#71"><b class="cmd">kettle path</b> <b class="method">set-executable</b> <i class="arg">path</i></a></li>
+<li><a href="#72"><b class="cmd">kettle path</b> <b class="method">sourcedir</b> <span class="opt">?<i class="arg">path</i>?</span></a></li>
+<li><a href="#73"><b class="cmd">kettle path</b> <b class="method">strip</b> <i class="arg">path</i> prefix</a></li>
+<li><a href="#74"><b class="cmd">kettle path</b> <b class="method">tcl-package-file</b> <i class="arg">file</i></a></li>
+<li><a href="#75"><b class="cmd">kettle path</b> <b class="method">tcltest-file</b> <i class="arg">path</i></a></li>
+<li><a href="#76"><b class="cmd">kettle path</b> <b class="method">tmpfile</b> <span class="opt">?<i class="arg">prefix</i>?</span></a></li>
+<li><a href="#77"><b class="cmd">kettle path</b> <b class="method">uninstall-application</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></li>
+<li><a href="#78"><b class="cmd">kettle path</b> <b class="method">uninstall-file-group</b> <i class="arg">label</i> <i class="arg">dstdir</i></a></li>
+<li><a href="#79"><b class="cmd">kettle path</b> <b class="method">uninstall-file-set</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#80"><b class="cmd">kettle path</b> <b class="method">write</b> <i class="arg">path</i> <i class="arg">contents</i> <i class="arg">arg</i>...</a></li>
+<li><a href="#81"><b class="cmd">kettle recipe</b> <b class="method">define</b></a></li>
+<li><a href="#82"><b class="cmd">kettle recipe</b> <b class="method">parent</b></a></li>
+<li><a href="#83"><b class="cmd">kettle recipe</b> <b class="method">exists</b></a></li>
+<li><a href="#84"><b class="cmd">kettle recipe</b> <b class="method">names</b></a></li>
+<li><a href="#85"><b class="cmd">kettle recipe</b> <b class="method">help</b></a></li>
+<li><a href="#86"><b class="cmd">kettle recipe</b> <b class="method">run</b></a></li>
+<li><a href="#87"><b class="cmd">kettle status</b> <b class="method">begin</b></a></li>
+<li><a href="#88"><b class="cmd">kettle status</b> <b class="method">fail</b></a></li>
+<li><a href="#89"><b class="cmd">kettle status</b> <b class="method">ok</b></a></li>
+<li><a href="#90"><b class="cmd">kettle status</b> <b class="method">is</b></a></li>
+<li><a href="#91"><b class="cmd">kettle status</b> <b class="method">save</b></a></li>
+<li><a href="#92"><b class="cmd">kettle status</b> <b class="method">load</b></a></li>
+<li><a href="#93"><b class="cmd">kettle status</b> <b class="method">clear</b></a></li>
+<li><a href="#94"><b class="cmd">kettle io</b> <b class="method">setwidget</b> <i class="arg">w</i></a></li>
+<li><a href="#95"><b class="cmd">kettle io</b> <b class="method">for-gui</b> <i class="arg">script</i></a></li>
+<li><a href="#96"><b class="cmd">kettle io</b> <b class="method">for-terminal</b> <i class="arg">script</i></a></li>
+<li><a href="#97"><b class="cmd">kettle io</b> <b class="method">puts</b> <i class="arg">arg</i>...</a></li>
+<li><a href="#98"><b class="cmd">kettle io</b> <b class="method">trace</b> <i class="arg">text</i></a></li>
+<li><a href="#99"><b class="cmd">kettle io</b> <b class="method">trace-on</b></a></li>
+<li><a href="#100"><b class="cmd">kettle io</b> <b class="method">animation begin</b></a></li>
+<li><a href="#101"><b class="cmd">kettle io</b> <b class="method">animation write</b> <i class="arg">text</i></a></li>
+<li><a href="#102"><b class="cmd">kettle io</b> <b class="method">animation indent</b> <i class="arg">text</i></a></li>
+<li><a href="#103"><b class="cmd">kettle io</b> <b class="method">animation last</b> <i class="arg">text</i></a></li>
+<li><a href="#104"><b class="cmd">kettle io</b> <i class="arg">tag</i> <i class="arg">script</i></a></li>
+<li><a href="#105"><b class="cmd">kettle io</b> m<i class="arg">tag</i> <i class="arg">text</i></a></li>
+<li><a href="#106"><b class="cmd">lambda</b> <i class="arg">arguments</i> <i class="arg">body</i> <span class="opt">?<i class="arg">arg</i>...?</span></a></li>
+<li><a href="#107"><b class="cmd">lambda@</b> <i class="arg">namespace</i> <i class="arg">arguments</i> <i class="arg">body</i> <span class="opt">?<i class="arg">arg</i>...?</span></a></li>
+<li><a href="#108"><b class="cmd">try</b> <i class="arg">arg</i>...</a></li>
+<li><a href="#109"><b class="cmd">kettle strutil</b> <b class="method">indent</b> <i class="arg">text</i> <i class="arg">prefix</i></a></li>
+<li><a href="#110"><b class="cmd">kettle strutil</b> <b class="method">padl</b> <i class="arg">list</i></a></li>
+<li><a href="#111"><b class="cmd">kettle strutil</b> <b class="method">padr</b> <i class="arg">list</i></a></li>
+<li><a href="#112"><b class="cmd">kettle strutil</b> <b class="method">reflow</b> <i class="arg">text</i> <span class="opt">?<i class="arg">prefix</i>?</span></a></li>
+<li><a href="#113"><b class="cmd">kettle strutil</b> <b class="method">undent</b> <i class="arg">text</i></a></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.</p>
+<p>Please read the document <i class="term"><a href="kettle_intro.html">Kettle - Introduction to Kettle</a></i>,
+if you have not done so already, to get an overview of the whole system.</p>
+<p>This document is the reference to all commands provided by the kettle
+package, from the user-visible declarations to the lowest utilities.</p>
+<p>It is intended for both power-users wishing to write their own
+high-level commands linking into the existing foundations and
+developers and maintainers of kettle itself.</p>
+<p>A basic user should read
+<i class="term"><a href="kettle_app.html">Kettle - Application - Build Interpreter</a></i>
+and <i class="term"><a href="kettle_dsl.html">Kettle - Build Declarations</a></i> instead.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">Overview</a></h2>
+<p>The high-level architecture is shown in the image below:</p>
+<p><img alt="architecture" src="../../image/architecture.png"></p>
+<p>This document is concerned with the lowest level shown, the core
+kettle package itself. The inner boxes of that architectural box show
+the parts which are user-visible, i.e. providing the DSL commands
+explained in <i class="term"><a href="kettle_dsl.html">Kettle - Build Declarations</a></i>.
+For the details we have</p>
+<p><img alt="pkg_dependencies" src="../../image/pkg_dependencies.png"></p>
+<p>In this image we now see all the components found inside of the kettle
+package, their organization into layers and their dependencies. The
+latter is actually a bit simplified, showing only the dependencies
+between adjacent layers and leaving out the dependencies crossing
+layers. Adding them would make the image quite a bit more crowded.</p>
+<p>The green boxes are again the user-visible parts, either for
+the build declarations. The rest is internal. Note how and that the
+components found in the blue box are all dependent on each other,
+i.e. these are in circular dependencies.</p>
+<p>The names in the boxes directly refer to the file names
+containing the code of the component, without the extension,
+&quot;<b class="file">.tcl</b>&quot;.
+The only file not mentioned is &quot;<b class="file">kettle.tcl</b>&quot; which is the
+entrypoint to the package and sources all the others.
+Each component C is generally served by a single ensemble command,
+&quot;<b class="cmd">kettle</b> <b class="method">C</b>&quot;. The exceptions are the components exporting
+the user-visible declaration commands. Their commands, while still
+named &quot;<b class="cmd">kettle</b> <b class="method">C</b>&quot;, are not ensembles, but the one
+command in that component.</p>
+<p>The following sections go through the components from the top
+down to the bottom, starting with the user visible commands described
+in <i class="term"><a href="kettle_dsl.html">Kettle - Build Declarations</a></i>, covering all the green boxes.
+For the remainder:</p>
+<dl class="definitions">
+<dt>gui</dt>
+<dd><p><span class="sectref"><a href="#section4">Graphical Interface Support</a></span></p></dd>
+<dt>tool</dt>
+<dd><p><span class="sectref"><a href="#section5">Tool handling</a></span></p></dd>
+<dt>invoke</dt>
+<dd><p><span class="sectref"><a href="#section6">Recursive invokations</a></span></p></dd>
+<dt>option</dt>
+<dd><p><span class="sectref"><a href="#section7">Option database</a></span></p></dd>
+<dt>ovalidate</dt>
+<dd><p><span class="sectref"><a href="#section8">Option Types and Validation</a></span></p></dd>
+<dt>path</dt>
+<dd><p><span class="sectref"><a href="#section9">Path utilities</a></span></p></dd>
+<dt>recipe</dt>
+<dd><p><span class="sectref"><a href="#section10">Recipe database</a></span></p></dd>
+<dt>status</dt>
+<dd><p><span class="sectref"><a href="#section11">Status management</a></span></p></dd>
+<dt>io</dt>
+<dd><p><span class="sectref"><a href="#section12">IO virtualization</a></span></p></dd>
+<dt>lambda</dt>
+<dd><p><span class="sectref"><a href="#subsection1">Anonymous procedures</a></span></p></dd>
+<dt>try</dt>
+<dd><p><span class="sectref"><a href="#subsection2">Error handling</a></span></p></dd>
+<dt>strutil</dt>
+<dd><p><span class="sectref"><a href="#subsection3">String processing</a></span></p></dd>
+</dl>
+<p>Not convered in the above is &quot;<b class="file">standard.tcl</b>&quot;. This file
+does not export any commands to document. It unconditionally defines
+the standard recipes instead. These are the recipes which are always
+available, in contrast to the recipes dynamically created by the
+declarations commands in response to their scanning of a package
+source directory.</p>
+</div>
+<div id="section3" class="section"><h2><a name="section3">Build declarations</a></h2>
+<dl class="definitions">
+    
+<dt><a name="1"><b class="cmd">kettle tcl</b></a></dt>
+<dd><p>This command declares the presence of one or more Tcl packages in the
+package source directory.</p>
+<p>The package source directory is scanned to locate
+them. Packages are detected by finding a marker (Tcl command) of the
+form</p>
+<pre class="example">
+    package provide NAME VERSION
+</pre>
+<p>in a file, where both <b class="variable">NAME</b> and <b class="variable">VERSION</b> must be literal
+strings, not commands, nor variable references. It is best recognized
+when found alone on its line.
+Note that files containing an <em>anti-marker</em> of the form</p>
+<pre class="example">
+    package require critcl
+</pre>
+<p>are rejected as Tcl packages. Use the command <b class="cmd">kettle critcl3</b>
+to detect such packages, mixing Tcl and C.
+In each accepted package file the command further looks for and
+recognizes embedded pragmas of the form</p>
+<pre class="example"># @owns: PATH</pre>
+<p>which provides kettle with information about files belonging to the
+same package without directly providing it. This can be data files, or
+other Tcl files sourced by the main package file.</p>
+<p>For each detected package <b class="variable">P</b> two recipes are defined, to
+install and uninstall this package, namely:</p>
+<dl class="definitions">
+<dt><b class="const">install-package-<b class="variable">P</b></b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-package-<b class="variable">P</b></b></dt>
+<dd></dd>
+</dl>
+<p>The command further extends the recipes</p>
+<dl class="definitions">
+<dt><b class="const">install-tcl-packages</b></dt>
+<dd></dd>
+<dt><b class="const">install-packages</b></dt>
+<dd></dd>
+<dt><b class="const">install</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-tcl-packages</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-packages</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall</b></dt>
+<dd></dd>
+</dl>
+<p>generating a recipe tree matching</p>
+<pre class="example">
+  install
+  -&gt; install-packages
+     -&gt; install-tcl-packages
+        -&gt; install-app-$path
+  uninstall
+  -&gt; uninstall-packages
+     -&gt; uninstall-tcl-packages
+        -&gt; uninstall-app-$path
+</pre>
+<p>The extended recipes may be created by this process. As other
+declarations create similar trees these get merged together, enabling
+a user to install parts of the sources at various levels of specifity,
+from just a specific package up to all and sundry.</p>
+<p>Tcl packages are installed into the directory specified by
+option <b class="option">--lib-dir</b> despite technically not being binary files.</p>
+<dl class="options">
+<dt><b class="option">--lib-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory packages
+(binary and script) will be installed into.</p>
+<p>The default value is the [<b class="cmd">info library</b>] directory
+of the <b class="syscmd">tclsh</b> used to run the <b class="syscmd">kettle</b> application.</p>
+<p>If the option <b class="option">--exec-prefix</b> is modified the default
+value changes to &quot;<b class="file"><b class="variable">--exec-prefix</b>/lib</b>&quot;.</p></dd>
+</dl>
+<p>To simplify usage the command heuristically detects
+documentation and testsuites by means of internally calling the
+commands <b class="cmd">kettle doc</b> and <b class="cmd">kettle testsuite</b> with default
+path arguments (&quot;<b class="file">doc</b>&quot; and &quot;<b class="file">tests</b>&quot; respectively).</p>
+<p>If documentation and/or testsuite are placed in non-standard
+locations these commands have to be run before <b class="cmd">kettle tcl</b>,
+with the proper paths.</p>
+<p>If dependencies have been specified, via
+<b class="cmd">kettle depends-on</b>, the package specific install and debug
+recipes will recusively invoke install or debug on them before
+building the package itself.</p></dd>
+<dt><a name="2"><b class="cmd">kettle tclapp</b> <i class="arg">path</i></a></dt>
+<dd><p>This command declares the presence of a Tcl script application found 
+at the <i class="arg">path</i> under the package source directory.</p>
+<p>If the specified application is found the command will define
+two recipes to install and uninstall this application, namely:</p>
+<dl class="definitions">
+<dt><b class="const">install-app-<i class="arg">path</i></b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-app-<i class="arg">path</i></b></dt>
+<dd></dd>
+</dl>
+<p>It will further extend the recipes</p>
+<dl class="definitions">
+<dt><b class="const">install-tcl-applications</b></dt>
+<dd></dd>
+<dt><b class="const">install-applications</b></dt>
+<dd></dd>
+<dt><b class="const">install</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-tcl-applications</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-applications</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall</b></dt>
+<dd></dd>
+</dl>
+<p>generating a recipe tree matching</p>
+<pre class="example">
+  install
+  -&gt; install-applications
+     -&gt; install-tcl-applications
+        -&gt; install-app-$path
+  uninstall
+  -&gt; uninstall-applications
+     -&gt; uninstall-tcl-applications
+        -&gt; uninstall-app-$path
+</pre>
+<p>The extended recipes may be created by this process. As other
+declarations create similar trees these get merged together, enabling
+a user to install parts of the sources at various levels of specifity,
+from just a specific application up to all and sundry.</p>
+<p>Script applications are installed into the directory specified
+by option <b class="option">--bin-dir</b> despite technically not being binary
+files.</p>
+<dl class="options">
+<dt><b class="option">--bin-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory
+applications (binary and script) will be installed into.</p>
+<p>The default value is the directory of the <b class="syscmd">tclsh</b> used
+to run the <b class="syscmd">kettle</b> application.</p>
+<p>If the option <b class="option">--exec-prefix</b> is modified the default
+value changes to &quot;<b class="file"><b class="variable">--exec-prefix</b>/bin</b>&quot;.</p></dd>
+</dl></dd>
+<dt><a name="3"><b class="cmd">kettle critcl3</b></a></dt>
+<dd><p>This command declares the presence of one or more critcl-based Tcl
+packages in the package source directory, mixing C and Tcl.</p>
+<p>The package source directory is scanned to locate
+them. Packages are detected by finding two markers (Tcl commands) in
+the file. These markers are of the form</p>
+<pre class="example">
+    package provide NAME VERSION
+</pre>
+<p>and</p>
+<pre class="example">
+    package require critcl
+</pre>
+<p>Both <b class="variable">NAME</b> and <b class="variable">VERSION</b> must be literal strings, not
+commands, nor variable references. They are best recognized when found
+alone on their respective lines.</p>
+<p>For each detected package <b class="variable">P</b> three recipes are defined, to
+install and uninstall this package. Installation comes in two
+variants, regular and debug:</p>
+<dl class="definitions">
+<dt><b class="const">install-package-<b class="variable">P</b></b></dt>
+<dd></dd>
+<dt><b class="const">debug-package-<b class="variable">P</b></b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-package-<b class="variable">P</b></b></dt>
+<dd></dd>
+</dl>
+<p>The command further extends the recipes</p>
+<dl class="definitions">
+<dt><b class="const">install-binary-packages</b></dt>
+<dd></dd>
+<dt><b class="const">install-packages</b></dt>
+<dd></dd>
+<dt><b class="const">install</b></dt>
+<dd></dd>
+<dt><b class="const">debug-binary-packages</b></dt>
+<dd></dd>
+<dt><b class="const">debug-packages</b></dt>
+<dd></dd>
+<dt><b class="const">debug</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-binary-packages</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-packages</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall</b></dt>
+<dd></dd>
+</dl>
+<p>generating a recipe tree matching</p>
+<pre class="example">
+  install
+  -&gt; install-packages
+     -&gt; install-binary-packages
+        -&gt; install-app-$path
+  debug
+  -&gt; debug-packages
+     -&gt; debug-binary-packages
+        -&gt; debug-app-$path
+  uninstall
+  -&gt; uninstall-packages
+     -&gt; uninstall-binary-packages
+        -&gt; uninstall-app-$path
+</pre>
+<p>The extended recipes may be created by this process. As other
+declarations create similar trees these get merged together, enabling
+a user to install parts of the sources at various levels of specifity,
+from just a specific package up to all and sundry.</p>
+<p>Critcl-based packages are installed into the directory
+specified by option <b class="option">--lib-dir</b>.
+Critcl's choice of the target configuration to build for can be
+overrriden via option <b class="option">--target</b>.
+Kettle's choice of which critcl application to use cane overriden by
+option <b class="option">--with-critcl3</b>, except if kettle found a
+<b class="package">critcl</b> package and runs everything itself instead of
+invoking critcl child processes.</p>
+<dl class="options">
+<dt><b class="option">--lib-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory packages
+(binary and script) will be installed into.</p>
+<p>The default value is the [<b class="cmd">info library</b>] directory
+of the <b class="syscmd">tclsh</b> used to run the <b class="syscmd">kettle</b> application.</p>
+<p>If the option <b class="option">--exec-prefix</b> is modified the default
+value changes to &quot;<b class="file"><b class="variable">--exec-prefix</b>/lib</b>&quot;.</p></dd>
+<dt><b class="option">--target</b> string</dt>
+<dd><p>The value of this option is the target name <b class="syscmd">critcl</b> should use
+to build C code.</p>
+<p>The default value is the empty string, leaving the choice of
+target to <b class="syscmd">critcl</b> itself.</p></dd>
+<dt><b class="option">--with-critcl3</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">critcl3</b> for the compilation and installation of critcl-based
+C code.</p>
+<p>The default value is the path to the first of</p>
+<ol class="enumerated">
+<li><p>&quot;<b class="file">critcl3</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.kit</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.tcl</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.exe</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl.kit</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl.tcl</b>&quot;, and</p></li>
+<li><p>&quot;<b class="file">critcl.exe</b>&quot;</p></li>
+</ol>
+<p>found on the <b class="variable">PATH</b>. None of these matter however should the
+system find the package <b class="package">critcl</b> version 3 or higher among the
+packages known to the <b class="syscmd">tclsh</b> running the <b class="syscmd">kettle</b>
+application. In that case kettle will run everything in itself,
+without invoking critcl child processes.</p></dd>
+</dl>
+<p>To simplify usage the command heuristically detects
+documentation and testsuites by means of internally calling the
+commands <b class="cmd">kettle doc</b> and <b class="cmd">kettle testsuite</b> with default
+path arguments (&quot;<b class="file">doc</b>&quot; and &quot;<b class="file">tests</b>&quot; respectively).</p>
+<p>If documentation and/or testsuite are placed in non-standard
+locations these commands have to be run before <b class="cmd">kettle critcl3</b>,
+with the proper paths.</p>
+<p>If dependencies have been specified, via
+<b class="cmd">kettle depends-on</b>, the package specific install and debug
+recipes will recusively invoke install or debug on them before
+building the package itself.</p></dd>
+<dt><a name="4"><b class="cmd">kettle depends-on</b> <i class="arg">path</i>...</a></dt>
+<dd><p>This command declares that the current sources depend on the packages
+in the specified directories. These are best specified as relative
+directories and most useful in package bundles where multiple
+dependent packages are managed in a single source repository.</p>
+<p>The arguments can be paths to files too. In that case the files
+are assumed to be the build declaration files of the required packages
+in question. In case of a directory path kettle will search for the
+build declaration file it needs.
+This information is currently only used by the package-specific
+&quot;install&quot; and &quot;debug&quot; recipes generated by the kettle commands
+<b class="cmd">kettle tcl</b> and <b class="cmd">kettle critcl</b>.</p></dd>
+<dt><a name="5"><b class="cmd">kettle doc-destination</b> <i class="arg">path</i></a></dt>
+<dd><p>The &quot;doc&quot; recipe generated by the <b class="cmd">kettle doc</b> command (see
+below) saves the conversion results into the sub-directory specified
+by option <b class="option">--with-doc-destination</b>.</p>
+<p>This command declares that the results should be put into the
+specified non-standard <i class="arg">path</i> instead of the default of
+&quot;<b class="file">embedded</b>&quot;.
+To take effect it has to be run <em>before</em> <b class="cmd">kettle doc</b> is
+run.
+<em>Note</em> that the user is still able to override with by setting
+<b class="option">--with-doc-destination</b> on the command line.</p>
+<dl class="options">
+<dt><b class="option">--with-doc-destination</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory the
+generated documentation should be placed into for the documentation
+installa recipes to pick up from.</p>
+<p>This should be a relative path, which will interpreted relative
+to the package source directory.</p>
+<p>The default value is &quot;<b class="file">embedded</b>&quot;.</p>
+<p>A build declaration file can override this default with the
+<b class="cmd">kettle doc-destination</b> command.</p></dd>
+</dl></dd>
+<dt><a name="6"><b class="cmd">kettle doc</b> <span class="opt">?<i class="arg">docroot</i>?</span></a></dt>
+<dd><p>This command declares the presence of <b class="package">doctools</b>-based
+documentation files under the directory <i class="arg">docroot</i>, which is a path
+relative to the source directory.</p>
+<p>If not specified <i class="arg">docroot</i> defaults to &quot;<b class="file">doc</b>&quot;.</p>
+<p>While this command can be invoked multiple times, only the
+first invokation will have an effect. Every invokation after that is
+ignored.
+The commands <b class="cmd">kettle tcl</b>, <b class="cmd">kettle critcl3</b>, and
+<b class="cmd">kettle gh-pages</b> run this command implicitly, with the default
+paths.
+This means that if documentation is stored in a non-standard location
+<b class="cmd">kettle doc</b> must be run explicitly before them, with the proper path.</p>
+<p>The package documentation directory is scanned to locate the
+documentation files. They are recognized by containing any of the
+marker strings</p>
+<ul class="itemized">
+<li><p>&quot;<b class="const">[manpage_begin</b>&quot;</p></li>
+<li><p>&quot;<b class="const">--- doctools ---</b>&quot;</p></li>
+<li><p>&quot;<b class="const">tcl.tk//DSL doctools//EN//</b>&quot;</p></li>
+</ul>
+<p>in their first 1024 characters. Possible documentation files are
+rejected should they contain any of the anti-markers</p>
+<ul class="itemized">
+<li><p>&quot;<b class="const">--- !doctools ---</b>&quot;</p></li>
+<li><p>&quot;<b class="const">!tcl.tk//DSL doctools//EN//</b>&quot;</p></li>
+</ul>
+<p>in their first 1024 characters. This last is necessary as doctools
+include file feature allows the actual document content to start in an
+include file which cannot operate without being includes from a master
+file configuring it.</p>
+<p>When documentation files are found the command will define
+recipes to convert the documentation into manpages and HTML files,
+plus recipes install the conversion results. The conversion results
+themselves are stored as specified by <b class="cmd">kettle doc-destination</b>
+(see above) and associated options.</p>
+<dl class="definitions">
+<dt><b class="const">doc</b></dt>
+<dd></dd>
+<dt><b class="const">install-doc-html</b></dt>
+<dd></dd>
+<dt><b class="const">install-doc-manpages</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-doc-html</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-doc-manpages</b></dt>
+<dd></dd>
+</dl>
+<p>The command further extends the recipes</p>
+<dl class="definitions">
+<dt><b class="const">install-doc</b></dt>
+<dd></dd>
+<dt><b class="const">install</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall-doc</b></dt>
+<dd></dd>
+<dt><b class="const">uninstall</b></dt>
+<dd></dd>
+</dl>
+<p>generating a recipe tree matching</p>
+<pre class="example">
+  install
+  -&gt; install-doc
+     -&gt; install-doc-html
+     -&gt; install-doc-manpages
+  uninstall
+  -&gt; uninstall-doc
+     -&gt; uninstall-doc-html
+     -&gt; uninstall-doc-manpages
+</pre>
+<p>The extended recipes may be created by this process. As other
+declarations create similar trees these get merged together, enabling
+a user to install parts of the sources at various levels of specifity,
+from just a specific type of documentation up to all and sundry.</p>
+<p>HTML documentation is stored under the directory specified by
+option <b class="option">--html-dir</b>.
+Manpages are stored under the directory specified by
+option <b class="option">--man-dir</b>.
+The &quot;doc&quot; recipe uses the <b class="syscmd">dtplite</b> application to perform the
+various conversions.</p>
+<dl class="options">
+<dt><b class="option">--html-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory package
+documentation in HTML format will be installed into.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b>/html</b>&quot;.</p></dd>
+<dt><b class="option">--man-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory package
+documentation (manpages, in *roff format) will be installed into.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b>/man</b>&quot;.</p></dd>
+<dt><b class="option">--with-dtplite</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">dtplite</b> for doctools-based documentation processing.</p>
+<p>The default value is the path to the first of
+	&quot;<b class="file">dtplite</b>&quot;,
+	&quot;<b class="file">dtplite.kit</b>&quot;,
+	&quot;<b class="file">dtplite.tcl</b>&quot;, and
+	&quot;<b class="file">dtplite.exe</b>&quot;
+found on the <b class="variable">PATH</b>.</p></dd>
+</dl>
+<p>To simplify usage the command heuristically detects
+tklib/diagram based figures by means of internally calling the command
+<b class="cmd">kettle figures</b> with default path arguments
+(&quot;<b class="file"><b class="variable">doc-sources</b>/figures}</b>&quot;.</p>
+<p>If the figures are placed in a non-standard location this
+command has to be run before <b class="cmd">kettle doc</b>, with the proper
+paths.</p></dd>
+<dt><a name="7"><b class="cmd">kettle figures</b> <span class="opt">?<i class="arg">figroot</i>?</span></a></dt>
+<dd><p>This command declares the presence of <b class="package">diagram</b>-based figures
+under the directory <i class="arg">figroot</i>, which is a path relative to the
+source directory.</p>
+<p>If not specified <i class="arg">figroot</i> defaults to &quot;<b class="file">doc/figures</b>&quot;.</p>
+<p>While this command can be invoked multiple times, only the
+first invokation will have an effect. Every invokation after that is
+ignored.
+The command <b class="cmd">kettle doc</b> (and indirectly <b class="cmd">kettle tcl</b> and
+<b class="cmd">kettle critcl3</b>) runs this command implicitly, with the default
+paths.
+This means that if diagrams are stored in a non-standard location
+<b class="cmd">kettle figures</b> must be run explicitly before them, with the
+proper path.</p>
+<p>The package diagram directory is scanned to locate the diagram
+files. They are recognized by containing the marker string</p>
+<ul class="itemized">
+<li><p>&quot;<b class="const">tcl.tk//DSL diagram//EN//</b>&quot;</p></li>
+</ul>
+<p>in their first 1024 characters.</p>
+<p>When diagram files are found the command will define recipes to
+convert the diagrams into PNG raster images (saved as siblings to
+their source files), and to render the diagrams on a Tk canvas.</p>
+<dl class="definitions">
+<dt><b class="const">figures</b></dt>
+<dd></dd>
+<dt><b class="const">show-figures</b></dt>
+<dd></dd>
+</dl>
+<p>The recipes use the <b class="syscmd">dia</b> application (of <b class="package">tklib</b>)
+to perform the conversions, and GUI rendering.</p>
+<dl class="options">
+<dt><b class="option">--with-dia</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">dia</b> for tklib/diagram-based diagram processing.</p>
+<p>The default value is the path to the first of
+	&quot;<b class="file">dia</b>&quot;,
+	&quot;<b class="file">dia.kit</b>&quot;,
+	&quot;<b class="file">dia.tcl</b>&quot;, and
+	&quot;<b class="file">dia.exe</b>&quot;
+found on the <b class="variable">PATH</b>.</p></dd>
+</dl></dd>
+<dt><a name="8"><b class="cmd">kettle gh-pages</b></a></dt>
+<dd><p>This command declares the presence of a <i class="term">gh-pages</i> branch in the
+repository, as is used by, for example, <a href="http://github.com">http://github.com</a>, to
+manage the web-site for a project in the rpeository of the project.</p>
+<p>The command confirms the presence of documentation and that the
+local repository is <b class="syscmd">git</b>-based. If neither is true nothing
+done.</p>
+<p>While this command can be invoked multiple times, only the
+first invokation will have an effect. Every invokation after that is
+ignored.
+It runs the command <b class="cmd">kettle doc</b> command implicitly, with the
+default paths, to ensure that its own check for documentation work
+properly.
+This means that if documentation is stored in a non-standard location
+<b class="cmd">kettle doc</b> must be run explicitly before this command, with
+the proper path.</p>
+<p>When the above tests pass the command will define a recipe
+named <b class="const">gh-pages</b>, which performs all the automatable steps to
+copy the embedded documentation of the project into its
+<i class="term">gh-pages</i> branch. Afterward the checkout is left at the
+<i class="term">gh-pages</i> branch, for the user to review and commit. While the
+last step could be automated the review cannot, making the point moot.</p></dd>
+<dt><a name="9"><b class="cmd">kettle testsuite</b> <span class="opt">?<i class="arg">testroot</i>?</span></a></dt>
+<dd><p>This command declares the presence of a <b class="package">tcltest</b>-based
+testsuite under the directory <i class="arg">testroot</i>, which is a path relative
+to the source directory.</p>
+<p>If not specified <i class="arg">testroot</i> defaults to &quot;<b class="file">tests</b>&quot;.</p>
+<p>While this command can be invoked multiple times, only the
+first invokation will have an effect. Every invokation after that is
+ignored.
+The commands <b class="cmd">kettle tcl</b> and <b class="cmd">kettle critcl3</b>) run this
+command implicitly, with the default paths.
+This means that if a testsuite is stored in a non-standard location
+<b class="cmd">kettle testsuite</b> must be run explicitly before them, with the
+proper path.</p>
+<p>The package testsuite directory is scanned to locate the test
+files. They are recognized by containing the marker string</p>
+<ul class="itemized">
+<li><p>&quot;<b class="const">tcl.tk//DSL tcltest//EN//</b>&quot;</p></li>
+</ul>
+<p>in their first 1024 characters.</p>
+<p>When testsuites are found the command will define a recipe to
+run them. This recipe will recursively invoke the recipes &quot;debug&quot; (or
+&quot;install&quot; if the former does not exist, or fails) before performing
+the tests, installing the package under test (and its dependencies) in
+a local directory for use by the testsuites. The supporting commands
+provided by kettle (see <i class="term"><a href="kettle_test.html">Kettle - Testsuite Support</a></i>) know how
+to use this.</p>
+<dl class="definitions">
+<dt><b class="const">test</b></dt>
+<dd></dd>
+</dl>
+<p>The verbosity of testsuite output to the terminal is specified
+by the option <b class="option">--log-mode</b>.
+The ability to save testsuite output to a series of files is specified
+by the option <b class="option">--log</b>.
+The tclsh shell used for running the testsuites is specified by option
+<b class="option">--with-shell</b>.</p>
+<dl class="options">
+<dt><b class="option">--log-mode</b> compact|full</dt>
+<dd><p>An option for recipe 'test', if defined. Its value determines the
+verbosity of test suite information printed to the terminal or log window.</p>
+<p>The default is <b class="const">compact</b>.</p></dd>
+<dt><b class="option">--log</b> path</dt>
+<dd><p>An option for recipe 'test', if defined. Its value is the path &quot;stem&quot;
+for a series of files testsuite information is saved into. The actual
+files use the specified stem and add their specifc file extension to
+it.</p>
+<p>The default is the empty string, disabling the saving of
+testsuite information.</p></dd>
+<dt><b class="option">--with-shell</b> path</dt>
+<dd></dd>
+</dl></dd>
+</dl>
+</div>
+<div id="section4" class="section"><h2><a name="section4">Graphical Interface Support</a></h2>
+<p>This layer contains the command for the creation of the standard
+graphical interface to the system.</p>
+<dl class="definitions">
+<dt><a name="10"><b class="cmd">kettle gui</b> <b class="method">make</b></a></dt>
+<dd><p>This high-level command creates a standard graphical interface
+providing access to all options and defined recipes, through two tabs
+in a notebook.</p>
+<p>Options are handled by type specific fields, the details of
+which are created by the option type definitions found under
+<b class="cmd">kettle ovalidate</b>, as specified in section
+<span class="sectref"><a href="#section8">Option Types and Validation</a></span>.</p>
+<p>Recipes are acessible through one button per recipe.</p>
+<p>Output is written to a text widget acting as a log window, in
+the same tab which contains the action buttons.</p></dd>
+</dl>
+</div>
+<div id="section5" class="section"><h2><a name="section5">Tool handling</a></h2>
+<p>This layer contains commands to manage the declaration of a dependency
+on external comands, and their use.</p>
+<dl class="definitions">
+<dt><a name="11"><b class="cmd">kettle tool</b> <b class="method">declare</b> <i class="arg">names</i> <span class="opt">?<i class="arg">validator</i>?</span></a></dt>
+<dd><p>This command declares the need for an external tool which can have any
+of the listed <i class="arg">names</i>.
+The first element of that list is the name the tool will be known
+under within kettle, also called the <i class="term">primary name</i> of the
+tool.
+This is the name to hand to <b class="cmd">kettle tool get</b> below to retrieve
+the tool's location.</p>
+<p>Similarly the primary name is used to define an option named
+--with-<b class="variable">name</b>, used to hold the path found by searching for the
+tool on the <b class="variable">PATH</b> under its various names, and to allow the user
+to override kettle's choice.</p>
+<p>If <i class="arg">validator</i> is specified it will be treated as the body
+of an anonymous procedure with a single argument <i class="arg">cmd</i>, the path
+of the tool found on <b class="variable">PATH</b> and returning a boolean value telling
+the caller if this path is acceptable (result == <b class="const">true</b>), or
+not. In case of the latter the system will continue searching with the
+next name in <i class="arg">names</i>.</p></dd>
+<dt><a name="12"><b class="cmd">kettle tool</b> <b class="method">get</b> <i class="arg">name</i></a></dt>
+<dd><p>This command returns the path to the <i class="arg">name</i>d tool, assuming that
+it was <b class="method">declare</b>d before.
+If no such tool is specified the command prints an error message and
+aborts the execution of the current recipe and its callers.</p></dd>
+</dl>
+</div>
+<div id="section6" class="section"><h2><a name="section6">Recursive invokations</a></h2>
+<p>The commands of this layer enable recipes to recursively invoke other
+recipes, for the current and in other packages.</p>
+<dl class="definitions">
+<dt><a name="13"><b class="cmd">kettle</b> <b class="method">invoke</b></a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section7" class="section"><h2><a name="section7">Option database</a></h2>
+<p>This layer manages the option database, which both holds the
+configuration options, their definitions and values, as also named
+shared global state.</p>
+<dl class="definitions">
+<dt><a name="14"><b class="cmd">kettle option</b> <b class="method">define</b></a></dt>
+<dd></dd>
+<dt><a name="15"><b class="cmd">kettle option</b> <b class="method">onchange</b></a></dt>
+<dd></dd>
+<dt><a name="16"><b class="cmd">kettle option</b> <b class="method">no-work-key</b></a></dt>
+<dd></dd>
+<dt><a name="17"><b class="cmd">kettle option</b> <b class="method">exists</b></a></dt>
+<dd></dd>
+<dt><a name="18"><b class="cmd">kettle option</b> <b class="method">names</b></a></dt>
+<dd></dd>
+<dt><a name="19"><b class="cmd">kettle option</b> <b class="method">help</b></a></dt>
+<dd></dd>
+<dt><a name="20"><b class="cmd">kettle option</b> <b class="method">set</b></a></dt>
+<dd></dd>
+<dt><a name="21"><b class="cmd">kettle option</b> <b class="method">set-default</b></a></dt>
+<dd></dd>
+<dt><a name="22"><b class="cmd">kettle option</b> <b class="method">set!</b></a></dt>
+<dd></dd>
+<dt><a name="23"><b class="cmd">kettle option</b> <b class="method">unset</b></a></dt>
+<dd></dd>
+<dt><a name="24"><b class="cmd">kettle option</b> <b class="method">get</b></a></dt>
+<dd></dd>
+<dt><a name="25"><b class="cmd">kettle option</b> <b class="method">type</b></a></dt>
+<dd></dd>
+<dt><a name="26"><b class="cmd">kettle option</b> <b class="method">save</b></a></dt>
+<dd></dd>
+<dt><a name="27"><b class="cmd">kettle option</b> <b class="method">load</b></a></dt>
+<dd></dd>
+<dt><a name="28"><b class="cmd">kettle option</b> <b class="method">config</b></a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section8" class="section"><h2><a name="section8">Option Types and Validation</a></h2>
+<p>This layer defines the validation types usable by the options.</p>
+<dl class="definitions">
+<dt><a name="29"><b class="cmd">kettle ovalidate</b> <b class="method">enum</b></a></dt>
+<dd></dd>
+<dt><a name="30"><b class="cmd">kettle ovalidate</b> <b class="method">any</b></a></dt>
+<dd></dd>
+<dt><a name="31"><b class="cmd">kettle ovalidate</b> <b class="method">string</b></a></dt>
+<dd></dd>
+<dt><a name="32"><b class="cmd">kettle ovalidate</b> <b class="method">boolean</b></a></dt>
+<dd></dd>
+<dt><a name="33"><b class="cmd">kettle ovalidate</b> <b class="method">listsimple</b></a></dt>
+<dd></dd>
+<dt><a name="34"><b class="cmd">kettle ovalidate</b> <b class="method">directory</b></a></dt>
+<dd></dd>
+<dt><a name="35"><b class="cmd">kettle ovalidate</b> <b class="method">readable.file</b></a></dt>
+<dd></dd>
+<dt><a name="36"><b class="cmd">kettle ovalidate</b> <b class="method">path</b></a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section9" class="section"><h2><a name="section9">Path utilities</a></h2>
+<p>This layer contains the commands ...</p>
+<dl class="definitions">
+<dt><a name="37"><b class="cmd">kettle path</b> <b class="method">bench-file</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="38"><b class="cmd">kettle path</b> <b class="method">bindir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="39"><b class="cmd">kettle path</b> <b class="method">cat</b> <i class="arg">path</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="40"><b class="cmd">kettle path</b> <b class="method">cathead</b> <i class="arg">path</i> <i class="arg">n</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="41"><b class="cmd">kettle path</b> <b class="method">copy-file</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></dt>
+<dd></dd>
+<dt><a name="42"><b class="cmd">kettle path</b> <b class="method">copy-files</b> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="43"><b class="cmd">kettle path</b> <b class="method">critcl3-package-file</b> <i class="arg">file</i></a></dt>
+<dd></dd>
+<dt><a name="44"><b class="cmd">kettle path</b> <b class="method">diagram-file</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="45"><b class="cmd">kettle path</b> <b class="method">doctools-file</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="46"><b class="cmd">kettle path</b> <b class="method">dry-barrier</b> <span class="opt">?<i class="arg">dryscript</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="47"><b class="cmd">kettle path</b> <b class="method">exec</b> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="48"><b class="cmd">kettle path</b> <b class="method">fixhashbang</b> <i class="arg">file</i> <i class="arg">shell</i></a></dt>
+<dd></dd>
+<dt><a name="49"><b class="cmd">kettle path</b> <b class="method">foreach-file</b> <i class="arg">path</i> <i class="arg">pv</i> <i class="arg">script</i></a></dt>
+<dd></dd>
+<dt><a name="50"><b class="cmd">kettle path</b> <b class="method">grep</b> <i class="arg">pattern</i> <i class="arg">data</i></a></dt>
+<dd></dd>
+<dt><a name="51"><b class="cmd">kettle path</b> <b class="method">htmldir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="52"><b class="cmd">kettle path</b> <b class="method">in</b> <i class="arg">path</i> <i class="arg">script</i></a></dt>
+<dd></dd>
+<dt><a name="53"><b class="cmd">kettle path</b> <b class="method">incdir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="54"><b class="cmd">kettle path</b> <b class="method">install-application</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></dt>
+<dd></dd>
+<dt><a name="55"><b class="cmd">kettle path</b> <b class="method">install-file-group</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="56"><b class="cmd">kettle path</b> <b class="method">install-file-set</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="57"><b class="cmd">kettle path</b> <b class="method">install-script</b> <i class="arg">src</i> <i class="arg">dstdir</i> <i class="arg">shell</i></a></dt>
+<dd></dd>
+<dt><a name="58"><b class="cmd">kettle path</b> <b class="method">kettle-build-file</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="59"><b class="cmd">kettle path</b> <b class="method">libdir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="60"><b class="cmd">kettle path</b> <b class="method">mandir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="61"><b class="cmd">kettle path</b> <b class="method">norm</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="62"><b class="cmd">kettle path</b> <b class="method">pipe</b> <i class="arg">lv</i> <i class="arg">script</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="63"><b class="cmd">kettle path</b> <b class="method">relative</b> <i class="arg">base</i> <i class="arg">dst</i></a></dt>
+<dd></dd>
+<dt><a name="64"><b class="cmd">kettle path</b> <b class="method">relativecwd</b> <i class="arg">dst</i></a></dt>
+<dd></dd>
+<dt><a name="65"><b class="cmd">kettle path</b> <b class="method">relativesrc</b> <i class="arg">dst</i></a></dt>
+<dd></dd>
+<dt><a name="66"><b class="cmd">kettle path</b> <b class="method">remove-path</b> <i class="arg">base</i> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="67"><b class="cmd">kettle path</b> <b class="method">remove-paths</b> <i class="arg">base</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="68"><b class="cmd">kettle path</b> <b class="method">rgrep</b> <i class="arg">pattern</i> <i class="arg">data</i></a></dt>
+<dd></dd>
+<dt><a name="69"><b class="cmd">kettle path</b> <b class="method">scan</b> <i class="arg">label</i> <i class="arg">root</i> <i class="arg">predicate</i></a></dt>
+<dd></dd>
+<dt><a name="70"><b class="cmd">kettle path</b> <b class="method">script</b></a></dt>
+<dd></dd>
+<dt><a name="71"><b class="cmd">kettle path</b> <b class="method">set-executable</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="72"><b class="cmd">kettle path</b> <b class="method">sourcedir</b> <span class="opt">?<i class="arg">path</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="73"><b class="cmd">kettle path</b> <b class="method">strip</b> <i class="arg">path</i> prefix</a></dt>
+<dd></dd>
+<dt><a name="74"><b class="cmd">kettle path</b> <b class="method">tcl-package-file</b> <i class="arg">file</i></a></dt>
+<dd></dd>
+<dt><a name="75"><b class="cmd">kettle path</b> <b class="method">tcltest-file</b> <i class="arg">path</i></a></dt>
+<dd></dd>
+<dt><a name="76"><b class="cmd">kettle path</b> <b class="method">tmpfile</b> <span class="opt">?<i class="arg">prefix</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="77"><b class="cmd">kettle path</b> <b class="method">uninstall-application</b> <i class="arg">src</i> <i class="arg">dstdir</i></a></dt>
+<dd></dd>
+<dt><a name="78"><b class="cmd">kettle path</b> <b class="method">uninstall-file-group</b> <i class="arg">label</i> <i class="arg">dstdir</i></a></dt>
+<dd></dd>
+<dt><a name="79"><b class="cmd">kettle path</b> <b class="method">uninstall-file-set</b> <i class="arg">label</i> <i class="arg">dstdir</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+<dt><a name="80"><b class="cmd">kettle path</b> <b class="method">write</b> <i class="arg">path</i> <i class="arg">contents</i> <i class="arg">arg</i>...</a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section10" class="section"><h2><a name="section10">Recipe database</a></h2>
+<p>This layer contains the commands managing the database of all known
+recipes, ready for execution.</p>
+<dl class="definitions">
+<dt><a name="81"><b class="cmd">kettle recipe</b> <b class="method">define</b></a></dt>
+<dd></dd>
+<dt><a name="82"><b class="cmd">kettle recipe</b> <b class="method">parent</b></a></dt>
+<dd></dd>
+<dt><a name="83"><b class="cmd">kettle recipe</b> <b class="method">exists</b></a></dt>
+<dd></dd>
+<dt><a name="84"><b class="cmd">kettle recipe</b> <b class="method">names</b></a></dt>
+<dd></dd>
+<dt><a name="85"><b class="cmd">kettle recipe</b> <b class="method">help</b></a></dt>
+<dd></dd>
+<dt><a name="86"><b class="cmd">kettle recipe</b> <b class="method">run</b></a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section11" class="section"><h2><a name="section11">Status management</a></h2>
+<p>The command of this layer manage the status of the currently executing
+recipe and the database holding the knowledge about all executed
+recipes, keyed by their name, location and relevant configuration.
+This database is shared among instances of kettle during recursive
+invokation.</p>
+<dl class="definitions">
+<dt><a name="87"><b class="cmd">kettle status</b> <b class="method">begin</b></a></dt>
+<dd></dd>
+<dt><a name="88"><b class="cmd">kettle status</b> <b class="method">fail</b></a></dt>
+<dd></dd>
+<dt><a name="89"><b class="cmd">kettle status</b> <b class="method">ok</b></a></dt>
+<dd></dd>
+<dt><a name="90"><b class="cmd">kettle status</b> <b class="method">is</b></a></dt>
+<dd></dd>
+<dt><a name="91"><b class="cmd">kettle status</b> <b class="method">save</b></a></dt>
+<dd></dd>
+<dt><a name="92"><b class="cmd">kettle status</b> <b class="method">load</b></a></dt>
+<dd></dd>
+<dt><a name="93"><b class="cmd">kettle status</b> <b class="method">clear</b></a></dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section12" class="section"><h2><a name="section12">IO virtualization</a></h2>
+<p>This section describes the IO virtualization layer used to decouple
+the higher layer's output from the actual destination, terminal or gui
+log window.</p>
+<dl class="definitions">
+<dt><a name="94"><b class="cmd">kettle io</b> <b class="method">setwidget</b> <i class="arg">w</i></a></dt>
+<dd><p>This command sets the text widget to use for output, redirecting all
+output made through <b class="cmd">kettle io puts</b> and <b class="cmd">kettle io trace</b>
+from the terminal to this widget.</p></dd>
+<dt><a name="95"><b class="cmd">kettle io</b> <b class="method">for-gui</b> <i class="arg">script</i></a></dt>
+<dd></dd>
+<dt><a name="96"><b class="cmd">kettle io</b> <b class="method">for-terminal</b> <i class="arg">script</i></a></dt>
+<dd><p>These two commands execute the script in their calling context if the
+IO system is using text widget or terminal for output, respectively.</p></dd>
+<dt><a name="97"><b class="cmd">kettle io</b> <b class="method">puts</b> <i class="arg">arg</i>...</a></dt>
+<dd><p>This command is an emulation of Tcl's builtin <b class="cmd">puts</b> which writes
+to either a terminal (default), or a text widget. The latter happens
+only if such a widget was set with <b class="cmd">kettle io set-widget</b>.</p>
+<p>The full syntax of the builtin <b class="cmd">puts</b> is implemented.</p>
+<p>This redirection affects only the standard channels however,
+all other channels given to the command will go to their proper files,
+sockets, etc.</p></dd>
+<dt><a name="98"><b class="cmd">kettle io</b> <b class="method">trace</b> <i class="arg">text</i></a></dt>
+<dd><p>This command is the tracing of kettle internals. It will not produce
+output until <b class="cmd">kettle io trace-on</b> is invoked.
+The specified <i class="arg">text</i> is run through a round of substitution (in
+the callers context), resolving variables and commands embedded into
+it. This allows the use of brace-quoting, preventing the execution of
+such embedded commands while tracing is disabled.</p></dd>
+<dt><a name="99"><b class="cmd">kettle io</b> <b class="method">trace-on</b></a></dt>
+<dd><p>This command activates the tracing of internals, enabling
+<b class="cmd">kettle io trace</b> to produce output.</p></dd>
+<dt><a name="100"><b class="cmd">kettle io</b> <b class="method">animation begin</b></a></dt>
+<dd><p>This command is the first in a group of four implementing the
+foundations for text-based progress bars and the like.</p>
+<p>When invoked it initializes the internal state for writing on
+the last line of the terminal without moving into the next line. This
+sets the maximum column used to <b class="const">0</b>, and the current prefix to
+the empty string.</p></dd>
+<dt><a name="101"><b class="cmd">kettle io</b> <b class="method">animation write</b> <i class="arg">text</i></a></dt>
+<dd><p>This command writes the concatenation of the current prefix and input
+<i class="arg">text</i> to the current line, clearing and then overwriting the
+previous content of the same line. By writing different texts an
+animation effect can be generated, with only the prefix staying
+constant. The command takes care to track the largest column
+characters have been written to and to clear them even if the current
+string does not cover them.</p></dd>
+<dt><a name="102"><b class="cmd">kettle io</b> <b class="method">animation indent</b> <i class="arg">text</i></a></dt>
+<dd><p>This command extends the current prefix with <i class="arg">text</i>. Nothing else
+happens.</p></dd>
+<dt><a name="103"><b class="cmd">kettle io</b> <b class="method">animation last</b> <i class="arg">text</i></a></dt>
+<dd><p>This command is the last in the group of four handling animation
+effects. It first <b class="method">write</b>s the <i class="arg">text</i> as usual and then
+moves the terminal to the next line, making <i class="arg">text</i> the last
+shown string of the animation and that which is kept shown.</p></dd>
+<dt><a name="104"><b class="cmd">kettle io</b> <i class="arg">tag</i> <i class="arg">script</i></a></dt>
+<dd><p>This command activates the color named by <i class="arg">tag</i>, then executes the
+<i class="arg">script</i> and lastly resets the output to the standard colors.</p>
+<p>This means that output generated by IO commands in the script
+have the activated color. Note that the command does <em>not</em>
+support the nesting of color activations.</p>
+<p>The allowed color tags are:</p>
+<dl class="definitions">
+<dt><b class="const">ok</b></dt>
+<dd></dd>
+<dt><b class="const">warn</b></dt>
+<dd></dd>
+<dt><b class="const">err</b></dt>
+<dd></dd>
+<dt><b class="const">note</b></dt>
+<dd></dd>
+<dt><b class="const">debug</b></dt>
+<dd></dd>
+<dt><b class="const">red</b></dt>
+<dd></dd>
+<dt><b class="const">green</b></dt>
+<dd></dd>
+<dt><b class="const">yellow</b></dt>
+<dd></dd>
+<dt><b class="const">blue</b></dt>
+<dd></dd>
+<dt><b class="const">magenta</b></dt>
+<dd></dd>
+<dt><b class="const">cyan</b></dt>
+<dd></dd>
+<dt><b class="const">white</b></dt>
+<dd></dd>
+</dl></dd>
+<dt><a name="105"><b class="cmd">kettle io</b> m<i class="arg">tag</i> <i class="arg">text</i></a></dt>
+<dd><p>This command is similar to the previous, except that all color tags
+are prefixed with <b class="const">m</b> (for markup) and the argument is a string,
+not a script. The string is extended with color control commands
+activating and deactivating the chosen color at beginning and end, and
+then returned as the result of the command.</p></dd>
+</dl>
+</div>
+<div id="section13" class="section"><h2><a name="section13">General Utilities</a></h2>
+<p>This, the lowest layer of the system contains general utility commands
+for string processing, anonymous procedures and error handling.</p>
+<div id="subsection1" class="subsection"><h3><a name="subsection1">Anonymous procedures</a></h3>
+<dl class="definitions">
+<dt><a name="106"><b class="cmd">lambda</b> <i class="arg">arguments</i> <i class="arg">body</i> <span class="opt">?<i class="arg">arg</i>...?</span></a></dt>
+<dd></dd>
+<dt><a name="107"><b class="cmd">lambda@</b> <i class="arg">namespace</i> <i class="arg">arguments</i> <i class="arg">body</i> <span class="opt">?<i class="arg">arg</i>...?</span></a></dt>
+<dd><p>These commands are wrappers around Tcl 8.5's builtin <b class="cmd">apply</b>
+command, making the creation of anonymous procedures a bit
+easier. Apply uses nested lists, the API here flattens that, matching
+the API of <b class="cmd">proc</b>.</p>
+<p>The command arguments are like for <b class="cmd">proc</b>, with three
+exceptions.</p>
+<ol class="enumerated">
+<li><p>There is no procedure name. Obviously.</p></li>
+<li><p>After the procedure body we can pre-specify some or all
+	of the procedure arguments, i.e. perform currying.</p></li>
+<li><p>The @-variant takes the name of the <i class="arg">namespace</i> the body
+	will be executed in.</p></li>
+</ol></dd>
+</dl>
+</div>
+<div id="subsection2" class="subsection"><h3><a name="subsection2">Error handling</a></h3>
+<dl class="definitions">
+<dt><a name="108"><b class="cmd">try</b> <i class="arg">arg</i>...</a></dt>
+<dd><p>This command is an implementation of Tcl 8.6's try/trap/finally
+command in pure Tcl, providing forward-compatibility with 8.6 in this
+respect. (Iit is just too useful when it comes to erro handling,
+especially cleanup of transient things like temp files).</p>
+<p>Syntax and semantics fully match the Tcl 8.6 command. The code
+was written by Donal Fellows, it is the initial implementation of the
+builtin, before it got re-implemented in C and byte-coded.</p></dd>
+</dl>
+</div>
+<div id="subsection3" class="subsection"><h3><a name="subsection3">String processing</a></h3>
+<dl class="definitions">
+<dt><a name="109"><b class="cmd">kettle strutil</b> <b class="method">indent</b> <i class="arg">text</i> <i class="arg">prefix</i></a></dt>
+<dd><p>This command splits the input <i class="arg">text</i> into lines, indents each line
+using the <i class="arg">prefix</i> and then returns the re-joined text.</p>
+<p>Note that the prefix is not applied to empty lines (containing
+only whitespace). Any whitespace in empty lines is actually completely
+eliminated.</p></dd>
+<dt><a name="110"><b class="cmd">kettle strutil</b> <b class="method">padl</b> <i class="arg">list</i></a></dt>
+<dd></dd>
+<dt><a name="111"><b class="cmd">kettle strutil</b> <b class="method">padr</b> <i class="arg">list</i></a></dt>
+<dd><p>These two commands take a list of strings, compute the maximum length
+and then pads all shorter strings to this length (using spaces),
+returning the modified list. The order of the strings in the result is
+not changed. The commands differ in where the padding is
+applied.</p>
+<p><b class="method">padr</b> adds the spaces at the end of the string (to the
+right) yielding a left-aligned result.  Whereas <b class="method">padl</b> adds the
+spaces at the beginning of the string (to the left) yielding a
+right-aligned result.</p>
+<p>Regardless of the differences, the result is a list of strings
+of the same length. Useful when having to print a table. Provide a
+column of the table as input, and the result is properly aligned for
+printing.</p></dd>
+<dt><a name="112"><b class="cmd">kettle strutil</b> <b class="method">reflow</b> <i class="arg">text</i> <span class="opt">?<i class="arg">prefix</i>?</span></a></dt>
+<dd><p>This command strips empty header and footer lines from the input
+<i class="arg">text</i>, undents it and then re-indents using the <i class="arg">prefix</i>. If
+the latter is not specified it will default to 4 spaces.</p>
+<p>The result of all the modifications is then returned as the
+result of the command.</p></dd>
+<dt><a name="113"><b class="cmd">kettle strutil</b> <b class="method">undent</b> <i class="arg">text</i></a></dt>
+<dd><p>This command splits the input <i class="arg">text</i> into lines, computes longest
+common prefix of whitespace over all lines, removes that prefix and
+then returns the re-joined text.</p>
+<p>The effect is an un-indenting of the lines in the <i class="arg">text</i>
+which preserves the general shape of the left margin.</p>
+<p>Note that empty lines (containing only whitespace) do not take
+part in the prefix calculation. Any whitespace in empty lines is
+actually completely eliminated.</p></dd>
+</dl>
+</div>
+</div>
+<div id="section14" class="section"><h2><a name="section14">License</a></h2>
+<p>This package, written by Andreas Kupries, is BSD licensed.</p>
+</div>
+<div id="section15" class="section"><h2><a name="section15">Bugs, Ideas, Feedback</a></h2>
+<p>This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+<a href="https://chiselapp.com/user/andreas_kupries/repository/Kettle/index">Kettle Tracker</a>.
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p><a href="../../index.html#key0">build tea</a></p>
+</div>
+<div id="category" class="section"><h2><a name="category">Category</a></h2>
+<p>Build support</p>
+</div>
+</div></body></html>

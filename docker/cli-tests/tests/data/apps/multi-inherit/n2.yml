@@ -1,0 +1,5 @@
+applications:
+  n2:
+    command: node app.js
+    name: node-env2
+    mem: 256M

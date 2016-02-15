@@ -1,0 +1,9 @@
+Using manifest file "@YML@"
+applications:
+  .:
+    command: node app.js
+    framework:
+      name: standalone
+    memory: 256M
+    name: node-env
+    urls: []

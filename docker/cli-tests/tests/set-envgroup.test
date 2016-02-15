@@ -1,0 +1,84 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2015 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## set-env-group
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test set-env-group-1.0.1 {set-env-group, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run set-environment-variable-group -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result {Error: Please specify either --running, or --staging for the respective group.}
+
+test set-env-group-1.0.2 {set-env-group, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run set-environment-variable-group X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test set-env-group-1.1.0 {set-env-group, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run set-environment-variable-group --running
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test set-env-group-1.1.1 {set-env-group, non-admin login is not ok} -constraints s36ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run set-environment-variable-group -n --running
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+# # ## ### ##### ######## ############# #####################
+
+test set-env-group-1.3 {set-env-group --running, persists} -constraints s36ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run set-environment-variable-group --running --env a=b
+    run environment-variable-group     --running
+} -cleanup {
+    run set-environment-variable-group --running
+    stage-close
+} -match glob -result [map [viewFile data/eg/list.txt] \
+			   @ta@ [thetarget]]
+
+test set-env-group-1.4 {set-env-group --staging, persists} -constraints s36ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run set-environment-variable-group --staging --env a=b
+    run environment-variable-group     --staging
+} -cleanup {
+    run set-environment-variable-group --staging
+    stage-close
+} -match glob -result [map [viewFile data/eg/list.txt] \
+			   @ta@ [thetarget]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,161 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## routes
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test routes-1.0 {routes, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run routes X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test routes-1.1 {routes, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run routes
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test routes-1.2 {routes, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run routes
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test routes-1.3 {routes, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run routes
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result {*}
+
+test routes-1.4 {routes, all, none} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run routes --all
+} -cleanup {
+    stage-close
+} -match glob -result {*No Routes}
+
+test routes-1.5 {routes, current space, none} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run routes
+} -cleanup {
+    stage-close
+} -match glob -result {*No Routes}
+
+test routes-1.6 {routes, explicit space, none} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run routes --space [thespace] --org [theorg]
+} -cleanup {
+    stage-close
+} -match glob -result {*No Routes}
+
+# # ## ### ##### ######## ############# #####################
+
+test routes-1.7 {routes, all, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes --all
+} -cleanup {
+    run delete -n --routes TEST
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.8 {routes, current space, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes
+} -cleanup {
+    run delete -n --routes TEST
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.9 {routes, explicit space, some} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+} -body {
+    run routes --space [thespace] --org [theorg]
+} -cleanup {
+    run delete -n --routes TEST
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes17.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.10 {routes, all, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --all --unused
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.11 {routes, current space, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --unused
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+test routes-1.12 {routes, explicit space, unused} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete -n --no-routes TEST
+} -body {
+    run routes --unused --space [thespace] --org [theorg]
+} -cleanup {
+    run delete-route -n xxx.[targetdomain]
+    stage-close
+} -match glob -result \
+    [map [viewFile data/routes110.txt] @D@ [targetdomain] @S@ [thespace] @O@ [theorg]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,16 @@
+[comment {-*- tcl -*- doctools manpage}]
+[include parts/definitions.inc]
+[manpage_begin [vset PROJECT]_changes [vset MAN_SECTION] [vset VERSION]]
+[include parts/module.inc]
+[titledesc [vset TITLE_CHANGES]]
+[description]
+[include parts/welcome.inc]
+
+[comment {-- @EDIT Please edit to suit -- }]
+
+[comment {--- Changes Begin ---}]
+[comment {--- Changes End -----}]
+
+[include parts/related.inc]
+[include parts/feedback.inc]
+[manpage_end]

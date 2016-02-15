@@ -1,0 +1,96 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, group deletion
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test groups-delete-1.0 {groups delete, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run groups delete G X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test groups-delete-1.1 {groups delete, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups delete -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-delete-1.2 {groups delete, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run groups delete test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test groups-delete-1.3 {groups delete, admin login required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run groups delete test-group
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
+
+test groups-delete-1.4 {groups delete, bogus group} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups delete test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error 100: Bad request (400)}
+
+test groups-delete-1.5 {groups delete} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups delete test-group
+} -cleanup {
+    stage-close
+} -result {Deleting Group ... OK}
+
+test groups-delete-1.6 {groups delete, persistence} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups delete test-group
+    run groups show
+} -cleanup {
+    stage-close
+} -result {No Groups}
+
+test groups-delete-2.0 {groups delete, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups delete test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+TODO groups delete - Delete group which has users	   
+TODO groups delete - Delete group which has services	   
+TODO groups delete - Delete group which has applications
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,119 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, group modification, remove users from groups
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test groups-delete-user-1.0 {groups delete-user, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run groups delete-user G U X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test groups-delete-user-1.1 {groups delete-user, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups delete-user -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-delete-user-1.2 {groups delete-user, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups delete-user -n G
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-delete-user-1.3 {groups delete-user, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run groups delete-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test groups-delete-user-1.4 {groups delete-user, admin login required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run groups delete-user test-group grouper@test
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted}
+
+test groups-delete-user-1.5 {groups delete-user, bogus group} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups delete-user test-group grouper@test
+    stage-close
+} -returnCodes error -result {Error 100: Bad request}
+
+test groups-delete-user-1.6 {groups delete-user, bogus user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups delete-user test-group grouper@test
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -returnCodes error -result {Error 100: Bad request}
+
+test groups-delete-user-1.7 {groups delete-user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+} -body {
+    run groups delete-user test-group grouper@test
+} -cleanup {
+    run groups delete test-group
+    run delete-user   grouper@test
+    stage-close
+} -result {Removing User From Group ... OK}
+
+test groups-delete-user-1.8 {groups delete-user, persistence} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run add-user grouper@test --passwd hush
+    run groups create   test-group
+    run groups add-user test-group grouper@test
+} -body {
+    run groups delete-user test-group grouper@test
+    run groups users       test-group
+} -cleanup {
+    run groups delete test-group
+    run delete-user   grouper@test
+    stage-close
+} -result {No Users}
+
+test groups-delete-user-2.0 {groups delete-user, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups delete-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

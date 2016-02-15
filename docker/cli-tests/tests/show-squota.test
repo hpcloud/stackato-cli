@@ -1,0 +1,98 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## space-quota
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test space-quota-1.0.1 {space-quota, wrong args, not enough} -constraints s342ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run space-quota -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test space-quota-1.0.2 {space-quota, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run space-quota S X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test space-quota-1.1.0 {space-quota, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run space-quota [thespacequota]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test space-quota-1.1.1 {space-quota, non-admin login is ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+    go-non-admin
+} -body {
+    run space-quota [thespacequota]
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test space-quota-1.3 {space-quota, unknown space-quota} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run space-quota [thespacequota]
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name "space quota plan" [thespacequota] {Run 'stackato space-quotas' to see list of space quota plans}]
+
+test space-quota-1.4.0 {space-quota, table} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run space-quota [thespacequota]
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result [map [viewFile data/sq/show.txt] \
+			   @ta@ [thetarget] \
+			   @or@ [theorg] \
+			   @sq@ [thespacequota]]
+
+test space-quota-1.4.1 {space-quota, --json} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run space-quota [thespacequota] --json
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result [map [viewFile data/sq/show.json] \
+			   @sq@ [thespacequota]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

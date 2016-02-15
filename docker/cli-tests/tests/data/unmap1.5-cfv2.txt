@@ -1,0 +1,3 @@
+Application [@app@] ... 
+  Unmap @url@ ... OK
+Successfully unmapped 1 url

@@ -1,0 +1,5 @@
+command: node app.js
+name: node-env
+mem: 256M
+min_version:
+  client: 100000

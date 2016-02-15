@@ -1,0 +1,37 @@
+{
+    "entity"   : {
+        "buildpack"            : null,
+        "command"              : "node app.js",
+        "console"              : *,
+        "debug"                : null,
+        "detected_buildpack"   : "Node.js",
+        "disk_quota"           : *,
+        "environment_json"     : {},
+        "events"               : \[\],
+        "events_url"           : "/v2/apps/*/events",
+        "guid"                 : "*",
+        "instances"            : 1,
+        "memory"               : *,
+        "name"                 : "node-env",
+        "production"           : *,
+        "routes"               : \[*\],
+        "routes_url"           : "/v2/apps/*/routes",
+        "service_bindings"     : \[\],
+        "service_bindings_url" : "/v2/apps/*/service_bindings",
+        "space"                : *,
+        "space_guid"           : "*",
+        "space_url"            : "/v2/spaces/*",
+        "stack"                : *,
+        "stack_guid"           : "*",
+        "stack_url"            : "/v2/stacks/*",
+        "staging_task_id"      : "*",
+        "state"                : "STARTED",
+        "version"              : "*"
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/apps/*"
+    }
+}

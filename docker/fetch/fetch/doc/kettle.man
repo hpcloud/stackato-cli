@@ -1,0 +1,72 @@
+[comment {-*- tcl -*- --- doctools ---}]
+[manpage_begin kettle n 1]
+[include include/general.inc]
+[titledesc {Kettle - Core}]
+[description]
+[para]
+[include include/welcome.inc]
+[para]
+
+This document is the reference to all commands provided by the kettle
+package, from the user-visible declarations to the lowest utilities.
+
+[para] It is intended for both power-users wishing to write their own
+high-level commands linking into the existing foundations and
+developers and maintainers of kettle itself.
+
+[para] A basic user should read
+[term {Kettle - Application - Build Interpreter}]
+and [term {Kettle - Build Declarations}] instead.
+
+[section Overview]
+
+[include include/arch.inc]
+
+Each component C is generally served by a single ensemble command,
+"[cmd kettle] [method C]". The exceptions are the components exporting
+the user-visible declaration commands. Their commands, while still
+named "[cmd kettle] [method C]", are not ensembles, but the one
+command in that component.
+
+[para] The following sections go through the components from the top
+down to the bottom, starting with the user visible commands described
+in [term {Kettle - Build Declarations}], covering all the green boxes.
+
+For the remainder:
+[list_begin definitions]
+[def gui]       [sectref {Graphical Interface Support}]
+[def tool]      [sectref {Tool handling}]              
+[def invoke]    [sectref {Recursive invokations}]
+[def option]    [sectref {Option database}]
+[def ovalidate] [sectref {Option Types and Validation}]
+[def path]      [sectref {Path utilities}]   
+[def recipe]    [sectref {Recipe database}]  
+[def status]    [sectref {Status management}]
+[def io]        [sectref {IO virtualization}]
+[def lambda]    [sectref {Anonymous procedures}]
+[def try]       [sectref {Error handling}]
+[def strutil]   [sectref {String processing}]
+[list_end]
+
+[para] Not convered in the above is [file standard.tcl]. This file
+does not export any commands to document. It unconditionally defines
+the standard recipes instead. These are the recipes which are always
+available, in contrast to the recipes dynamically created by the
+declarations commands in response to their scanning of a package
+source directory.
+
+[section {Build declarations}]          [include include/l_dsl.inc]
+[section {Graphical Interface Support}] [include include/l_gui.inc]
+[section {Tool handling}]               [include include/l_tools.inc]
+[section {Recursive invokations}]       [include include/l_invoke.inc]
+[section {Option database}]             [include include/l_options.inc]
+[section {Option Types and Validation}] [include include/l_ovalidate.inc]
+[section {Path utilities}]              [include include/l_pathutil.inc]
+[section {Recipe database}]             [include include/l_recipes.inc]
+[section {Status management}]           [include include/l_status.inc]
+[section {IO virtualization}]           [include include/l_io.inc]
+[section {General Utilities}]           [include include/l_util.inc]
+
+[include include/license.inc]
+[include include/feedback.inc]
+[manpage_end]

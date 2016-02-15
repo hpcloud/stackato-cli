@@ -1,0 +1,154 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## create-security-group
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test create-security-group-1.0.1 {create-security-group, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-security-group -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test create-security-group-1.0.2 {create-security-group, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-security-group -n S
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test create-security-group-1.0.3 {create-security-group, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-security-group S R X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test create-security-group-1.0.4 {create-security-group, bad rules path} -constraints s342ge -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run create-security-group -n S BOGUS
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Expected an existing readable file for input "rules", got "BOGUS"}
+
+test create-security-group-1.1.0 {create-security-group, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run create-security-group [thesecgroup] [tmp]/data/sg/empty.json
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test create-security-group-1.1.1 {create-security-group, non-admin login is not ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+# The next series is mostly testing the rule-validation done in and by the target.
+# The same validation may be added to the client in the future too.
+
+# Error message for 1.2.0 depends on the json parser used in the client:
+#
+# pure Tcl        : unexpected token ":" at position 3; expecting STRING
+# critcl (tcllibc): Bare word encountered 25 bytes before end
+#
+# Test case configured for critcl, assuming a wrapped client with all binary packages.
+# Currently no way of determining which exact parser is used in the client under test.
+
+foreach {n path expected} {
+    0 bad-json-syntax {Error: Bad json data for network rules: Bare word encountered 25 bytes before end}
+    1 empty-rule      {Error 300001: The security group is invalid: rules rule number 1 contains an unsupported protocol (400)}
+    2 bad-protocol    {Error 300001: The security group is invalid: rules rule number 1 contains an unsupported protocol (400)}
+    3 no-ports        {Error 300001: The security group is invalid: rules rule number 1 missing required field 'ports' (400)}
+    4 no-destination  {Error 300001: The security group is invalid: rules rule number 1 missing required field 'destination' (400)}
+    5 bad-ports       {Error 300001: The security group is invalid: rules rule number 1 contains invalid ports (400)}
+    6 bad-destination {Error 300001: The security group is invalid: rules rule number 1 contains invalid destination (400)}
+} {
+    test create-security-group-1.2.$n "create-security-group, bad rules: $path" -constraints s342ge -setup {
+	stage-open
+	go-admin
+    } -body {
+	run create-security-group [thesecgroup] [tmp]/data/sg/${path}.json
+    } -cleanup {
+	stage-close
+    } -returnCodes error -result $expected
+}
+
+# # ## ### ##### ######## ############# #####################
+
+test create-security-group-1.3 {create-security-group, persists} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+    run security-groups
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -match glob -result "*\n| Name *| \#Rules *| Spaces *| Staging *| Running *|\n*| [thesecgroup] *| 0 *| * | 0 *| 0 *|*"
+
+test create-security-group-1.4 {create-security-group, duplicate security-group} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -body {
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -returnCodes error -result [already input security_group security_group [thesecgroup]]
+
+test create-security-group-1.5.0 {create-security-group} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-security-group [thesecgroup] [tmp]/data/sg/0-rules.json
+} -cleanup {
+    run delete-security-group -n [thesecgroup]
+    stage-close
+} -result [map [viewFile data/sg/create.txt] \
+	       @sg@ [thesecgroup]]
+
+test create-security-group-1.5.1 {create-security-group, unicode name} -constraints {macOrUnix s342ge} -setup {
+    stage-open
+    go-admin
+} -body {
+    run create-security-group [thesecgroup]\u4e00 [tmp]/data/sg/0-rules.json
+} -cleanup {
+    run delete-security-group -n [thesecgroup]\u4e00
+    stage-close
+} -result [map [viewFile data/sg/create.txt] \
+	       @sg@ [thesecgroup]\u4e00]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

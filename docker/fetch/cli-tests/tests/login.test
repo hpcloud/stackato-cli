@@ -1,0 +1,108 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## targeting III, logging in.
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test login-1.0 {login, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run login N X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test login-1.1 {login, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+} -body {
+    run login -n
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 {Error: Need a valid email} \
+		 "Error: Credentials \"username\" not specified, but needed by target \[[thetarget]\]"]
+
+test login-1.2.1 {login, transient target} -constraints cfv1 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget]
+} -cleanup {
+    stage-close
+} -result "Attempting login to \[[thetarget]\]\nSuccessfully logged into \[[thetarget]\]\nReset current group: OK"
+
+test login-1.2.2 {login, transient target} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+} -cleanup {
+    stage-close
+} -result "Attempting login to \[[thetarget]\]\nSuccessfully logged into \[[thetarget]\]\nChoosing the one available space: \"[thespace]\"\nTarget:       [thetarget]\nOrganization: [theorg]\nSpace:        [thespace]"
+
+test login-1.3.1 {login, transient target is such} -constraints cfv1 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget]
+    run target
+} -cleanup {
+    stage-close
+} -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
+
+test login-1.3.2 {login, transient target is such} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run target
+} -cleanup {
+    stage-close
+} -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
+
+test login-1.4.1 {login, transient target, persistent token} -constraints cfv1 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget]
+    run targets
+} -cleanup {
+    stage-close
+} -match glob -result "+--+-*-+-*-+\n|  | Target * | Authorization * |\n+--+-*-+-*-+\n|  | [thetarget] | * |\n|  |*|*|\n+--+-*-+-*-+"
+
+test login-1.4.2 {login, transient target, persistent token} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run targets
+} -cleanup {
+    stage-close
+} -match glob -result "+--+-*-+-*-+\n|  | Target * | Authorization * |\n+--+-*-+-*-+\n|  | [thetarget] | * |\n|  |*|*|\n+--+-*-+-*-+"
+
+test login-1.5.1 {login, transient target, persistent token, json} -constraints cfv1 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget]
+    run targets --json
+} -cleanup {
+    stage-close
+} -match glob -result "\{\n    \"[thetarget]\" : \"*\"\n\}"
+
+test login-1.5.2 {login, transient target, persistent token, json} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run login [adminuser] --password [adminpass] --target [thetarget] --organization [theorg]
+    run targets --json
+} -cleanup {
+    stage-close
+} -match glob -result "\{\n    \"[thetarget]\" : \"*\"\n\}"
+
+# todo: login with --group
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

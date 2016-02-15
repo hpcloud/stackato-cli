@@ -1,0 +1,40 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+# # ## ### ##### ######## ############# #####################
+## Kettle application
+
+# @@ Meta Begin
+# Application kettle 1
+# Meta platform tcl
+# Meta author      {Andreas Kupries}
+# Meta summary     Build support application.
+# Meta description Kettle is a system to make building Tcl
+# Meta description packages quick and easy. More importantly,
+# Meta description possibly, to make writing the build system
+# Meta description for Tcl packages easy.
+# Meta description As such kettle is several things:
+# Meta description (1) A DSL helping you to write build systems
+# Meta description for your packages. (2) A package implementing
+# Meta description this DSL. (3) An application which can serve
+# Meta description as the interpreter for a build file containing
+# Meta description commands in the above DSL.
+# Meta subject {build support} critcl teapot {meta data}
+# Meta subject doctools diagram
+# Meta require {Tcl 8.5-}
+# Meta require {kettle}
+# Meta category Builder/Developer support
+# Meta location https://core.tcl.tk/akupries/kettle
+# @@ Meta End
+
+apply {{self} {
+    set selfdir [file dirname $self]
+    if {[file exists $selfdir/kettle.tcl]} {
+	# Look for a local copy first, for when we install ourselves.
+	source $selfdir/kettle.tcl
+    } else {
+	# use the installed core.
+	package require kettle
+    }
+    kettle::option::set @kettle $self
+    kettle::Application
+}} [file dirname [file normalize [info script]/__]]

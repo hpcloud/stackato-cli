@@ -1,0 +1,90 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## space-quotas
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test space-quotas-1.0.0 {space-quotas, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run space-quotas X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test space-quotas-1.0.1 {space-quotas, bad option} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run space-quotas -n --bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "Unknown option --bogus*"
+
+test space-quotas-1.1.0 {space-quotas, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run space-quotas
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test space-quotas-1.1.1 {space-quotas, non-admin login is ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+    go-non-admin
+} -body {
+    run space-quotas
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test space-quotas-1.2.0 {space-quotas} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run space-quotas
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result [map [viewFile data/sq/list.txt] \
+			   @ta@ [thetarget] \
+			   @or@ [theorg] \
+			   @sq@ [thespacequota]]
+
+test space-quotas-1.2.1 {space-quotas, --json} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    run create-space-quota [thespacequota]
+} -body {
+    run space-quotas --json
+} -cleanup {
+    run delete-space-quota -n [thespacequota]
+    stage-close
+} -match glob -result [map [viewFile data/sq/list.json] \
+			   @ta@ [thetarget] \
+			   @or@ [theorg] \
+			   @sq@ [thespacequota]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

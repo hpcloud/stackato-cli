@@ -1,0 +1,94 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, group creation
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test groups-create-1.0 {groups create, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run groups create G X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test groups-create-1.1 {groups create, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups create -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-create-1.2 {groups create, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run groups create test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test groups-create-1.3 {groups create, admin login required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run groups create test-group
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
+
+test groups-create-1.4 {groups create} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups create test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -result {Creating New Group ... OK}
+
+test groups-create-1.5 {groups create, persistence} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups create test-group
+    run groups show
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -match glob -result "+-*-+-*-+\n| Group *| Members *|\n+-*-+-*-+\n*| test-group *|*|\n*+-*-+-*-+"
+
+test groups-create-1.6 {groups create, duplicate group name} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups create test-group
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -returnCodes error -result {Error 100: Bad request (400)}
+
+test groups-create-2.0 {groups create, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups create test-group
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

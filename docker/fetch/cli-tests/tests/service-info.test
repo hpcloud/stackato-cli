@@ -1,0 +1,61 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## service (info)
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test service-1.0 {service (info), wrong args, too many} -setup {
+    stage-open
+} -body {
+    run service N X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test service-1.1 {service (info), wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run service -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test service-1.2 {service (info), login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run service N
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test service-1.3 {service (info), bogus service} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run service bogus
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 {Service [bogus] is not a valid service choice} \
+	 [unexpected input name {service instance} bogus " in space '[thespace]'"]]
+
+# todo: get the data for all types of services
+# todo: service querying in groups
+# todo: --json
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

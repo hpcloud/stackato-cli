@@ -1,0 +1,191 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## drain-add
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test drain-add-1.0 {drain add, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run drain add A D U X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test drain-add-1.1 {drain add, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain add -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test drain-add-1.2 {drain add, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain add -n D U }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result [no-application {drain add}]
+
+test drain-add-1.3 {drain add, non-admin login is ok} -constraints cfv2uaa -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN [thedrain]
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test drain-add-1.4 {drain add, bad drain uri} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN URI
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 {Error 22000: Bad request: Bad Drain URI} \
+		 {Error 117: Invalid drain URI given.}]
+
+test drain-add-1.5 {drain add, bad drain uri, bad port} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN tcp://foo:800
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 {Error 22002: Forbidden: not allowed to use ports <=9999} \
+		 {Error 118: Drain port can not be less than 10000.}]
+
+test drain-add-1.6 {drain-add} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add TEST DRAIN [thedrain]
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Adding drain [DRAIN] ... OK}
+
+test drain-add-1.7.1 {drain add, persistent} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {+-------+-------+-----------------------------------+
+| Name  | Json  | Url                               |
++-------+-------+-----------------------------------+
+| DRAIN | false | tcp://flux.activestate.com:11100/ |
++-------+-------+-----------------------------------+}
+
+test drain-add-1.7.2 {drain add, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {+-------+------+-----------------------------------+-*-+
+| Name  | Json | Url                               | Status *|
++-------+------+-----------------------------------+-*-+
+| DRAIN | 0    | tcp://flux.activestate.com:11100/ | * |
++-------+------+-----------------------------------+-*-+}
+
+test drain-add-1.8 {drain add, --json} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add --json TEST DRAIN [thedrain]
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Adding json drain [DRAIN] ... OK}
+
+test drain-add-1.9.1 {drain add, --json, persistent} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  --json TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {+-------+-------+-----------------------------------+
+| Name  | Json  | Url                               |
++-------+-------+-----------------------------------+
+| DRAIN | true  | tcp://flux.activestate.com:11100/ |
++-------+-------+-----------------------------------+}
+
+test drain-add-1.9.2 {drain add, --json, persistent} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain add  --json TEST DRAIN [thedrain]
+    run drain list TEST
+} -cleanup {
+    run drain delete TEST DRAIN
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result {+-------+------+-----------------------------------+-*-+
+| Name  | Json | Url                               | Status *|
++-------+------+-----------------------------------+-*-+
+| DRAIN | 1    | tcp://flux.activestate.com:11100/ | * |
++-------+------+-----------------------------------+-*-+}
+
+# todo: changing the drains of a running app.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

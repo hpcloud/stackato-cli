@@ -1,0 +1,145 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## update
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+## update is deprecated, use push
+
+test update-0.0 {update, deprecated} -setup {
+    stage-open
+    go-admin
+} -body {
+    run update
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result {Error: This command is deprecated. Use 'push' for both application creation and update.}
+
+# # ## ### ##### ######## ############# #####################
+## All tests are based on 'push' now.
+
+test update-1.0 {push as update, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run push A X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test update-1.1 {push as update, empty application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run push -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error \
+    -result [per-api \
+		 "Error: The framework \[standalone\] needs a non-empty start command.\nPlease add a \"command\" key to your stackato.yml" \
+		 {Error: Application failed to stage}]
+
+# # ## ### ##### ######## ############# #####################
+
+# todo: --no-create, --target, --token, --group, --tail
+# todo: --manifest, --path, --no-start, --instances
+# todo: --runtime, --url, --no-framework, --mem, -d
+# todo: --stackato-debug, --env, --copy-unsafe-links,
+# todo: --no-resources, --envmode
+
+foreach {n excode label theapp} {
+     0 ok    plain                                 a.original.node-env
+     1 ok    {application in subdirectory}         appdir
+     2 ok    {env variables}                       env
+     3 ok    {env vars via manifest.yml}           env-manifest.yml
+     4 ok    {staging/run hooks}                   hooks
+     5 ok    {num instances -1}                    instances-1
+     6 ok    {num instances 0}                     instances0
+     7 ok    {num instances 2}                     instances2
+     9 ok    {min client version check ok}         minclient-ok
+    11 ok    {min server version check ok}         minserver-ok
+    12 ok    {install required packages}           requirements
+    13 ok    {install package already present}     requirements-already
+    15 ok    {url mapping}                         urls
+    23 ok    {env vars via manifest.yml, v2}       env-manifest.yml-v2
+    25 ok    {host/domain urls}                    hostdomain
+} {
+    set appdir   [example  $theapp]
+    set expected [string map [list @BASE@ [thebase]] [result $theapp -up]]
+
+    test update-2.$n "push as update, $label" -setup {
+	stage-open
+	go-admin
+	indir $appdir { run push -n }
+    } -body {
+	indir $appdir { run push -n }
+    } -cleanup {
+	remove-test-app node-env
+	stage-close
+    } -returnCodes $excode -match glob -result $expected
+}
+
+test update-2.16 "push as update, memory -1" -setup {
+    stage-open
+    go-admin
+    indir [example memory-1] { catch { run push -n } }
+    # Note: Staging fails, app is not running. This affects
+    # the push (will not start app).
+} -body {
+    indir [example memory-1] { run push -n }
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [string map [list @BASE@ [thebase]] [result memory-1 -up]]
+
+test update-2.17 "push as update, memory 0" -setup {
+    stage-open
+    go-admin
+    indir [example memory0] { catch { run push -n } }
+    # Note: Staging fails, app is not running. This affects
+    # the push (will not start app).
+} -body {
+    indir [example memory0] { run push -n }
+} -cleanup {
+    remove-test-app node-env
+    stage-close
+} -match glob -result [string map [list @BASE@ [thebase]] [result memory0 -up]]
+
+foreach {n excode label theapp} {
+    18 ok    {multi app, dependencies}             multi-depends-on
+    19 ok    {multi app, manifest inclusion}       multi-inherit
+    20 ok    {multi app CF manifest}               multi-manifest.yml
+    21 ok    {multi app CF manifest, stackato.yml} multi-stackato.yml-m
+    22 ok    {multi app Stackato}                  multi-stackato.yml-s
+    24 ok    {multi app, dependencies, v2}         multi-depends-on-v2
+} {
+    set appdir   [example  $theapp]
+    set expected [string map [list @BASE@ [thebase]] [result $theapp -up]]
+
+    test update-2.$n "push as update, $label" -setup {
+	stage-open
+	go-admin
+	indir $appdir { run push -n }
+    } -body {
+	indir $appdir { run push -n }
+    } -cleanup {
+	catch { remove-test-app node-env1 }
+	catch { remove-test-app node-env2 }
+	stage-close
+    } -returnCodes $excode -match glob -result $expected
+}
+
+# todo services		+ services (Note: Delete services with app! -n --force)
+# todo ignores-empty		+ ignores (empty list, nothing ignored)
+# todo ignores-other		+ ignores (.git/, *LOG)
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,118 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## curl
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test curl-1.0 {curl, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run curl
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test curl-1.1 {curl, wrong args, not enough} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run curl get
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+
+test curl-1.2 {curl, bogus operation} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run curl bogus info
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Expected http operation for input "operation", got "bogus"}
+
+test curl-1.3.0 {curl, bogus header spec} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run curl get info X-CLI=TEST
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Expected a http header assignment for input "header", got "X-CLI=TEST"}
+
+test curl-1.3.2 {curl, bogus header spec} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run curl get info :TEST
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Expected a http header assignment for input "header", got ":TEST"}
+
+test curl-1.4 {curl, no login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run curl get info
+} -cleanup {
+    stage-close
+} -match glob -result *
+
+test curl-1.5 {curl, non-admin login is ok (url dependent)} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run curl get info --show-extended
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result "Response Code:    200\n*"
+
+test curl-1.6 {curl, info endpoint} -setup {
+    stage-open
+    go-admin
+} -body {
+    run curl get info --show-extended
+} -cleanup {
+    stage-close
+} -match glob -result "Response Code:    200\n*"
+
+test curl-1.7 {curl, info endpoint, ignored header} -setup {
+    stage-open
+    go-admin
+} -body {
+    run curl get info --show-extended X-CLI:TEST
+} -cleanup {
+    stage-close
+} -match glob -result "Response Code:    200\n*"
+
+test curl-1.8 {curl, bogus endpoint} -setup {
+    stage-open
+    go-admin
+} -body {
+    run curl get bogus
+} -cleanup {
+    stage-close
+} -match glob -result \
+    [per-api \
+	 "Response Code:    Error (JSON 404): <HTML dump elided>" \
+	 "Response Code:    Error 10000: Unknown request (404)"]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

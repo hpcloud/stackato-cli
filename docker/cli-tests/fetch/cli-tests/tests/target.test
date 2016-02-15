@@ -1,0 +1,159 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## targeting, part II
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test target-1.0 {client target, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run target T X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test target-1.1 {client target, default} -setup {
+    stage-open
+} -body {
+    run target
+} -cleanup {
+    stage-close
+} -result {[https://api.stackato.local] (Note: Cannot access target (couldn't open socket: host is unreachable (Name or service not known)))}
+
+test target-1.2.1 {client target, default, json} -constraints cfv1 -setup {
+    stage-open
+} -body {
+    run target -n --json
+} -cleanup {
+    stage-close
+} -result {{
+    "target" : "https://api.stackato.local"
+}}
+
+test target-1.2.2 {client target, default, json} -constraints cfv2 -setup {
+    stage-open
+} -body {
+    run target -n --json
+} -cleanup {
+    stage-close
+} -result {{
+    "organization" : {
+        "error" : "not defined"
+    },
+    "space"        : {
+        "error" : "not defined"
+    },
+    "target"       : "https://api.stackato.local"
+}}
+
+test target-1.3 {client target, set} -setup {
+    stage-open
+} -body {
+    run target -n [theplaintarget]
+} -cleanup {
+    stage-close
+} -result [per-api \
+	       "Successfully targeted to \[https://[theplaintarget]\]" \
+	       "Successfully targeted to \[https://[theplaintarget]\]\nTarget:       https://[theplaintarget]\nOrganization: <none>\nSpace:        <none>"]
+
+test target-1.4 {client target, set, with schema prefix} -setup {
+    stage-open
+} -body {
+    run target -n https://[theplaintarget]
+} -cleanup {
+    stage-close
+} -result [per-api \
+	       "Successfully targeted to \[https://[theplaintarget]\]" \
+	       "Successfully targeted to \[https://[theplaintarget]\]\nTarget:       https://[theplaintarget]\nOrganization: <none>\nSpace:        <none>"]
+
+test target-1.5 {client target, set, with schema prefix, http not allowed} -setup {
+    stage-open
+} -body {
+    run target -n http://[theplaintarget]
+} -cleanup {
+    stage-close
+} -returnCodes error -result "Error: Illegal use of http://[theplaintarget]. Either re-target to use https, or force acceptance via --allow-http"
+
+test target-1.6 {client target, set, force allow http} -setup {
+    stage-open
+} -body {
+    run target -n --allow-http http://[theplaintarget]
+} -cleanup {
+    stage-close
+} -result \
+    [per-api \
+	 "Successfully targeted to \[http://[theplaintarget]\]" \
+	 "Successfully targeted to \[http://[theplaintarget]\]\nTarget:       http://[theplaintarget]\nOrganization: <none>\nSpace:        <none>"]
+
+test target-1.7 {client target, setting persists} -setup {
+    stage-open
+    ref-target
+} -body {
+    run target -n
+} -cleanup {
+    stage-close
+} -result \
+    [per-api \
+	 "\[[thetarget]\]" \
+	 "Target:       [thetarget]\nOrganization: <none>\nSpace:        <none>"]
+
+test target-1.8 {client target, bogus target} -setup {
+    stage-open
+} -body {
+    run target -n bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Host is not valid: 'https://bogus'
+Maybe try to target [https://api.bogus] instead.}
+
+test target-1.9 {client target, bogus target, verbose response} -setup {
+    stage-open
+} -body {
+    run target -n --verbose bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Host is not valid: 'https://bogus'
+Maybe try to target [https://api.bogus] instead.
+
+<<<
+Cannot access target 'https://bogus' (couldn't open socket: host is unreachable (Name or service not known))
+>>>}
+
+test target-1.10 {client target, bogus target, api prefix} -setup {
+    stage-open
+} -body {
+    run target -n api.bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Host is not valid: 'https://api.bogus'}
+
+test target-1.11 {client target, bogus target, api prefix, verbose response} -setup {
+    stage-open
+} -body {
+    run target -n --verbose api.bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Host is not valid: 'https://api.bogus'
+
+<<<
+Cannot access target 'https://api.bogus' (couldn't open socket: host is unreachable (Name or service not known))
+>>>}
+
+test target-1.12 {client target, automatic retargeting through redirection} -setup {
+    stage-open
+} -constraints target-has-redirection -body {
+    run target -n [targetdomain]
+} -cleanup {
+    stage-close
+} -result "Host redirects to: '[thetarget]'\nSuccessfully targeted to \[[thetarget]\]\n"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

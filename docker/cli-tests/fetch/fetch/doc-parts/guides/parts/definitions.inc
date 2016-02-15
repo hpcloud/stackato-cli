@@ -1,0 +1,7 @@
+[include configuration.inc]
+[vset TITLE_INTRO   "[vset PTITLE] - Introduction to the project"]
+[vset TITLE_LICENSE "[vset PTITLE] - License"			 ]
+[vset TITLE_CHANGES "[vset PTITLE] - Log of Changes"    	 ]
+[vset TITLE_SOURCES "[vset PTITLE] - How To Get The Sources"	 ]
+[vset TITLE_INSTALL "[vset PTITLE] - The Installer's Guide"	 ]
+[vset TITLE_DEV     "[vset PTITLE] - The Developer's Guide"	 ]

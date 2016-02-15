@@ -1,0 +1,145 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## drain-delete
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test drain-delete-1.0 {drain delete, wrong args, too many} -setup {
+    stage-open
+    go-admin
+} -body {
+    run drain delete A D X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test drain-delete-1.1 {drain delete, wrong args, not enough} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain delete -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test drain-delete-1.2 {drain delete, no application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run drain delete -n DRAIN }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [per-api \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications}] \
+	 [unexpected input application application appdir {Run 'stackato apps' to see list of applications} " in space '[theorg]::[thespace]'"]]
+# -match glob -result [no-application {drain delete}]
+
+test drain-delete-1.3 {drain delete, non-admin login is ok} -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain delete TEST DRAIN
+} -cleanup {
+    remove-test-app
+    be-admin
+    remove-non-admin
+    remove-appdir
+    stage-close
+} -match glob -result *
+
+test drain-delete-1.4.1 {drain delete, unknown drain is ok} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain delete TEST DRAIN
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Deleting drain [DRAIN] ... OK}
+
+test drain-delete-1.4.2 {drain delete, unknown drain, failure} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    run drain delete TEST DRAIN
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -returnCodes error -result {Error 124: Drain by that name does not exist. (404)}
+
+test drain-delete-1.5 {drain-delete} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain delete TEST DRAIN
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -result {Deleting drain [DRAIN] ... OK}
+
+test drain-delete-1.6 {drain delete, persistent} -setup {
+    stage-open
+    go-admin
+    make-test-app
+    run drain add TEST DRAIN [thedrain]
+} -body {
+    run drain delete TEST DRAIN
+    run drain list   TEST
+} -cleanup {
+    remove-test-app
+    remove-appdir
+    stage-close
+} -match glob -result "Drains: *\nNo Drains"
+
+test drain-delete-1.7 {drain-delete, running app, no! restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n --no-start }
+    run drain add node-env DRAIN [thedrain]
+    run start node-env
+} -body {
+    run drain delete node-env DRAIN
+} -cleanup {
+    remove-test-app node-env
+    remove-appdir
+    stage-close
+} -result {Deleting drain [DRAIN] ... OK}
+
+test drain-delete-1.8 {drain-delete, deployed stopped app, no restart} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n --no-start }
+    run drain add node-env DRAIN [thedrain]
+} -body {
+    run drain delete node-env DRAIN
+} -cleanup {
+    remove-test-app node-env
+    remove-appdir
+    stage-close
+} -result {Deleting drain [DRAIN] ... OK}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

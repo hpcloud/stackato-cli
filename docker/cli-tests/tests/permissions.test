@@ -1,0 +1,32 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## permissions and effects on operations.
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test permissions-1.0 {bug 103549, non-admin user creating space in org they manage} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-non-admin
+    run create-org    -n [theorg]-2 --no-activate
+    run link-user-org -n [theuser] [theorg]-2 --manager
+    run login -n --ignore-missing [theuser] --password P --organization [theorg]-2
+} -body {
+    run create-space [thespace]-2
+} -cleanup {
+    be-admin
+    remove-non-admin
+    run delete-org -n [theorg]-2 --recursive
+    stage-close
+} -result "[thetarget] -> [theorg]-2\nCreating new space \"[thespace]-2\" ... OK\n  Adding you as developer ... OK\n  Adding you as manager ... OK\nSwitching to space [thespace]-2 ... OK\nTarget:       [thetarget]\nOrganization: [theorg]-2\nSpace:        [thespace]-2"
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

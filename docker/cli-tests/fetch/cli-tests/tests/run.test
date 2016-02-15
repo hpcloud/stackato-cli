@@ -1,0 +1,77 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## run
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test run-1.0 {run, no app} -setup {
+    stage-open
+    go-admin
+} -body {
+    run run X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result [no-application-q run]
+
+test run-1.1 {run, empty application} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run run -n }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+# # ## ### ##### ######## ############# #####################
+## Note: Ignoring the 'log' output as it is timing sensitive and may
+## not contain everything needed to match because of that.
+
+set flist {total *
+-* 1 stackato * app.js
+d* 2 stackato * bin
+-* 1 stackato * manifest.yml
+-* 1 stackato * package.json
+-* 1 stackato * README.md
+-* 1 stackato * stackato.yml}
+
+# # ## ### ##### ######## ############# #####################
+
+test run-1.2 {run, auto-select app} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    indir $appdir { run run ls -l }
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result $flist
+
+test run-1.3 {run, explicit app} -setup {
+    stage-open
+    go-admin
+    set appdir [example a.original.node-env]
+    indir $appdir { run push -n }
+} -body {
+    run run -a node-env ls -l
+} -cleanup {
+    unset appdir
+    remove-test-app node-env
+    stage-close
+} -match glob -result $flist
+
+# todo --target, --group, multiple dependent apps.
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

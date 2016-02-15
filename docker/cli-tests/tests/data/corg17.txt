@@ -1,0 +1,7 @@
+Adding you as developer ... OK
+Creating new organization @org@ ... OK
+Switching to organization @org@ ... OK
+No spaces available. Please create some with create-space
+Target:       @target@
+Organization: @org@
+Space:        <none>

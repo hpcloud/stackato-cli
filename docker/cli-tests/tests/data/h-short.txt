@@ -1,0 +1,745 @@
+stackato [OPTIONS]
+    The command line client
+
+stackato add-service-broker [OPTIONS] [<name>]
+    Make the named service broker known. This is a Stackato 3 specific
+    command.
+
+stackato add-user [OPTIONS] [<name>]
+    Register a new user in the current or specified target. This operation
+    requires administrator privileges, except if "allow_registration" is set
+    server-side. This exception is specific to Stackato 2.
+
+stackato admin
+    A set of adminstrative tasks.
+
+stackato admin exit
+    Exit the shell. No-op if not in a shell.
+
+stackato admin grant <user>
+    Grant the named user administrator privileges for the current or specified
+    target.
+
+stackato admin help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato admin list [OPTIONS]
+    Show a list of the administrators for the current or specified target.
+
+stackato admin report [OPTIONS] [<destination>]
+    Retrieve a report containing the logs of the current or specified target.
+    This is a stackato-specific command.
+
+stackato admin revoke <user>
+    Revoke administrator privileges for the named user at the current or
+    specified target.
+
+stackato alias <name> <command>...
+    Create a shortcut for a command (prefix).
+
+stackato aliases [OPTIONS]
+    List the known aliases (shortcuts).
+
+stackato app [OPTIONS] [<application>]
+    Show the information of the specified application.
+
+stackato apps [OPTIONS]
+    List the applications deployed to the target.
+
+stackato bind-security-group [OPTIONS] <security_group>
+    Bind the named security group to either the current or specified space, or
+    the running and staging phases. This is a Stackato 3.4.2 command.
+
+stackato bind-service [OPTIONS] [<service>] [<application>]
+    Bind the named service to the specified application.
+
+stackato buildpacks [OPTIONS]
+    Show all buildpacks known to the target, in the order they are checked in
+    during auto-detection.
+
+stackato clone-services [OPTIONS] <source> <application>
+    Copy the service bindings of the source application to the destination
+    application.
+
+stackato color
+    Management of terminal colors
+
+stackato color exit
+    Exit the shell. No-op if not in a shell.
+
+stackato color help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato color list
+    Show the current color settings.
+
+stackato color set <color> <specification>
+    (Re)define a color.
+
+stackato color test <specification> [<string>]
+    Test a color specification.
+
+stackato color unset <color>...
+    Remove a color redefinition.
+
+stackato colors
+    Show the current color settings.
+
+stackato crashes [OPTIONS] [<application>]
+    List recent application crashes.
+
+stackato crashlogs [OPTIONS] [<application>]
+    Display log information for the application. An alias of 'logs'.
+
+stackato create-app [OPTIONS] [<application>]
+    Create an empty application with the specified configuration.
+
+stackato create-buildpack [OPTIONS] <name> <zip|url|dir>
+    Add a buildpack to the target.
+
+stackato create-domain [OPTIONS] <name>
+    Create a new domain. This is a Stackato 3.2+ specific command.
+
+stackato create-org [OPTIONS] [<name>]
+    Create a new organization. This is a Stackato 3 specific command.
+
+stackato create-security-group [OPTIONS] <security_group> <rules>
+    Create a new security group. This is a Stackato 3.4.2 command.
+
+stackato create-service [OPTIONS] [<vendor>] [<name>] [<application>]
+    Create a new provisioned service, and optionally bind it to an
+    application.
+
+stackato create-service-auth-token [OPTIONS] [<label>] [<provider>]
+    Create a new service authentication token. This is a Stackato 3 specific
+    command.
+
+stackato create-service-broker [OPTIONS] [<name>]
+    Make the named service broker known. This is a Stackato 3 specific
+    command.
+
+stackato create-space [OPTIONS] [<name>]
+    Create a new space. This is a Stackato 3 specific command.
+
+stackato create-space-quota [OPTIONS] [<name>]
+    Create a new space quota. It will be owned by the current or specified
+    organization. This is a Stackato 3.4.2 command.
+
+stackato curl [OPTIONS] <operation> <path> [<header>...]
+    Run a raw rest request against the chosen target.
+
+stackato dbshell [OPTIONS] [<application>] [<service>]
+    Invoke interactive db shell for a bound service.
+
+stackato delete [OPTIONS] [<application>...]
+    Delete the specified application(s).
+
+stackato delete-buildpack [OPTIONS] [<name>]
+    Remove the specified buildpack from the target.
+
+stackato delete-domain [OPTIONS] <name>
+    Delete the named domain. This is a Stackato 3.2+ specific command.
+
+stackato delete-org [OPTIONS] [<name>]
+    Delete the named organization. This is a Stackato 3 specific command.
+
+stackato delete-route [OPTIONS] [<name>...]
+    Delete the named route. This is a Stackato 3 specific command.
+
+stackato delete-security-group [OPTIONS] <security_group>
+    Delete the named security group. This is a Stackato 3.4.2 command.
+
+stackato delete-service [OPTIONS] [<service>...]
+    Delete the named provisioned service.
+
+stackato delete-service-auth-token [OPTIONS] [<label>]
+    Delete the specified service authentication token. This is a Stackato 3
+    specific command.
+
+stackato delete-service-broker [OPTIONS] [<name>]
+    Remove the named service broker from the target. This is a Stackato 3
+    specific command.
+
+stackato delete-space [OPTIONS] [<name>]
+    Delete the named space. This is a Stackato 3 specific command.
+
+stackato delete-space-quota [OPTIONS] [<name>]
+    Delete the named space quota. This is a Stackato 3.4.2 command.
+
+stackato delete-user [OPTIONS] <email>
+    Delete the named user, and the user's applications and services from the
+    current or specified target. This operation requires administrator
+    privileges.
+
+stackato disable-feature-flag [OPTIONS] <name>
+    Deactivate the specified feature. This is a Stackato 3.4.2 command.
+
+stackato disk [OPTIONS] [<application>]
+    Show the disk reservation for a deployed application.
+
+stackato domains [OPTIONS]
+    List the available domains in the specified space, or all. This is a
+    Stackato 3 specific command.
+
+stackato drain
+    Commands for the management of drains attached to applications.
+
+stackato drain add [OPTIONS] [<application>] <drain> <uri>
+    Attach a new named drain to the application.
+
+stackato drain delete [OPTIONS] [<application>] <drain>
+    Remove the named drain from the application.
+
+stackato drain exit
+    Exit the shell. No-op if not in a shell.
+
+stackato drain help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato drain list [OPTIONS] [<application>]
+    Show the list of drains attached to the application.
+
+stackato drains [OPTIONS] [<application>]
+    Show the list of drains attached to the application.
+
+stackato enable-feature-flag [OPTIONS] <name>
+    Activate the specified feature. This is a Stackato 3.4.2 command.
+
+stackato env [OPTIONS] [<application>]
+    List the application's environment variables.
+
+stackato env-add [OPTIONS] [<application>] <varname> <value>
+    Add the specified environment variable to the named application.
+
+stackato env-del [OPTIONS] [<application>] <varname>
+    Remove the specified environment variable from the named application.
+
+stackato environment-variable-group [OPTIONS]
+    Show the details of the specified environment variable group. This is a
+    Stackato 3.6 command.
+
+stackato events [OPTIONS] [<application>]
+    Show recorded application events, for application or space. Without an
+    application given the current or specified space is used, otherwise that
+    application. This is a Stackato 3 specific command.
+
+stackato exit
+    Exit the shell. No-op if not in a shell.
+
+stackato feature-flag [OPTIONS] <name>
+    Show the details of the specified feature flag. This is a Stackato 3.4.2
+    command.
+
+stackato feature-flags [OPTIONS]
+    Show all known feature flags and their status. This is a Stackato 3.4.2
+    command.
+
+stackato file [OPTIONS] <application> [<path>]
+    Display directory listing or file. Relative paths are interpreted relative
+    to $STACKATO_APP_ROOT on the target. Without path it defaults to
+    $STACKATO_APP_ROOT on the target.
+
+stackato files [OPTIONS] <application> [<path>]
+    Display directory listing or file. Relative paths are interpreted relative
+    to $STACKATO_APP_ROOT on the target. Without path it defaults to
+    $STACKATO_APP_ROOT on the target.
+
+stackato frameworks [OPTIONS]
+    List the supported frameworks of the target. This is a Stackato 2 specific
+    command.
+
+stackato group [OPTIONS] [<name>]
+    Report the current group, or (un)set it. This is a Stackato 2 specific
+    command.
+
+stackato groups
+    A collection of commands to manage groups and the users in them.
+
+stackato groups add-user [OPTIONS] <group> <user>
+    Add the named user to the specified group. This is a Stackato 2 specific
+    command.
+
+stackato groups create [OPTIONS] <name>
+    Create a new group with the specified name. This is a Stackato 2 specific
+    command.
+
+stackato groups delete [OPTIONS] <name>
+    Delete the named group. This is a Stackato 2 specific command.
+
+stackato groups delete-user [OPTIONS] <group> <user>
+    Remove the named user from the specified group. This is a Stackato 2
+    specific command.
+
+stackato groups exit
+    Exit the shell. No-op if not in a shell.
+
+stackato groups help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato groups limits [OPTIONS] [<group>]
+    Show and/or modify the limits applying to applications in the named group.
+    This is a Stackato 2 specific command.
+
+stackato groups show [OPTIONS]
+    Show the list of groups known to the target. This is a Stackato 2 specific
+    command.
+
+stackato groups users [OPTIONS] [<group>]
+    Show the list of users in the named group. This is a Stackato 2 specific
+    command.
+
+stackato guid [OPTIONS] <type> [<name>]
+    Map the specified name into a uuid, given the type. This is a Stackato 3
+    specific command.
+
+stackato health [OPTIONS] [<application>...]
+    Report the health of the specified application(s).
+
+stackato help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato hide-service-plan [OPTIONS] <name> [<organization>]
+    Hide the specified service-plan from the named organization. This is a
+    Stackato 3 specific command.
+
+stackato history
+    Manage the command history.
+
+stackato history clear
+    Clear the saved history.
+
+stackato history exit
+    Exit the shell. No-op if not in a shell.
+
+stackato history help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato history limit [<n>]
+    Limit the size of the history. If no limit is specified the current limit
+    is shown.
+
+stackato history list [<n>]
+    Show the saved history of commands.
+
+stackato info [OPTIONS]
+    Show the basic system and account information.
+
+stackato instances [OPTIONS] [<application>]
+    List application instances for a deployed application.
+
+stackato limits [OPTIONS] [<group>]
+    Show and/or modify the limits applying to applications in the named group.
+    This is a Stackato 2 specific command.
+
+stackato link-user-org [OPTIONS] <user> [<org>]
+    Add the specified user to the named organization, in various roles. This
+    is a Stackato 3 specific command.
+
+stackato link-user-space [OPTIONS] <user> [<space>]
+    Add the specified user to the named space, in various roles. This is a
+    Stackato 3 specific command.
+
+stackato list [OPTIONS]
+    List the applications deployed to the target.
+
+stackato login [OPTIONS] [<name>]
+    Log in to the current or specified target with the named user.
+
+stackato login-fields [OPTIONS]
+    Show the names of the credential fields needed for a login. This is a
+    Stackato 3 specific command.
+
+stackato logout [OPTIONS] [<target>]
+    Log out of the current, specified, or all targets.
+
+stackato logs [OPTIONS] [<application>]
+    Display the application log stream.
+
+stackato map [OPTIONS] [<application>] <url>
+    Make the application accessible through the specified URL (a route
+    consisting of host and domain)
+
+stackato map-domain [OPTIONS] <name>
+    Add the named domain to an organization or space. This is a Stackato 3
+    specific command. This command is not supported by Stackato 3.2 or higher.
+
+stackato marketplace [OPTIONS]
+    List the supported service plans of the target, for the current or
+    specified space. This is a Stackato 3.4+ specific command.
+
+stackato mem [OPTIONS] [<application>]
+    Show the memory reservation for a deployed application.
+
+stackato migrate [OPTIONS] <application> <destination>
+    Move the application to a different space. This is a Stackato 3.4.2
+    command.
+
+stackato named-entities [OPTIONS]
+    List the entity types usable for 'guid'. I.e. the types of the named
+    entities known to the client.
+
+stackato open [OPTIONS] [<application>]
+    Open the url of the specified application in the default web browser. If
+    'api' is specified as the app name, the Management Console is opened. With
+    no arguments, the 'name' value from the stackato.yml/manifest.yml in the
+    current directory is used (if present).
+
+stackato org [OPTIONS] [<name>]
+    Show the named organization's information. This is a Stackato 3 specific
+    command.
+
+stackato org-users [OPTIONS] [<org>]
+    Show the users for the organization, by role.
+
+stackato orgs [OPTIONS]
+    List the available organizations. This is a Stackato 3 specific command.
+
+stackato passwd [OPTIONS]
+    Change the password of the current user in the current or specified
+    target.
+
+stackato placement-zone [OPTIONS] [<zone>]
+    Show the list of DEAs associated with the specified placement zone. This
+    is a Stackato 3.2+ specific command.
+
+stackato placement-zones [OPTIONS]
+    Show the available placement zones. This is a Stackato 3.2+ specific
+    command.
+
+stackato purge-service-offerings [OPTIONS] <service>
+    Purge all offerings of the service type from the system. Danger. Do this
+    only for services we know to have their brokers killed, leaving behind
+    orphans. This is a Stackato 3.4+ specific command.
+
+stackato push [OPTIONS] [<application>]
+    Configure, create, push, map, and start a new application.
+
+stackato quota
+    Management of quota plans.
+
+stackato quota configure [OPTIONS] [<name>]
+    Reconfigure the named quota plan. This is a Stackato 3 specific command.
+
+stackato quota create [OPTIONS] [<name>]
+    Create a new quota plan. This is a Stackato 3 specific command.
+
+stackato quota delete [OPTIONS] [<name>]
+    Delete the named quota plan. This is a Stackato 3 specific command.
+
+stackato quota exit
+    Exit the shell. No-op if not in a shell.
+
+stackato quota help [OPTIONS] [<cmdname>...]
+    Retrieve help for a command or command set. Without arguments help for all
+    commands is given. The default format is --full.
+
+stackato quota list [OPTIONS]
+    List the available quota plans. This is a Stackato 3 specific command.
+
+stackato quota rename [OPTIONS] [<name>] <newname>
+    Rename the named quota plan. This is a Stackato 3 specific command.
+
+stackato quota show [OPTIONS] [<name>]
+    Show the details of the named quota plan. If not specified it will be
+    asked for interactively (menu). This is a Stackato 3 specific command.
+
+stackato quota-org [OPTIONS] [<name>] <quota>
+    Set the quotas for the current or named organization. This is a Stackato 3
+    specific command.
+
+stackato quotas [OPTIONS]
+    List the available quota plans. This is a Stackato 3 specific command.
+
+stackato register [OPTIONS] [<name>]
+    Register a new user in the current or specified target. This operation
+    requires administrator privileges, except if "allow_registration" is set
+    server-side. This exception is specific to Stackato 2.
+
+stackato releases [OPTIONS] [<application>]
+    Show the list of versions for the specified application. This is a
+    Stackato 3.4 specific command.
+
+stackato remove-service-broker [OPTIONS] [<name>]
+    Remove the named service broker from the target. This is a Stackato 3
+    specific command.
+
+stackato rename [OPTIONS] [<application>] [<name>]
+    Rename the specified application. This is a Stackato 3 specific command.
+
+stackato rename-buildpack [OPTIONS] [<name>] [<newname>]
+    Change the name of the specified buildpack.
+
+stackato rename-org [OPTIONS] [<name>] [<newname>]
+    Rename the named organization. This is a Stackato 3 specific command.
+
+stackato rename-service [OPTIONS] <service> [<name>]
+    Rename the specified service instance. This is a Stackato 3 specific
+    command.
+
+stackato rename-space [OPTIONS] [<name>] [<newname>]
+    Rename the named space. This is a Stackato 3 specific command.
+
+stackato rename-space-quota [OPTIONS] [<name>] <newname>
+    Rename the named space quota. This is a Stackato 3.4.2 command.
+
+stackato restage [OPTIONS] [<application>]
+    Restage an application, regenerate its droplet. This is a Stackato 3.4.2
+    command.
+
+stackato restart [OPTIONS] [<application>]
+    Stop and restart a deployed application.
+
+stackato restart-instance [OPTIONS] <application> <instance>
+    Stop and restart a specific instance of a deployed application. This is a
+    Stackato 3.4.2 command.
+
+stackato rollback [OPTIONS] [<application>] <version>
+    Switch to a different version of the application. This is a Stackato 3.4
+    specific command.
+
+stackato routes [OPTIONS]
+    List all available routes in the specified space, or all. This is a
+    Stackato 3 specific command.
+
+stackato run [OPTIONS] <command>...
+    Run an arbitrary command on a running instance.
+
+stackato runtimes [OPTIONS]
+    List the supported runtimes of the target. This is a Stackato 2 specific
+    command.
+
+stackato scale [OPTIONS] [<application>]
+    Update the number of instances, memory, disk reservation and/or
+    autoscaling settings for a deployed application.
+
+stackato scp [OPTIONS] <paths>...
+    Copy files and directories to and from application containers. The colon
+    ":" character preceding a specified source or destination indicates a
+    remote file or path. Sources and destinations can be file names, directory
+    names, or full paths.
+
+stackato security-group [OPTIONS] <security_group>
+    Show the details of the named security group. This is a Stackato 3.4.2
+    command.
+
+stackato security-groups [OPTIONS]
+    Show the known security groups, either all, or just those assigned to the
+    running and staging phases. This is a Stackato 3.4.2 command.
+
+stackato service [OPTIONS] <name>
+    Show the information about the named service.
+
+stackato service-auth-tokens [OPTIONS]
+    Show all service authentication tokens knowns to the target. This is a
+    Stackato 3 specific command.
+
+stackato service-brokers [OPTIONS]
+    Show the list of known service brokers. This is a Stackato 3 specific
+    command.
+
+stackato service-plan [OPTIONS] <name>
+    Show the details of the specified service plan. This is a Stackato 3
+    specific command.
+
+stackato service-plans [OPTIONS]
+    List all available plans of the supported services. This is a Stackato 3
+    specific command.
+
+stackato services [OPTIONS]
+    List the supported and provisioned services of the target.
+
+stackato set-env [OPTIONS] [<application>] <varname> <value>
+    Add the specified environment variable to the named application.
+
+stackato set-environment-variable-group [OPTIONS]
+    Set the contents of the specified environment variable group. This is a
+    Stackato 3.6 command.
+
+stackato set-placement-zone [OPTIONS] [<application>] <zone>
+    Associate the application with a specific placement zone. This is a
+    Stackato 3.2+ specific command.
+
+stackato set-space-quota [OPTIONS] [<name>]
+    Assign the specified space quota to the current or specified space. This
+    is a Stackato 3.4.2 command.
+
+stackato show-service-broker [OPTIONS] [<name>]
+    Show the information of the named service broker from the target. This is
+    a Stackato 3 specific command.
+
+stackato show-service-plan [OPTIONS] <name> [<organization>]
+    Make the specified service-plan visible to the named organization. This is
+    a Stackato 3 specific command.
+
+stackato show-token [OPTIONS]
+    Print the current target's token.
+
+stackato space [OPTIONS] [<name>]
+    Show the named space's information. This is a Stackato 3 specific command.
+
+stackato space-quota [OPTIONS] [<name>]
+    Show the details of the named space quota. If not specified it will be
+    asked for interactively (menu). This is a Stackato 3.4.2 command.
+
+stackato space-quotas [OPTIONS]
+    List the space quotas owned by the current or specified organization, or
+    all. This is a Stackato 3.4.2 command.
+
+stackato space-users [OPTIONS] [<space>]
+    Show the users for the space, by role.
+
+stackato spaces [OPTIONS]
+    List the available spaces in the specified organization. See
+    --organization for details This is a Stackato 3 specific command.
+
+stackato ssh [OPTIONS] [<command>...]
+    SSH to a running instance (or target), or run an arbitrary command.
+
+stackato stacks [OPTIONS]
+    List the supported stacks of the target. This is a Stackato 3 specific
+    command.
+
+stackato start [OPTIONS] [<application>]
+    Start a deployed application.
+
+stackato stats [OPTIONS] [<application>]
+    Display the resource usage for a deployed application.
+
+stackato stop [OPTIONS] [<application>]
+    Stop a deployed application.
+
+stackato switch-org [OPTIONS] [<name>]
+    Switch the current organization to the named organization. This
+    invalidates the current space. This is a Stackato 3 specific command.
+
+stackato switch-space [OPTIONS] [<name>]
+    Switch from the current space to the named space. This may switch the
+    organization as well. This is a Stackato 3 specific command.
+
+stackato switch-version [OPTIONS] [<application>] <version>
+    Switch to a different version of the application. This is a Stackato 3.4
+    specific command.
+
+stackato tail [OPTIONS] <application> <path>
+    Monitor file for changes and stream them.
+
+stackato target [OPTIONS] [<url>]
+    Set the target API endpoint for the client, or report the current target.
+
+stackato targets [OPTIONS]
+    List the available targets, and their authorization tokens, if any.
+
+stackato token [OPTIONS]
+    Interactively set authentication token.
+
+stackato tokens [OPTIONS]
+    List the available targets, and their authorization tokens, if any.
+
+stackato trace [OPTIONS]
+    Print the saved REST trace for the last client command to stdout.
+
+stackato tunnel [OPTIONS] [<service>] [<tunnelclient>]
+    Create a local tunnel to a service, optionally start a local client as
+    well.
+
+stackato unalias <name>
+    Remove a shortcut by name.
+
+stackato unbind-security-group [OPTIONS] <security_group>
+    Drop the named security group from either the current or specified space,
+    or the running and staging phases. This is a Stackato 3.4.2 command.
+
+stackato unbind-service [OPTIONS] [<service>] [<application>]
+    Disconnect the named service from the specified application.
+
+stackato unlink-user-org [OPTIONS] <user> [<org>]
+    Remove the specified user from the named organization, in various roles.
+    This is a Stackato 3 specific command.
+
+stackato unlink-user-space [OPTIONS] <user> [<space>]
+    Remove the specified user from the named space, in various roles. This is
+    a Stackato 3 specific command.
+
+stackato unmap [OPTIONS] [<application>] <url>
+    Unregister the application from a URL.
+
+stackato unmap-domain [OPTIONS] <name>
+    Remove the named domain from an organization or space. This is a Stackato
+    3 specific command. This command is not supported by Stackato 3.2 or
+    higher.
+
+stackato unregister [OPTIONS] <email>
+    Delete the named user, and the user's applications and services from the
+    current or specified target. This operation requires administrator
+    privileges.
+
+stackato unset-env [OPTIONS] [<application>] <varname>
+    Remove the specified environment variable from the named application.
+
+stackato unset-placement-zone [OPTIONS] [<application>]
+    Remove the association between application and its current placement zone.
+    This is a Stackato 3.2+ specific command.
+
+stackato unset-space-quota [OPTIONS]
+    Drop the space quota from the current or specified space. This is a
+    Stackato 3.4.2 command.
+
+stackato update-buildpack [OPTIONS] [<name>]
+    Change the information known about the specified buildpack.
+
+stackato update-org [OPTIONS] [<name>]
+    Change one or more attributes of an organization in a single call.
+
+stackato update-security-group [OPTIONS] <security_group> <rules>
+    Modify the named security group. I.e. replace the set of rules with a new
+    set. This is a Stackato 3.4.2 command.
+
+stackato update-service-auth-token [OPTIONS] [<label>]
+    Update the specified service authentication token. This is a Stackato 3
+    specific command.
+
+stackato update-service-broker [OPTIONS] [<name>] [<newname>]
+    Update the target's knowledge of the named service broker. This is a
+    Stackato 3 specific command.
+
+stackato update-service-plan [OPTIONS] [<name>] [<newname>]
+    Update the target's knowledge of the named service plan. This is a
+    Stackato 3 specific command.
+
+stackato update-space [OPTIONS] [<name>]
+    Change one or more attributes of a space in a single call.
+
+stackato update-space-quota [OPTIONS] [<name>]
+    Modify the named space quota. This is a Stackato 3.4.2 command.
+
+stackato update-user-provided-service [OPTIONS] <service>
+    Update the credentials of a user provided service. This is a Stackato 3
+    specific command.
+
+stackato usage [OPTIONS] [<userOrGroup>]
+    Show the current memory allocation and usage of the active or specified
+    user/group (Stackato 2), or the specified or current space (Stackato 3).
+
+stackato user [OPTIONS]
+    Show the name of the current user in the current or specified target.
+
+stackato user-info [OPTIONS] [<name>]
+    Shows the information of a user in the current or specified target.
+    Defaults to the current user. Naming a specific user requires a Stackato 3
+    target.
+
+stackato users [OPTIONS]
+    Show the list of users known to the current or specified target.
+
+stackato version
+    Print the version number of the client.
+
+stackato versions [OPTIONS] [<application>]
+    Show the list of versions for the specified application. This is a
+    Stackato 3.4 specific command.

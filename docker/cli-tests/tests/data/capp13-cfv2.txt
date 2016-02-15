@@ -1,0 +1,4 @@
+No manifest
+Application Url:   *://@route@.@base@
+Creating Application \[@name@\] as \[@target@ -> @org@ -> @space@ -> @name@\] ... OK
+  Map *://@route@.@base@ ... OK

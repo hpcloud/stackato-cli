@@ -1,0 +1,119 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## rename-org
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test rename-org-1.0 {rename-org, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-org -n
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'name'}
+
+test rename-org-1.1 {rename-org, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-org OLD
+} -body {
+    run rename-org -n OLD
+} -cleanup {
+    run delete-org -n OLD
+    stage-close
+} -returnCodes error -result {Missing definition for argument 'newname'}
+
+test rename-org-1.2 {rename-org, wrong args, too many} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-org -n OLD NEW X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test rename-org-1.3 {rename-org, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-org [theorg]-2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test rename-org-1.4 {rename-org, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run rename-org [theorg]-2 [theorg]-3
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test rename-org-1.5 {rename-org, non-admin login is not ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2 --no-activate
+    go-non-admin
+} -body {
+    run rename-org [theorg]-2 [theorg]-3
+    # Note: theorg-2 is not visible to the non-admin user.
+} -cleanup {
+    be-admin
+    run delete-org -n [theorg]-2
+    remove-non-admin
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name organization [theorg]-2 {Run 'stackato orgs' to see list of organizations}]
+
+test rename-org-1.6 {rename-org, persists} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2
+} -body {
+    run rename-org [theorg]-2 [theorg]-3
+    run orgs
+} -cleanup {
+    run delete-org -n [theorg]-3
+    stage-close
+} -match glob -result "*| x | [theorg]-3 *|*"
+
+test rename-org-1.7 {rename-org, duplicate destination} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    run create-org [theorg]-2
+    run create-org [theorg]-3
+} -body {
+    run rename-org [theorg]-2 [theorg]-3
+} -cleanup {
+    run delete-org -n [theorg]-2
+    run delete-org -n [theorg]-3
+    stage-close
+} -returnCodes error -result [already input newname organization [theorg]-3]
+
+test rename-org-1.8 {rename-org, missing source} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run rename-org bogus bogus-2
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name organization bogus {Run 'stackato orgs' to see list of organizations}]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

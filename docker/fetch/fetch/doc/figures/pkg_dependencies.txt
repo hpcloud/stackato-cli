@@ -1,0 +1,27 @@
+
+*critcl    <- doc, testsuite, recipes, tool, options, path, io, try
+*tcl       <- doc, testsuite, recipes, path, try
+
+standard  <- recipes, options, gui, strutil
+*doc       <- figures, recipes, tool, options, path, io
+
+*testsuite <- recipes, invoke, options, path, status, (io), strutil, try
+*figures   <- recipes, tool, path, io
+*tclapp    <- recipes, path, io
+app       <- recipes, options, path, status, (io), try
+gui       <- options, (ovalidate), recipes, status, (io)
+
+*depend    <- options
+tool      <- options, io
+invoke    <- options, path, status, (io), try
+recipes   <- status, (io), strutil, try, lambda
+
+options   <- path, status, ovalidate, (io), strutil, lambda
+ovalidate <- /option/, path, lambda
+path      <- /option/, status, (io), try
+status    <- /option/, /path/, io
+
+io
+strutil
+try
+lambda

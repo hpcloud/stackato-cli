@@ -1,0 +1,42 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## targeting, part I
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test targets-1.0 {client targets, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run targets X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test targets-1.1 {client targets, default} -setup {
+    stage-open
+} -body {
+    run targets
+} -cleanup {
+    stage-close
+} -result {None specified}
+
+test targets-1.2 {client targets, default, json} -setup {
+    stage-open
+} -body {
+    run targets --json
+} -cleanup {
+    stage-close
+} -result {{}}
+
+# TODO: --token-file option
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

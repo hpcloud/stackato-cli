@@ -1,0 +1,14 @@
+@ta@ @sg@
++---------+-*-+
+| Key     | Value *|
++---------+-*-+
+| Name    | @sg@ *|
+| Rules   | \[{                               |
+|         |     "destination" : "127.0.0.1", |
+|         |     "ports"       : "5-8",       |
+|         |     "protocol"    : "tcp"        |
+|         | }\]                               |
+| Spaces  |                                  |
+| Staging | 1 *|
+| Running | 0 *|
++---------+-*-+

@@ -1,0 +1,116 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## organizations, listing
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test orgs-1.0 {orgs, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run orgs X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test orgs-1.1 {orgs, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Login Required
+Please use 'stackato login'}
+
+test orgs-1.2 {orgs, non-admin login ok} -constraints cfv2uaa -setup {
+    stage-open
+    ref-target
+    go-admin
+    go-non-admin
+} -body {
+    run orgs
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+test orgs-1.3 {orgs} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -match glob -result "In [thetarget]...*|   | Name *| Spaces *| Domains *|*| x | [theorg] *| [thespace] *|*| [targetdomain] *|*+"
+
+test orgs-1.4 {orgs, --json} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --json
+} -cleanup {
+    stage-close
+} -match glob -result [string map [list @@@@ [theorg]] {\[*{
+    "entity"   : {
+        "app_events"            : \[\],
+        "app_events_url"        : "/v2/organizations/*/app_events",
+        "auditors"              : \[*\],
+        "auditors_url"          : "/v2/organizations/*/auditors",
+        "billing_enabled"       : false,
+        "billing_managers"      : \[\],
+        "billing_managers_url"  : "/v2/organizations/*/billing_managers",
+        "domains"               : \[*\],
+        "domains_url"           : "/v2/organizations/*/domains",
+        "managers"              : \[*\],
+        "managers_url"          : "/v2/organizations/*/managers",
+        "name"                  : "@@@@",
+        "quota_definition"      : *,
+        "quota_definition_guid" : "*",
+        "quota_definition_url"  : "/v2/quota_definitions/*",
+        "spaces"                : \[*\],
+        "spaces_url"            : "/v2/organizations/*/spaces",
+        "status"                : "active",
+        "users"                 : \[*\],
+        "users_url"             : "/v2/organizations/*/users"
+    },
+    "metadata" : {
+        "created_at" : "*",
+        "guid"       : "*",
+        "updated_at" : *,
+        "url"        : "/v2/organizations/*"
+    }
+}*\]}]
+
+test orgs-1.5 {orgs, --full} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs --full
+} -cleanup {
+    stage-close
+} -match glob -result "In [thetarget]...*|   | Name *| Spaces *| Domains *| Applications *| Services *|*| x | [theorg] *| [thespace] *|*| [targetdomain] *|*+"
+
+test orgs-1.6 {orgs, not allowed for CFv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run orgs
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

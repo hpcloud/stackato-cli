@@ -1,0 +1,116 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## delete-app
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+TODO app delete complexities: -n, --force interaction for apps with services.
+TODO app delete complexities: -n interaction for apps with routes.
+
+test delete-app-1.0 {delete-app, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    indir [appdir] {
+	remove-test-app
+    }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result [login-required]
+
+test delete-app-1.1.1 {delete-app, non-admin login is ok} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    indir [appdir] { run delete -n TEST }
+} -cleanup {
+    remove-appdir
+    be-admin
+    remove-non-admin
+    stage-close
+} -result {Deleting application [TEST] ... OK}
+
+test delete-app-1.1.2 {delete-app, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+    make-test-app
+} -body {
+    indir [appdir] { run delete -n TEST }
+} -cleanup {
+    catch { run delete-route -n test.[targetdomain] }
+    remove-appdir
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result {Deleting application \[TEST\] ... OK*}
+
+test delete-app-1.2 {delete-app, persists} -setup {
+    stage-open
+    go-admin
+    make-test-app
+} -body {
+    indir [appdir] {
+	remove-test-app
+    }
+    run apps
+} -cleanup {
+    remove-appdir
+    stage-close
+} -match anti-glob -result {*| TEST *| 0 *| STOPPED *| * | * |*}
+
+test delete-app-1.3 {delete-app, unknown app} -setup {
+    stage-open
+    go-admin
+} -body {
+    indir [appdir] { run delete bogus }
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -result \
+    [unexpected input application application bogus \
+	 {Run 'stackato apps' to see list of applications} [per-api {} " in space '[theorg]::[thespace]'"]]
+
+test delete-app-1.4.1 {delete-app, all apps} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    make-test-app TEST1
+    make-test-app TEST2
+    make-test-app TEST3
+    remove-appdir
+} -body {
+    run delete -n --all
+} -cleanup {
+    stage-close
+} -result {Deleting application [TEST1] ... OK
+Deleting application [TEST2] ... OK
+Deleting application [TEST3] ... OK}
+
+test delete-app-1.4.2 {delete-app, all apps} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    make-test-app TEST1
+    make-test-app TEST2
+    make-test-app TEST3
+    remove-appdir
+} -body {
+    run delete -n --all
+} -cleanup {
+    stage-close
+} -match glob -result {Deleting application \[TEST1\] ... OK*
+Deleting application \[TEST2\] ... OK*
+Deleting application \[TEST3\] ... OK*}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

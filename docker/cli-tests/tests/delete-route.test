@@ -1,0 +1,130 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## delete-route
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test delete-route-1.2 {delete-route, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-route -n xxx.[targetdomain]
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test delete-route-1.3 {delete-route, login required} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+} -body {
+    run delete-route -n xxx.[targetdomain]
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test delete-route-1.4 {delete-route, non-admin login is ok} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    # routes are implicitly created with applications. There is no separate creation command.
+    # We force leaves the route behind when removing the helper app.
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete     -n --no-routes TEST
+    go-non-admin
+} -body {
+    run delete-route -n xxx.[targetdomain]
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result "Deleting route \"xxx.[targetdomain]\" ... OK"
+
+test delete-route-1.5 {delete-route} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+    # routes are implicitly created with applications. There is no separate creation command.
+    # We force leaves the route behind when removing the helper app.
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete     -n --no-routes TEST
+} -body {
+    run delete-route -n xxx.[targetdomain]
+} -cleanup {
+    stage-close
+} -result "Deleting route \"xxx.[targetdomain]\" ... OK"
+
+test delete-route-1.6 {delete-route, unknown route} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run delete-route -n xxx.[targetdomain]
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name route xxx.[targetdomain] {Run 'stackato routes' to see list of routes}]
+
+test delete-route-1.7 {delete-route, --unused} -setup {
+    stage-open
+    go-admin
+    # routes are implicitly created with applications. There is no separate creation command.
+    # We force leaves the route behind when removing the helper app.
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete     -n --no-routes TEST
+} -body {
+    run delete-route -n --unused
+} -cleanup {
+    stage-close
+} -result "Deleting route \"xxx.[targetdomain]\" ... OK"
+
+test delete-route-1.8 {delete-route, --unused --all} -setup {
+    stage-open
+    go-admin
+    # routes are implicitly created with applications. There is no separate creation command.
+    # We force leaves the route behind when removing the helper app.
+    run create-app -n TEST --url xxx.[targetdomain]
+    run delete     -n --no-routes TEST
+} -body {
+    run delete-route -n --unused --all
+} -cleanup {
+    stage-close
+} -result "Deleting route \"xxx.[targetdomain]\" ... OK"
+
+test delete-route-1.9 {delete-route, no names} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-route -n
+} -cleanup {
+    stage-close
+} -result "No Routes to delete"
+
+test delete-route-2.0 {delete-route, --unused vs names not allowed} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-route -n --unused R
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "name" together with "--unused".}
+
+test delete-route-2.1 {delete-route, --all vs. names not allowed} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run delete-route -n --all R
+} -cleanup {
+    stage-close
+} -returnCodes error -result {You cannot use "name" together with "--all".}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

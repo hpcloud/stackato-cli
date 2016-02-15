@@ -1,0 +1,8 @@
+@target@ -> @org@
+Creating new space "@space@" ... OK
+  Adding you as developer ... OK
+  Adding you as manager ... OK
+Switching to space @space@ ... OK
+Target:       @target@
+Organization: @org@
+Space:        @space@

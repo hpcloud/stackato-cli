@@ -1,0 +1,6 @@
+name: node-env
+mem: 256M
+host: e1
+subdomain: e2
+domain: ${target-base}
+command: node app.js

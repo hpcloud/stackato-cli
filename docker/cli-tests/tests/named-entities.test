@@ -1,0 +1,32 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## client named-entities
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test named-entities-1.0 {client named-entities, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run named-entities X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test named-entities-1.1 {client named-entities} -setup {
+    stage-open
+} -body {
+    run named-entities
+} -cleanup {
+    stage-close
+} -result {app buildpack domain organization quota_definition route security_group service service_auth_token service_broker service_instance service_plan space space_quota_definition stack user zone}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

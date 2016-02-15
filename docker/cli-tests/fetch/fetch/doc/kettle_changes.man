@@ -1,0 +1,15 @@
+[comment {-*- tcl -*- --- doctools ---}]
+[manpage_begin kettle_changes n 1]
+[include include/general.inc]
+[titledesc {Kettle Changes}]
+[description]
+[para]
+[include include/welcome.inc]
+[para]
+
+This document provides an overview of the changes [package kettle]
+underwent from version to version.
+
+[include include/changes.inc]
+[include include/feedback.inc]
+[manpage_end]

@@ -1,0 +1,438 @@
+
+<html><head>
+<title>kettle_app - Kettle - The Quick Brew System</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/www/doc/files/kettle_app.html' by tcllib/doctools with format 'html'
+   -->
+<! -- CVS: $Id$ kettle_app.n
+   -->
+<body><div class="doctools">
+<hr> [
+   <a href="../../../../../../home">Home</a>
+| <a href="../../toc.html">Main Table Of Contents</a>
+| <a href="../toc.html">Table Of Contents</a>
+| <a href="../../index.html">Keyword Index</a>
+ ] <hr>
+<h1 class="title">kettle_app(n) 1 doc &quot;Kettle - The Quick Brew System&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>kettle_app - Kettle - Application - Build Interpreter</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">The kettle application</a></li>
+<li class="section"><a href="#section3">Options</a></li>
+<li class="section"><a href="#section4">Standard Recipes</a></li>
+<li class="section"><a href="#section5">build.tcl Example</a></li>
+<li class="section"><a href="#section6">License</a></li>
+<li class="section"><a href="#section7">Bugs, Ideas, Feedback</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#category">Category</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+</ul>
+<ul class="syntax">
+<li><a href="#1"><b class="cmd"><a href="kettle.html">kettle</a></b> <span class="opt">?<b class="option">-f</b> <i class="arg">buildfile</i>?</span> <span class="opt">?<b class="option">-trace</b>?</span> (<i class="arg">goal</i>|<b class="option">--option</b> <i class="arg">value</i>)...</a></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.</p>
+<p>Please read the document <i class="term"><a href="kettle_intro.html">Kettle - Introduction to Kettle</a></i>,
+if you have not done so already, to get an overview of the whole system.</p>
+<p>Here we document the kettle application available to a user of kettle,
+i.e. a package developer using (or wishing to use) kettle as the build
+system for their code.</p>
+<p>This application resides between the kettle core and the build
+script written by the package developer, as shown in the archtectural
+diagram below.</p>
+<p><img alt="arch_app" src="../../image/arch_app.png"></p>
+<p>For the build (declaration) commands available to build scripts
+based on kettle see <i class="term"><a href="kettle_dsl.html">Kettle - Build Declarations</a></i>.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">The kettle application</a></h2>
+<p>The <b class="cmd"><a href="kettle.html">kettle</a></b> application is the main interpreter for build
+declarations. It can be used directly, or as a shell in the hash-bang
+line of build files.</p>
+<p>Its general syntax is</p>
+<dl class="definitions">
+<dt><a name="1"><b class="cmd"><a href="kettle.html">kettle</a></b> <span class="opt">?<b class="option">-f</b> <i class="arg">buildfile</i>?</span> <span class="opt">?<b class="option">-trace</b>?</span> (<i class="arg">goal</i>|<b class="option">--option</b> <i class="arg">value</i>)...</a></dt>
+<dd><p>In a hash-bang line for a build file the syntax is 'kettle -f', with
+the build file becoming the argument to <b class="option">-f</b>, and the arguments
+to the build file then following, starting with the optional
+<b class="option">-trace</b>.</p>
+<p>Note: The application will look for a build file
+&quot;<b class="file">build.tcl</b>&quot; in the current working, if no build file is
+specified.</p>
+<p>Configuration options and recipes to run can be mixed on the
+commandline, with the options processed first, and then the
+recipes. For this to work all the options require a value.</p>
+<p>The list of known options, help about them, and their state
+after option processing can be queried through the standard recipes
+<b class="const">list-options</b>, <b class="const">help-options</b>, and
+<b class="const">show-configuraton</b>.</p>
+<p>The list of known recipes and help about them can be queried
+through the standard recipes <b class="const">list-recipes</b>, and
+<b class="const">help-recipes</b>.</p>
+<p>Note that the set of recipes is dynamically constructed based
+on the scans of source directory made by kettle at the direction of
+the build file. I.e. the options on the command line are processed
+first, then the build file is used to scan the sources and initialize
+the necessary recipes, at last the recipes on the command line are
+run.</p>
+<p>The application understands one dot-file for configuration,
+&quot;<b class="file">~/.kettle/config</b>&quot;. This file is expected to contain
+user-specific standard options to use. Its contents are processed as
+part of the option processing, before the options found on the command
+line.
+For all other extensibility the user is reminded that build file are
+Tcl files, with the full power of the language behind them. Which
+includes the builtin command <b class="cmd">source</b>.</p>
+<p>If no recipe is specified on the command line a standard recipe
+is run. On unix platforms it is &quot;help&quot;, whereas on windows &quot;gui&quot; is
+used.</p></dd>
+</dl>
+</div>
+<div id="section3" class="section"><h2><a name="section3">Options</a></h2>
+<dl class="options">
+<dt><b class="option">--bin-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory
+applications (binary and script) will be installed into.</p>
+<p>The default value is the directory of the <b class="syscmd">tclsh</b> used
+to run the <b class="syscmd"><a href="kettle.html">kettle</a></b> application.</p>
+<p>If the option <b class="option">--exec-prefix</b> is modified the default
+value changes to &quot;<b class="file"><b class="variable">--exec-prefix</b>/bin</b>&quot;.</p></dd>
+<dt><b class="option">--color</b> boolean</dt>
+<dd><p>The value of this configuration option determines if output is
+colorized or not.</p>
+<p>The default value is platform-dependent.
+On windows the default is <b class="const">off</b>, disabling colorization.
+On unix the default is <b class="const">on</b>, activating colorization. Except if
+it could be determined that the script's <b class="const">stdout</b> is not a
+proper terminal, then the default is <b class="const">off</b>.</p>
+<p>For this last check the system attempts to use the package
+<b class="package">Tclx</b>. If that package is not available then it cannot be
+determined if <b class="const">stdout</b> is a proper terminal, thus colorization
+is active.</p></dd>
+<dt><b class="option">--config</b> path</dt>
+<dd><p>This is an internal option used by kettle for the communication
+between parent and child instances when handling a recursive
+invokation. The generated file specified as the value of the option
+holds the configuration of the parent, for the child to read and use.</p></dd>
+<dt><b class="option">--dry</b> boolean</dt>
+<dd><p>The value of this configuration option determines if (un)installation
+modifies the file system (<b class="const">off</b>) or not (<b class="const">on</b> == dry run).</p>
+<p>The default value is <b class="const">off</b>. This means that the system
+will modify the file system as instructed by recipes.</p></dd>
+<dt><b class="option">--exec-prefix</b> path</dt>
+<dd><p>This configuration option specifies the path to the root directory for
+all platform-dependent (binary) installation files.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b></b>&quot;.</p></dd>
+<dt><b class="option">--html-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory package
+documentation in HTML format will be installed into.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b>/html</b>&quot;.</p></dd>
+<dt><b class="option">--ignore-glob</b> list</dt>
+<dd><p>This option specifies the set of files and directories to ignore
+during directory scans, as a Tcl list of glob patterns to match.</p>
+<p>The default value is</p>
+<ol class="enumerated">
+<li><p>*~</p></li>
+<li><p>_FOSSIL_</p></li>
+<li><p>.fslckout</p></li>
+<li><p>.fos</p></li>
+<li><p>.git</p></li>
+<li><p>.svn</p></li>
+<li><p>CVS</p></li>
+<li><p>.hg</p></li>
+<li><p>RCS</p></li>
+<li><p>SCCS</p></li>
+<li><p>*.bak</p></li>
+<li><p>*.bzr</p></li>
+<li><p>*.cdv</p></li>
+<li><p>*.pc</p></li>
+<li><p>_MTN</p></li>
+<li><p>_build</p></li>
+<li><p>_darcs</p></li>
+<li><p>_sgbak</p></li>
+<li><p>blib</p></li>
+<li><p>autom4te.cache</p></li>
+<li><p>cover_db</p></li>
+<li><p>~.dep</p></li>
+<li><p>~.dot</p></li>
+<li><p>~.nib</p></li>
+<li><p>~.plst</p></li>
+</ol>
+<p>matching the special files and directories of various source code
+control systems, the backup files of various editors, and the like.</p></dd>
+<dt><b class="option">--include-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory package
+C header files will be installed into.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b>/include</b>&quot;.</p></dd>
+<dt><b class="option">--lib-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory packages
+(binary and script) will be installed into.</p>
+<p>The default value is the [<b class="cmd">info library</b>] directory
+of the <b class="syscmd">tclsh</b> used to run the <b class="syscmd"><a href="kettle.html">kettle</a></b> application.</p>
+<p>If the option <b class="option">--exec-prefix</b> is modified the default
+value changes to &quot;<b class="file"><b class="variable">--exec-prefix</b>/lib</b>&quot;.</p></dd>
+<dt><b class="option">--log</b> path</dt>
+<dd><p>An option for recipe 'test', if defined. Its value is the path &quot;stem&quot;
+for a series of files testsuite information is saved into. The actual
+files use the specified stem and add their specifc file extension to
+it.</p>
+<p>The default is the empty string, disabling the saving of
+testsuite information.</p></dd>
+<dt><b class="option">--log-mode</b> compact|full</dt>
+<dd><p>An option for recipe 'test', if defined. Its value determines the
+verbosity of test suite information printed to the terminal or log window.</p>
+<p>The default is <b class="const">compact</b>.</p></dd>
+<dt><b class="option">--man-dir</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory package
+documentation (manpages, in *roff format) will be installed into.</p>
+<p>The default value is &quot;<b class="file"><b class="variable">--prefix</b>/man</b>&quot;.</p></dd>
+<dt><b class="option">--prefix</b> path</dt>
+<dd><p>This configuration option specifies the path to the root directory for
+all platform-independent (non-binary) installation files.</p>
+<p>The default value is the twice parent of the
+[<b class="cmd">info library</b>] directory of the <b class="syscmd">tclsh</b> used to
+run the <b class="syscmd"><a href="kettle.html">kettle</a></b> application.</p></dd>
+<dt><b class="option">--state</b> path</dt>
+<dd><p>This is an internal option used by kettle for the communication
+between parent and child instances when handling a recursive
+invokation. The generated file specified as the value of the option
+holds the work state of the parent, for the child to read and extend.</p></dd>
+<dt><b class="option">--target</b> string</dt>
+<dd><p>The value of this option is the target name <b class="syscmd">critcl</b> should use
+to build C code.</p>
+<p>The default value is the empty string, leaving the choice of
+target to <b class="syscmd">critcl</b> itself.</p></dd>
+<dt><b class="option">--verbose</b> boolean</dt>
+<dd><p>The value of this configuration option determines if tracing of system
+internals is done (<b class="const">on</b>), or not (<b class="const">off</b>). This is the
+option equivalent of the special flag <b class="option">-trace</b>.</p>
+<p>The default value is <b class="const">off</b>, disabling tracing of internals.</p></dd>
+<dt><b class="option">--with-doc-destination</b> path</dt>
+<dd><p>This configuration option specifies the path to the directory the
+generated documentation should be placed into for the documentation
+installa recipes to pick up from.</p>
+<p>This should be a relative path, which will interpreted relative
+to the package source directory.</p>
+<p>The default value is &quot;<b class="file">embedded</b>&quot;.</p>
+<p>A build declaration file can override this default with the
+<b class="cmd">kettle doc-destination</b> command.</p></dd>
+<dt><b class="option">--with-critcl3</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">critcl3</b> for the compilation and installation of critcl-based
+C code.</p>
+<p>The default value is the path to the first of</p>
+<ol class="enumerated">
+<li><p>&quot;<b class="file">critcl3</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.kit</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.tcl</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl3.exe</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl.kit</b>&quot;,</p></li>
+<li><p>&quot;<b class="file">critcl.tcl</b>&quot;, and</p></li>
+<li><p>&quot;<b class="file">critcl.exe</b>&quot;</p></li>
+</ol>
+<p>found on the <b class="variable">PATH</b>. None of these matter however should the
+system find the package <b class="package">critcl</b> version 3 or higher among the
+packages known to the <b class="syscmd">tclsh</b> running the <b class="syscmd"><a href="kettle.html">kettle</a></b>
+application. In that case kettle will run everything in itself,
+without invoking critcl child processes.</p></dd>
+<dt><b class="option">--with-dia</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">dia</b> for tklib/diagram-based diagram processing.</p>
+<p>The default value is the path to the first of
+	&quot;<b class="file">dia</b>&quot;,
+	&quot;<b class="file">dia.kit</b>&quot;,
+	&quot;<b class="file">dia.tcl</b>&quot;, and
+	&quot;<b class="file">dia.exe</b>&quot;
+found on the <b class="variable">PATH</b>.</p></dd>
+<dt><b class="option">--with-dtplite</b> path</dt>
+<dd><p>This configuration option specifies the path to the tool
+<b class="syscmd">dtplite</b> for doctools-based documentation processing.</p>
+<p>The default value is the path to the first of
+	&quot;<b class="file">dtplite</b>&quot;,
+	&quot;<b class="file">dtplite.kit</b>&quot;,
+	&quot;<b class="file">dtplite.tcl</b>&quot;, and
+	&quot;<b class="file">dtplite.exe</b>&quot;
+found on the <b class="variable">PATH</b>.</p></dd>
+<dt><b class="option">--with-shell</b> path</dt>
+<dd></dd>
+</dl>
+</div>
+<div id="section4" class="section"><h2><a name="section4">Standard Recipes</a></h2>
+<p>The following recipes are understood by <b class="cmd"><a href="kettle.html">kettle</a></b> regardless of
+build definitions. They are its <i class="term">standard</i> recipes.</p>
+<dl class="definitions">
+<dt><b class="const">gui</b></dt>
+<dd><p>Opens a standard graphical interface.
+	This is the standard recipe run on windows if no recipe was
+	specified on the command line.</p></dd>
+<dt><b class="const">help-options</b></dt>
+<dd><p>Print the help for all known options.</p></dd>
+<dt><b class="const">help-recipes</b></dt>
+<dd><p>Print the help for all defined recipes.</p></dd>
+<dt><b class="const">help</b></dt>
+<dd><p>The combination of the previous two recipes.
+	This is the standard recipe run on unix if no recipe was
+	specified on the command line.</p></dd>
+<dt><b class="const">list-options</b></dt>
+<dd><p>Print a list of all known options.</p></dd>
+<dt><b class="const">list-recipes</b></dt>
+<dd><p>Print a list of all defined recipes.</p></dd>
+<dt><b class="const">list</b></dt>
+<dd><p>The combination of the previous two recipes.</p></dd>
+<dt><b class="const">null</b></dt>
+<dd><p>This recipe does nothing.
+	It is generally only useful for kettle developers, in
+	combination with option <b class="option">-trace</b>.</p></dd>
+<dt><b class="const">show-configuration</b></dt>
+<dd><p>Print the state of the option database after processing the
+	dot-file and command line settings.</p></dd>
+<dt><b class="const">show-state</b></dt>
+<dd><p>Print the state of various internal global settings
+	after processing the dot-file and command line settings.</p></dd>
+</dl>
+</div>
+<div id="section5" class="section"><h2><a name="section5">build.tcl Example</a></h2>
+<p>A simple example of a build.tcl script is that for kettle itself.</p>
+<p>Stripping out the special code taking care of the fact that it
+cannot assume to have kettle installed already this reduces to the
+code below, and of that only the last two lines are relevant in terms
+of build declarations. The first three are the (bourne) shell magic to
+find and run the kettle application in the <b class="variable">PATH</b> environment
+variable. (The actual code assumes that <b class="cmd"><a href="kettle.html">kettle</a></b> is found the
+working directory, again it cannot assume to be installed already).</p>
+<pre class="example">
+#!/bin/sh
+# -*- tcl -*- \
+exec kettle -f &quot;$0&quot; &quot;${1+$@}&quot;
+kettle tcl
+kettle tclapp kettle
+</pre>
+<p>The code asks the system to search for and handle all Tcl
+script packages to be found in the directory of the &quot;<b class="file">build.tcl</b>&quot;
+file, and declares that we have a script application named
+<b class="syscmd"><a href="kettle.html">kettle</a></b> in the same directory.
+As the documentation files and figures are in the standard locations,
+<b class="cmd">kettle tcl</b> is allowed to handle them implicitly.</p>
+<p>Done.</p>
+</div>
+<div id="section6" class="section"><h2><a name="section6">License</a></h2>
+<p>This package, written by Andreas Kupries, is BSD licensed.</p>
+</div>
+<div id="section7" class="section"><h2><a name="section7">Bugs, Ideas, Feedback</a></h2>
+<p>This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+<a href="https://chiselapp.com/user/andreas_kupries/repository/Kettle/index">Kettle Tracker</a>.
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p><a href="../../index.html#key0">build tea</a></p>
+</div>
+<div id="category" class="section"><h2><a name="category">Category</a></h2>
+<p>Build support</p>
+</div>
+</div></body></html>

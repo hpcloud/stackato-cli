@@ -1,0 +1,3 @@
+applications:
+- mem: 256M
+  command: node app.js

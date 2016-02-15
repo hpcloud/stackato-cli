@@ -1,0 +1,25 @@
+[comment {-*- tcl -*- --- doctools ---}]
+[manpage_begin kettle_dsl n 1]
+[include include/general.inc]
+[titledesc {Kettle - Build Declarations}]
+[description]
+[para]
+[include include/welcome.inc]
+[para]
+
+Here we document the build (declaration) commands available to a user
+of kettle, i.e. a package developer using (or wishing to use) kettle
+as the build system for their code.
+
+[para] These commands are provided by the kettle core, as shown in the
+archtectural diagram below.
+
+[para][image arch_core]
+
+[section {Build commands}]
+
+[include include/l_dsl.inc]
+
+[include include/license.inc]
+[include include/feedback.inc]
+[manpage_end]

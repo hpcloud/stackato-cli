@@ -1,0 +1,13 @@
+@target@ - testquota
++-*-+-*-+
+| Key                         | Value *|
++-*-+-*-+
+| Paid Services Allowed       | allowed *|
+| Max Number Of Services      | 100 *|
+| Memory Limit                | 2.0G *|
+| Instance Memory Limit       | unlimited *|
+| Trial Database Allowed      | disallowed *|
+| Allow use of 'sudo' by Apps | disallowed *|
+| Max Number of Routes        | * |
+| Max Number of Droplets      | 5 *|
++-*-+-*-+

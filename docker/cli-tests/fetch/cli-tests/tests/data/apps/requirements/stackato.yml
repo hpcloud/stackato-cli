@@ -1,0 +1,11 @@
+command: node app.js
+name: node-env
+mem: 256M
+requirements:
+  ubuntu:
+  - tcl
+hooks:
+  post-staging:
+  - echo 'puts tcl[info patchlevel];exit' | tclsh
+  pre-running:
+  - echo 'puts tcl[info patchlevel];exit' | tclsh

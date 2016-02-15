@@ -1,0 +1,18 @@
+Using manifest file "@YML@"
+applications:
+  node-env:
+    command: node app.js
+    framework:
+      name: node
+    memory: 256M
+    name: node-env
+    path: @APPDIR@
+    stackato:
+      autoscale:
+        instances:
+          min: 3
+          max: 15
+        cpu:
+          min: 20
+          max: 80
+      force-war-unpacking: yes

@@ -1,0 +1,68 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## stacks
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test stacks-1.0 {stacks, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run stacks X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test stacks-1.1 {stacks, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run stacks
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test stacks-1.3.1 {stacks} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run stacks
+} -cleanup {
+    stage-close
+} -match glob -result {Stacks: *
++-*-+-*-+
+| Name *| Description *|
++-*-+-*-+
+| alsek *|* Alsek *|
++-*-+-*-+}
+
+test stacks-1.3.2 {stacks, not allowed for CFv1} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run stacks
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test stacks-1.4 {stacks, json formatting} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run stacks --json
+} -cleanup {
+    stage-close
+} -match glob -result {\[{
+    "description" : "* Alsek *",
+    "name"        : "alsek"
+}\]}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

@@ -1,0 +1,6 @@
+{
+    "admin"  : "true",
+    "apps"   : \[\],
+    "email"  : "@usr@",
+    "groups" : ""
+}

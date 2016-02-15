@@ -1,0 +1,8 @@
+Using manifest file "@YML@"
+applications:
+- command: node app.js
+  memory: 256M
+  name: node-env
+  path: .
+  stackato:
+    placement-zone: somezone

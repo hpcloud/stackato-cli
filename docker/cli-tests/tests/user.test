@@ -1,0 +1,68 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## user introspection
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test user-1.0 {user introspection, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run user X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test user-1.1 {user introspection, default target, bogus} -setup {
+    stage-open
+} -body {
+    run user
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result {Cannot access target 'https://api.stackato.local' (https://api.stackato.local/info: couldn't open socket: *)}
+
+test user-1.2 {user introspection, not logged in} -body {
+    stage-open
+    run user --target [thetarget]
+} -cleanup {
+    stage-close
+} -result [per-api {[N/A]} {[N/A, N/A]}]
+
+test user-1.3 {user introspection, not logged in, default target} -setup {
+    stage-open
+    ref-target
+} -body {
+    run user
+} -cleanup {
+    stage-close
+} -result [per-api {[N/A]} {[N/A, N/A]}]
+
+test user-1.4 {user introspection, logged in, default target} -setup {
+    stage-open
+    go-admin
+} -body {
+    run user
+} -cleanup {
+    stage-close
+} -result [per-api "\[[adminuser]\]" "\[[adminuser], [adminuser]\]"]
+
+test user-1.5 {user introspection, json, logged in, default target} -setup {
+    stage-open
+    go-admin
+} -body {
+    run user --json
+} -cleanup {
+    stage-close
+} -result [per-api \
+	       "\[\"[adminuser]\"\]" \
+	       "\{\n    \"email\" : \"[adminuser]\",\n    \"name\"  : \"[adminuser]\"\n\}"]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

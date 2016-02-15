@@ -1,0 +1,26 @@
+{
+    "env"              : \[\],*
+    "instances"        : 1,
+    "meta"             : {
+        "console" : "null",
+        "created" : *,
+        "debug"   : "null",
+        "version" : *
+    },
+    "name"             : "node-env",
+    "resources"        : {
+        "disk"   : *,
+        "fds"    : *,
+        "memory" : *,
+        "sudo"   : *
+    },
+    "runningInstances" : 1,
+    "services"         : \[\],
+    "staging"          : {
+        "model" : "*",
+        "stack" : "*"
+    },
+    "state"            : "STARTED",
+    "uris"             : \["node-env.*"\],
+    "version"          : "*"
+}

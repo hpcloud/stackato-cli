@@ -1,0 +1,8 @@
+Creating new space quota "@sq@" ... 
+  Memory Limit               : 1.0G
+  Instance Memory Limit      : unlimited
+  Paid Services Allowed      : disallowed
+  Max Number of Routes       : 999
+  Max Number Of Services     : 99
+  Owning Organization        : @org@
+Committing ... OK

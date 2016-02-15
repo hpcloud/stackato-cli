@@ -1,0 +1,5 @@
+Updating buildpack [clitestbuildpack] ...
+  Position ... Unchanged
+  Enabled  ... Changed to 1
+  Locked   ... Unchanged
+OK

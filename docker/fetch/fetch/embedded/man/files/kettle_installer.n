@@ -1,0 +1,587 @@
+'\"
+'\" Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/man/files/kettle_installer.n' by tcllib/doctools with format 'nroff'
+'\"
+'\" The definitions below are for supplemental macros used in Tcl/Tk
+'\" manual entries.
+'\"
+'\" .AP type name in/out ?indent?
+'\"	Start paragraph describing an argument to a library procedure.
+'\"	type is type of argument (int, etc.), in/out is either "in", "out",
+'\"	or "in/out" to describe whether procedure reads or modifies arg,
+'\"	and indent is equivalent to second arg of .IP (shouldn't ever be
+'\"	needed;  use .AS below instead)
+'\"
+'\" .AS ?type? ?name?
+'\"	Give maximum sizes of arguments for setting tab stops.  Type and
+'\"	name are examples of largest possible arguments that will be passed
+'\"	to .AP later.  If args are omitted, default tab stops are used.
+'\"
+'\" .BS
+'\"	Start box enclosure.  From here until next .BE, everything will be
+'\"	enclosed in one large box.
+'\"
+'\" .BE
+'\"	End of box enclosure.
+'\"
+'\" .CS
+'\"	Begin code excerpt.
+'\"
+'\" .CE
+'\"	End code excerpt.
+'\"
+'\" .VS ?version? ?br?
+'\"	Begin vertical sidebar, for use in marking newly-changed parts
+'\"	of man pages.  The first argument is ignored and used for recording
+'\"	the version when the .VS was added, so that the sidebars can be
+'\"	found and removed when they reach a certain age.  If another argument
+'\"	is present, then a line break is forced before starting the sidebar.
+'\"
+'\" .VE
+'\"	End of vertical sidebar.
+'\"
+'\" .DS
+'\"	Begin an indented unfilled display.
+'\"
+'\" .DE
+'\"	End of indented unfilled display.
+'\"
+'\" .SO
+'\"	Start of list of standard options for a Tk widget.  The
+'\"	options follow on successive lines, in four columns separated
+'\"	by tabs.
+'\"
+'\" .SE
+'\"	End of list of standard options for a Tk widget.
+'\"
+'\" .OP cmdName dbName dbClass
+'\"	Start of description of a specific option.  cmdName gives the
+'\"	option's name as specified in the class command, dbName gives
+'\"	the option's name in the option database, and dbClass gives
+'\"	the option's class in the option database.
+'\"
+'\" .UL arg1 arg2
+'\"	Print arg1 underlined, then print arg2 normally.
+'\"
+'\" RCS: @(#) $Id: man.macros,v 1.1 2009/01/30 04:56:47 andreas_kupries Exp $
+'\"
+'\"	# Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
+.if t .wh -1.3i ^B
+.nr ^l \n(.l
+.ad b
+'\"	# Start an argument description
+.de AP
+.ie !"\\$4"" .TP \\$4
+.el \{\
+.   ie !"\\$2"" .TP \\n()Cu
+.   el          .TP 15
+.\}
+.ta \\n()Au \\n()Bu
+.ie !"\\$3"" \{\
+\&\\$1	\\fI\\$2\\fP	(\\$3)
+.\".b
+.\}
+.el \{\
+.br
+.ie !"\\$2"" \{\
+\&\\$1	\\fI\\$2\\fP
+.\}
+.el \{\
+\&\\fI\\$1\\fP
+.\}
+.\}
+..
+'\"	# define tabbing values for .AP
+.de AS
+.nr )A 10n
+.if !"\\$1"" .nr )A \\w'\\$1'u+3n
+.nr )B \\n()Au+15n
+.\"
+.if !"\\$2"" .nr )B \\w'\\$2'u+\\n()Au+3n
+.nr )C \\n()Bu+\\w'(in/out)'u+2n
+..
+.AS Tcl_Interp Tcl_CreateInterp in/out
+'\"	# BS - start boxed text
+'\"	# ^y = starting y location
+'\"	# ^b = 1
+.de BS
+.br
+.mk ^y
+.nr ^b 1u
+.if n .nf
+.if n .ti 0
+.if n \l'\\n(.lu\(ul'
+.if n .fi
+..
+'\"	# BE - end boxed text (draw box now)
+.de BE
+.nf
+.ti 0
+.mk ^t
+.ie n \l'\\n(^lu\(ul'
+.el \{\
+.\"	Draw four-sided box normally, but don't draw top of
+.\"	box if the box started on an earlier page.
+.ie !\\n(^b-1 \{\
+\h'-1.5n'\L'|\\n(^yu-1v'\l'\\n(^lu+3n\(ul'\L'\\n(^tu+1v-\\n(^yu'\l'|0u-1.5n\(ul'
+.\}
+.el \}\
+\h'-1.5n'\L'|\\n(^yu-1v'\h'\\n(^lu+3n'\L'\\n(^tu+1v-\\n(^yu'\l'|0u-1.5n\(ul'
+.\}
+.\}
+.fi
+.br
+.nr ^b 0
+..
+'\"	# VS - start vertical sidebar
+'\"	# ^Y = starting y location
+'\"	# ^v = 1 (for troff;  for nroff this doesn't matter)
+.de VS
+.if !"\\$2"" .br
+.mk ^Y
+.ie n 'mc \s12\(br\s0
+.el .nr ^v 1u
+..
+'\"	# VE - end of vertical sidebar
+.de VE
+.ie n 'mc
+.el \{\
+.ev 2
+.nf
+.ti 0
+.mk ^t
+\h'|\\n(^lu+3n'\L'|\\n(^Yu-1v\(bv'\v'\\n(^tu+1v-\\n(^Yu'\h'-|\\n(^lu+3n'
+.sp -1
+.fi
+.ev
+.\}
+.nr ^v 0
+..
+'\"	# Special macro to handle page bottom:  finish off current
+'\"	# box/sidebar if in box/sidebar mode, then invoked standard
+'\"	# page bottom macro.
+.de ^B
+.ev 2
+'ti 0
+'nf
+.mk ^t
+.if \\n(^b \{\
+.\"	Draw three-sided box if this is the box's first page,
+.\"	draw two sides but no top otherwise.
+.ie !\\n(^b-1 \h'-1.5n'\L'|\\n(^yu-1v'\l'\\n(^lu+3n\(ul'\L'\\n(^tu+1v-\\n(^yu'\h'|0u'\c
+.el \h'-1.5n'\L'|\\n(^yu-1v'\h'\\n(^lu+3n'\L'\\n(^tu+1v-\\n(^yu'\h'|0u'\c
+.\}
+.if \\n(^v \{\
+.nr ^x \\n(^tu+1v-\\n(^Yu
+\kx\h'-\\nxu'\h'|\\n(^lu+3n'\ky\L'-\\n(^xu'\v'\\n(^xu'\h'|0u'\c
+.\}
+.bp
+'fi
+.ev
+.if \\n(^b \{\
+.mk ^y
+.nr ^b 2
+.\}
+.if \\n(^v \{\
+.mk ^Y
+.\}
+..
+'\"	# DS - begin display
+.de DS
+.RS
+.nf
+.sp
+..
+'\"	# DE - end display
+.de DE
+.fi
+.RE
+.sp
+..
+'\"	# SO - start of list of standard options
+.de SO
+.SH "STANDARD OPTIONS"
+.LP
+.nf
+.ta 4c 8c 12c
+.ft B
+..
+'\"	# SE - end of list of standard options
+.de SE
+.fi
+.ft R
+.LP
+See the \\fBoptions\\fR manual entry for details on the standard options.
+..
+'\"	# OP - start of full description for a single option
+.de OP
+.LP
+.nf
+.ta 4c
+Command-Line Name:	\\fB\\$1\\fR
+Database Name:	\\fB\\$2\\fR
+Database Class:	\\fB\\$3\\fR
+.fi
+.IP
+..
+'\"	# CS - begin code excerpt
+.de CS
+.RS
+.nf
+.ta .25i .5i .75i 1i
+..
+'\"	# CE - end code excerpt
+.de CE
+.fi
+.RE
+..
+.de UL
+\\$1\l'|0\(ul'\\$2
+..
+.TH "kettle_install_guide" n 1 doc "Kettle - The Quick Brew System"
+.BS
+.SH NAME
+kettle_install_guide \- Kettle - The Installer's Guide
+.SH SYNOPSIS
+package require \fBTcl  8.5\fR
+.sp
+.BE
+.SH DESCRIPTION
+.PP
+Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.
+.PP
+Please read the document \fIKettle - Introduction to Kettle\fR,
+if you have not done so already, to get an overview of the whole system.
+.PP
+The audience of this document is anyone wishing to build the
+packages, for either themselves, or others.
+.PP
+For a developer intending to extend or modify the packages we
+additionally provide
+.IP [1]
+\fIKettle - License\fR.
+.IP [2]
+\fIKettle - The Developer's Guide\fR.
+.PP
+.PP
+Please read \fIKettle - How To Get The Sources\fR first, if that was
+not done already. Here we assume that the sources are already
+available in a directory of your choice.
+.PP
+.SH REQUISITES
+Before Kettle can be build and used a number of requisites must and/or
+should be installed. These are:
+.IP [1]
+The scripting language Tcl.
+This requisite is mandatory.
+For details see \fBTcl\fR.
+.IP [2]
+The package \fBtcltest\fR.
+This requisite is optional.
+For details see \fBtcltest\fR.
+.IP [3]
+The package \fBTclx\fR.
+This requisite is optional.
+For details see \fBTclx\fR.
+.IP [4]
+The packages \fBTk\fR, \fBwidget::scrolledwindow\fR,
+\fBwidget::listsimple\fR, and \fBwidget::dialog\fR.
+These requisites are optional.
+For details see \fBTk\fR and \fBTklib\fR.
+.PP
+This list assumes that the machine where Kettle is to be installed is
+essentially clean. Of course, if parts of the dependencies listed
+below are already installed the associated steps can be skipped. It is
+still recommended to read their sections though, to validate that the
+dependencies they talk about are indeed installed.
+.SS TCL
+As we are building a Tcl package and application it should be pretty
+much obvious that a working installation of Tcl itself is needed, and
+I will not belabor the point.
+.PP
+Out of the many possibilites use whatever you are comfortable
+with, as long as it provides Tcl 8.5, or higher.
+This may be a Tcl installation provided by your operating system
+distribution, from a distribution-independent vendor, or built by
+yourself.
+.PP
+Myself, I used (and still use)
+\fIActiveState's\fR [http://www.activestate.com]
+ActiveTcl 8.5 distribution during development, as I am most familiar
+with it.
+.PP
+\fI(Disclosure: I, Andreas Kupries, work for ActiveState, maintaining ActiveTcl and TclDevKit for them).\fR
+.PP
+This distribution can be found at
+\fIhttp://www.activestate.com/activetcl\fR. Retrieve the archive of
+ActiveTcl 8.5 for your platform and install it as directed by
+ActiveState.
+.PP
+Assuming that ActiveTcl got installed I usually run the command
+.CS
+
+
+    teacup update
+
+.CE
+to install all packages ActiveState provides, and the kitchensink, as
+the distribution itself usually contains only the most important set
+of packages. This ensures that the dependencies for Kettle are all
+present, and more.
+.PP
+If that is not your liking you have to read the other sections
+about Kettle's dependencies to determine the exact set of packages
+required, and install only these using
+.CS
+
+
+    teacup install $packagename
+
+.CE
+.PP
+Both \fBteacup\fR commands above assume that ActiveState's
+TEApot repository at \fIhttp://teapot.activestate.com\fR is in the
+list of repositories accessible to \fBteacup\fR. This is automatically
+ensured for the ActiveTcl distribution. Others may have to run
+.CS
+
+
+    teacup archive add http://teapot.activestate.com
+
+.CE
+to make this happen.
+.PP
+For those wishing to build and install Tcl on their own, the
+relevant sources can be found at
+.TP
+Tcl
+\fIhttp://core.tcl.tk/tcl/\fR
+.PP
+together with the necessary instructions on how to build it.
+.PP
+If there are problems with building, installing, or using Tcl
+please file a bug against Tcl, or the vendor of your distribution, and
+not Kettle.
+.SS TCLX
+The \fBTclx\fR package is an optional requisite of Kettle.
+If it is not installed/available to Kettle it will continue to work,
+with features depending on Tclx disabled.
+.PP
+The only feature using \fBTclx\fR is the colorization of
+output, or rather, the code determining if Kettle should produce
+colorized output by default, or not.
+.PP
+Without \fBTclx\fR kettle will (on unix platforms) always
+produce colorized output by default. With \fBTclx\fR available
+kettle will use it to check if \fBstdout\fR is connected to a proper
+terminal and disable colorized output by default if not.
+.PP
+Now that enough information is available to decide whether Tclx
+should be used in your environment or not, the information on how to
+get the package.
+.PP
+Out of the many possibilites for getting Tclx (OS vendor,
+os-independent vendor, building from sources) use whatever you are
+comfortable with.
+.PP
+For myself, I am most comfortable with using
+\fIActiveState's\fR [http://www.activestate.com]
+ActiveTcl distribution and TEApot.
+.PP
+See the previous section (\fBTcl\fR) for disclosure and
+information on how to get it.
+.PP
+Assuming that ActiveTcl got installed running the command
+.CS
+
+
+    teacup install Tclx
+
+.CE
+will install Tclx for your platform, if you have not done the more inclusive
+.CS
+
+
+    teacup update
+
+.CE
+to get everything and the kitchensink.
+.PP
+For those wishing to build and install Tclx on their own, the
+relevant sources can be found at
+.TP
+Tclx
+\fIhttp://sourceforge.net/projects/tclx\fR
+.PP
+together with the necessary instructions on how to build it.
+.PP
+If there are problems with building, installing, or using Tclx
+please file a bug against Tclx, or the vendor of your distribution,
+and not Kettle.
+.SS TK
+Kettle's "gui" recipe requires Tk, obviously, and three packages found
+in Tklib (see next section). If Tk or the other packages are not
+installed the "gui" recipe cannot be used, and attempting to do so
+will fail.
+.PP
+Beyond that however the rest of Kettle will be fully
+functional.
+.PP
+Out of the many possibilites for getting Tk use whatever you
+are comfortable with, as long as it provides Tk 8.5, or higher (we use
+the themed widgets, and Tcl 8.5 is our base).
+This may be a Tk package provided by your operating system
+distribution, from a distribution-independent vendor, or built by
+yourself.
+.PP
+Myself, I used (and still use)
+\fIActiveState's\fR [http://www.activestate.com]
+ActiveTcl 8.5 distribution during development, as I am most familiar
+with it.
+.PP
+See the previous section (\fBTcl\fR) for disclosure and
+information on how to get it.
+.PP
+Assuming that ActiveTcl got installed Tk will be installed as
+well.
+.PP
+For or those wishing to build and install Tk on their own, the
+relevant sources can be found at
+.TP
+Tk
+\fIhttp://core.tcl.tk/tk/\fR
+.PP
+together with the necessary instructions on how to build it.
+.PP
+If there are problems with building, installing, or using Tk
+please file a bug against Tk, or the vendor of your distribution, and
+not Kettle.
+.SS TKLIB
+Kettle's "gui" recipe requires the following three packages found in
+Tklib. If Tk or these packages are not installed the "gui" recipe
+cannot be used, and attempting to do so will fail.
+.IP [1]
+\fBwidget::scrolledwindow\fR
+.IP [2]
+\fBwidget::listsimple\fR
+.IP [3]
+\fBwidget::dialog\fR
+.PP
+.PP
+Beyond that however the rest of Kettle will be fully
+functional.
+.PP
+Out of the many possibilites for getting Tclx (OS vendor,
+os-independent vendor, building from sources) use whatever you are
+comfortable with.
+Well, mostly. The package \fBwidget::listsimple\fR currently
+exists only in the CVS repository of Tklib (location at the end of the
+section), and in ActiveState's TEApot.
+.PP
+For myself, I am most comfortable with using
+\fIActiveState's\fR [http://www.activestate.com]
+ActiveTcl distribution and TEApot.
+.PP
+See the previous section (\fBTcl\fR) for disclosure and
+information on how to get it.
+.PP
+Assuming that ActiveTcl got installed running the commands
+.CS
+
+
+    teacup install widget::scrolledwindow
+    teacup install widget::listsimple
+    teacup install widget::dialog
+
+.CE
+will install them for your platform, if you have not done the more
+inclusive
+.CS
+
+
+    teacup update
+
+.CE
+to get everything and the kitchensink.
+.PP
+For those wishing to build and install Tklib on their own, the
+relevant sources can be found at
+.TP
+Tcllib/Tklib
+\fIhttp://sourceforge.net/projects/tcllib\fR
+.PP
+together with the necessary instructions on how to build it.
+.PP
+If there are problems with building, installing, or using Tklib
+and its packages please file a bug against Tklib, or the vendor of
+your distribution, and not Kettle.
+.SS TCLTEST
+Kettle's "test" recipe requires the \fBtcltest\fR package.  If
+this package is not installed the "test" recipe cannot be used, and
+attempting to do so will fail.
+.PP
+Note however that the sources of tcltest come with a source
+distribution of Tcl and the package should always be installed
+together with Tcl itself.
+.PP
+If there are problems with using tcltest please file a bug
+against Tcl, or the vendor of your Tcl distribution, and not Kettle.
+.SH "BUILD & INSTALLATION"
+To install Kettle simply run
+.CS
+
+
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl install
+
+.CE
+where "\fI/path/to/tclsh8.5\fR" is the tclsh of your Tcl installation, and
+"\fI/path/to/kettle\fR" the location of the Kettle sources on your system.
+.PP
+This will build the package and application and then places them into
+directories where the \fBtclsh8.5\fR will find them. Note that the
+installed kettle application is modified to use the chosen tclsh
+instead of searching for one on the \fBPATH\fR.
+.PP
+On Windows you can invoke the file "\fIbuild.tcl\fR" with a
+double-click.  This will pop up a small graphical interface for
+entering the destination and performing the installation. This
+handling of a double-click is restricted to Windows only however.
+.PP
+On unix the same GUI is acessible by invoking "\fIbuild.tcl\fR" using
+\fBgui\fR instead of \fBinstall\fR in the example above.
+.PP
+To get help about the methods of "\fIbuild.tcl\fR", and their complete
+syntax, invoke "\fIbuild.tcl\fR" with argument \fBhelp\fR, i.e., like
+.CS
+
+
+    /path/to/tclsh8.5 /path/to/kettle/build.tcl help
+
+.CE
+Other methods for gfetting various types of help are:
+.IP [1]
+help-recipes
+.IP [2]
+help-options
+.IP [3]
+help
+.IP [4]
+list-recipes
+.IP [5]
+list-options
+.IP [6]
+list
+.IP [7]
+show-configuration
+.PP
+.SH "BUGS, IDEAS, FEEDBACK"
+This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+\fIKettle Tracker\fR [https://chiselapp.com/user/andreas_kupries/repository/Kettle/index].
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.
+.SH KEYWORDS
+build tea
+.SH CATEGORY
+Build support

@@ -1,0 +1,139 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## alias - client alias management
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test alias-list-1.0 {alias mgr, aliases, none} -setup {
+    stage-open
+} -body {
+    run aliases
+} -cleanup {
+    stage-close
+} -result {No Aliases}
+
+test alias-list-1.1 {alias mgr, aliases, none, json} -setup {
+    stage-open
+} -body {
+    run aliases --json
+} -cleanup {
+    stage-close
+} -result {{}}
+
+test alias-list-1.2 {alias mgr, aliases, bad option} -setup {
+    stage-open
+} -body {
+    run aliases --bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result {Unknown option --bogus*}
+
+# # ## ### ##### ######## ############# #####################
+
+test alias-set-1.0 {alias mgr, make alias, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run alias -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test alias-set-1.1 {alias mgr, make alias, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run alias -n N
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test alias-set-1.2 {alias mgr, make alias} -body {
+    run alias A B
+} -cleanup {
+    stage-close
+} -result {Successfully aliased 'A' to 'B'}
+
+test alias-set-1.3 {alias mgr, make alias, persistence} -setup {
+    stage-open
+    run alias A B
+} -body {
+    run aliases --json
+} -cleanup {
+    stage-close
+} -result {{
+    "A" : "B"
+}}
+
+test alias-set-1.4 {alias mgr, make alias, persistence} -setup {
+    stage-open
+    run alias A B
+} -body {
+    run aliases
+} -cleanup {
+    stage-close
+} -result {+-------+---------+
+| Alias | Command |
++-------+---------+
+| A     | B       |
++-------+---------+}
+
+TODO alias - circular direct   A --> A
+TODO alias - circular indirect A --> B --> A
+TODO alias - overwrite existing command.
+
+# # ## ### ##### ######## ############# #####################
+
+test alias-unset-1.0 {alias mgr, remove alias, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run unalias -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test alias-unset-1.1 {alias mgr, remove alias, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run unalias -n N X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test alias-unset-1.2 {alias mgr, remove alias} -setup {
+    stage-open
+    run alias A B
+} -body {
+    run unalias A
+} -cleanup {
+    stage-close
+} -result {Successfully unaliased 'A'}
+
+test alias-unset-1.3 {alias mgr, remove alias, persistence} -setup {
+    stage-open
+    run alias A B
+    run unalias A
+} -body {
+    run aliases --json
+} -cleanup {
+    stage-close
+} -result {{}}
+
+test alias-unset-1.4 {alias mgr, remove alias, persistence} -setup {
+    stage-open
+    run alias A B
+    run unalias A
+} -body {
+    run aliases
+} -cleanup {
+    stage-close
+} -result {No Aliases}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

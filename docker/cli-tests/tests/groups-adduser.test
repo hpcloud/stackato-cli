@@ -1,0 +1,119 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## group management, group modification, add users to groups
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test groups-add-user-1.0 {groups add-user, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run groups add-user G U X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test groups-add-user-1.1 {groups add-user, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups add-user -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-add-user-1.2 {groups add-user, wrong args, not enough} -setup {
+    stage-open
+} -body {
+    run groups add-user -n G
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, not enough*"
+
+test groups-add-user-1.3 {groups add-user, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test groups-add-user-1.4 {groups add-user, admin login required} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -returnCodes error -result {Error 200: Operation not permitted (403)}
+
+test groups-add-user-1.5 {groups add-user, bogus group} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist (400)}
+
+test groups-add-user-1.6 {groups add-user, bogus user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    run groups delete test-group
+    stage-close
+} -returnCodes error -result {Error 10002: Bad Request: Requested group or user does not exist (400)}
+
+test groups-add-user-1.7 {groups add-user} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run add-user grouper@test --passwd hush
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user grouper@test
+    stage-close
+} -result {Adding User To Group ... OK}
+
+test groups-add-user-1.8 {groups add-user, persistence} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+    run groups create test-group
+    run add-user grouper@test --passwd hush
+} -body {
+    run groups add-user test-group grouper@test
+    run groups users    test-group
+} -cleanup {
+    run groups delete-user test-group grouper@test
+    run groups delete      test-group
+    run delete-user grouper@test
+    stage-close
+} -match glob -result "+-*-+\n| Member *|\n+-*-+\n| grouper@test *|\n+-*-+"
+
+test groups-add-user-2.0 {groups add-user, fail against S3} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run groups add-user test-group grouper@test
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

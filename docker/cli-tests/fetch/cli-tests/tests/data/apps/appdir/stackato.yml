@@ -1,0 +1,4 @@
+command: node app.js
+app-dir: myapp
+name: node-env
+mem: 256M

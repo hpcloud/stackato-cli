@@ -1,0 +1,79 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## feature-flags
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test feature-flags-1.0.0 {feature-flags, wrong args, too many} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run feature-flags X
+} -cleanup {
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test feature-flags-1.0.1 {feature-flags, bad option} -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run feature-flags -n --bogus
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "Unknown option --bogus*"
+
+test feature-flags-1.1.0 {feature-flags, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run feature-flags
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test feature-flags-1.1.1 {feature-flags, non-admin login is ok} -constraints s342ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run feature-flags
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test feature-flags-1.2.0 {feature-flags} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run feature-flags
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/ff/list.txt] \
+			   @ta@ [thetarget]]
+
+test feature-flags-1.2.1 {feature-flags} -constraints s342ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run feature-flags --json
+} -cleanup {
+    stage-close
+} -match glob -result [map [viewFile data/ff/list.json]]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

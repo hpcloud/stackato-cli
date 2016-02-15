@@ -1,0 +1,190 @@
+
+<html><head>
+<title>kettle_changes - Kettle - The Quick Brew System</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file '/net/nas/data/andreask/Dev/Kettle/kettle/embedded/www/doc/files/kettle_changes.html' by tcllib/doctools with format 'html'
+   -->
+<! -- CVS: $Id$ kettle_changes.n
+   -->
+<body><div class="doctools">
+<hr> [
+   <a href="../../../../../../home">Home</a>
+| <a href="../../toc.html">Main Table Of Contents</a>
+| <a href="../toc.html">Table Of Contents</a>
+| <a href="../../index.html">Keyword Index</a>
+ ] <hr>
+<h1 class="title">kettle_changes(n) 1 doc &quot;Kettle - The Quick Brew System&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>kettle_changes - Kettle Changes</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">Changes</a>
+<ul>
+<li class="subsection"><a href="#subsection1">Changes for version 1</a></li>
+</ul>
+</li>
+<li class="section"><a href="#section3">Bugs, Ideas, Feedback</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#category">Category</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Welcome to Kettle, a set of packages providing support for writing
+build code for Tcl packages.</p>
+<p>Please read the document <i class="term"><a href="kettle_intro.html">Kettle - Introduction to Kettle</a></i>,
+if you have not done so already, to get an overview of the whole system.</p>
+<p>This document provides an overview of the changes <b class="package"><a href="kettle.html">kettle</a></b>
+underwent from version to version.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">Changes</a></h2>
+<div id="subsection1" class="subsection"><h3><a name="subsection1">Changes for version 1</a></h3>
+<p>This is the first release of kettle, package and application.
+The changes therefore describe the initial features of the system.</p>
+<p>In detail:</p>
+<ol class="enumerated">
+<li><p>Kettle requires Tcl 8.5 or higher. Tcl 8.4 or less is not
+	supported.</p></li>
+<li><p>The application <b class="cmd"><a href="kettle.html">kettle</a></b> provides standard setup to run
+	a file &quot;<b class="file">build.tcl</b>&quot;, specified either explicitly via option
+	<b class="option">-f</b>, or implicitly (current working directory).</p>
+<p>This application can be used as the interpreter of a build
+	declaration file as well. In that case option <b class="option">-f</b> must
+	be part of the <b class="const">#!</b>-line.</p></li>
+<li><p>The core package <b class="package"><a href="kettle.html">kettle</a></b> manages a database of recipes,
+	and provides standard code invoked automatically after the processing
+	of the build declarations to show help or run a recipe specified
+	on the command line.</p>
+<p>Standard recipes provide introspection into the list of known
+	recipes, and display of general and recipe-specific help.</p></li>
+<li><p>Various utility and support packages providing the commands for
+	the build declarations, and implementation helpers.</p>
+<p>Currently supported are</p>
+<ol class="enumerated">
+<li><p>(Un)installation of pure Tcl packages.</p></li>
+<li><p>(Un)installation of Tcl script applications.</p></li>
+<li><p>(Un)installation of <b class="package">critcl</b>-based Tcl+C packages.</p></li>
+<li><p>(Re)generation and (un)installation of (tcllib) doctools based manpages.</p></li>
+<li><p>(Re)generation and display of (tklib) diagram based figures.</p></li>
+<li><p>Execution of <b class="package">tcltest</b>-based testsuites.</p></li>
+<li><p>Execution of <b class="package">tclbench</b>-based benchmarks.</p></li>
+</ol>
+</li>
+</ol>
+</div>
+</div>
+<div id="section3" class="section"><h2><a name="section3">Bugs, Ideas, Feedback</a></h2>
+<p>This document, and the package it describes, will undoubtedly contain
+bugs and other problems.
+Please report such at the
+<a href="https://chiselapp.com/user/andreas_kupries/repository/Kettle/index">Kettle Tracker</a>.
+Please also report any ideas for enhancements you may have for either
+package and/or documentation.</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p><a href="../../index.html#key0">build tea</a></p>
+</div>
+<div id="category" class="section"><h2><a name="category">Category</a></h2>
+<p>Build support</p>
+</div>
+</div></body></html>

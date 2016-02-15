@@ -1,0 +1,128 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## rename-buildpack
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test rename-buildpack-1.0 {rename-buildpack, wrong args, not enough} -constraints cfv2 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-buildpack -n
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result {Missing definition for argument 'name'}
+
+test rename-buildpack-1.1 {rename-buildpack, wrong args, not enough} -constraints s34ge -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run rename-buildpack -n clitestbuildpack
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    stage-close
+} -returnCodes error -match glob -result {Missing definition for argument 'newname'}
+
+test rename-buildpack-1.2 {rename-buildpack, wrong args, too many} -constraints s34ge -setup {
+    stage-open
+    ref-target
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run rename-buildpack -n clitestbuildpack NX X
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    remove-appdir
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test rename-buildpack-1.3.0 {rename-buildpack, not allowed for cfv1} -constraints cfv1 -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-buildpack -n clitestbuildpack clitestbuildpack2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v2 API}
+
+test rename-buildpack-1.3.1 {rename-buildpack, not allowed for S3.2 or less} -constraints s32le -setup {
+    stage-open
+    ref-target
+    go-admin
+} -body {
+    run rename-buildpack -n clitestbuildpackclitestbuildpack2
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.3 or later.}
+
+test rename-buildpack-1.4 {rename-buildpack, login required} -constraints s34ge -setup {
+    stage-open
+    ref-target
+} -body {
+    run rename-buildpack clitestbuildpack clitestbuildpack2
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test rename-buildpack-1.5 {rename-buildpack, non-admin login} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+    go-non-admin
+} -body {
+    run rename-buildpack -n clitestbuildpack clitestbuildpack2
+} -cleanup {
+    be-admin
+    run delete-buildpack -n clitestbuildpack
+    remove-non-admin
+    stage-close
+} -returnCodes error -result [not-authorized]
+
+test rename-buildpack-1.6 {rename-buildpack, ok} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack [tmp]/data/bp-empty.zip
+} -body {
+    run rename-buildpack -n clitestbuildpack clitestbuildpack2
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack2
+    stage-close
+} -result {Renaming buildpack [clitestbuildpack] to 'clitestbuildpack2' ... OK}
+
+test rename-buildpack-1.7 {rename-buildpack, unknown buildpack} -constraints s34ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run rename-buildpack -n clitestbuildpack clitestbuildpack2
+} -cleanup {
+    stage-close
+} -returnCodes error \
+    -result [unexpected input name buildpack clitestbuildpack {Run 'stackato buildpacks' to see list of buildpacks}]
+
+test rename-buildpack-1.8 {rename-buildpack, duplicate destination} -constraints s34ge -setup {
+    stage-open
+    go-admin
+    run create-buildpack clitestbuildpack  [tmp]/data/bp-empty.zip
+    run create-buildpack clitestbuildpack2 [tmp]/data/bp-empty.zip
+} -body {
+    run rename-buildpack -n clitestbuildpack clitestbuildpack2
+} -cleanup {
+    run delete-buildpack -n clitestbuildpack
+    run delete-buildpack -n clitestbuildpack2
+    stage-close
+} -returnCodes error -result [already input newname {A buildpack} clitestbuildpack2]
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

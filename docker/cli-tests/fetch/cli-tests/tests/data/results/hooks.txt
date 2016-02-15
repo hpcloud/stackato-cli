@@ -1,0 +1,7 @@
+*
+staging: -----> echo STAGE HANDS CALLED UP
+staging:        STAGE HANDS CALLED UP
+*
+staging: -----> echo STAGE READY
+staging:        STAGE READY
+*

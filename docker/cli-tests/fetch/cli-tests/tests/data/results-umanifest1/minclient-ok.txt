@@ -1,0 +1,10 @@
+Using manifest file "@YML@"
+applications:
+  .:
+    command: node app.js
+    memory: 256M
+    name: node-env
+    stackato:
+      min_version:
+        client: 1.7.1
+

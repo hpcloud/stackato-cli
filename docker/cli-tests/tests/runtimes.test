@@ -1,0 +1,61 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2013 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## runtimes
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+
+test runtimes-1.0 {runtimes, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run runtimes X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong#args, too many*"
+
+test runtimes-1.1 {runtimes, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run runtimes
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test runtimes-1.3.1 {runtimes} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run runtimes
+} -cleanup {
+    stage-close
+} -match glob -result {+*-+-*-+-*-+
+| Name *| Description *| Version *|
++*-+-*-+-*-+
+| erlang* | Erlang * | * |*
+| java* | Java * | * |*
+| node* | Node.js * | * |*
+| perl* | ActivePerl * | * |*
+| php* | PHP * | * |
+| python* | ActivePython * | * |*
+| ruby* | Ruby * | * |*
++*-+-*-+-*-+}
+
+test runtimes-1.3.2 {runtimes, not allowed for CFv2} -constraints cfv2 -setup {
+    stage-open
+    go-admin
+} -body {
+    run runtimes
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target exporting the CF v1 API}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests

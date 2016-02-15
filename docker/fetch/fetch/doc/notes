@@ -1,0 +1,54 @@
+
+task:	write docs for all the commands
+	starting with user commands and working
+	down the layers
+
+todo: 	Extend recipe definitions with flags the gui can use to
+      	determine sort order, and the set it should not show ...
+	... A category string/tag? Allows grouping of other
+	recipes also.
+
+options:	document the use cases and implementation
+		- user/default - 2-level priority
+		- need 3rd for override (invoke)?
+		- works without, because o-processing ordered.
+
+note:	no need for hooks to define local kettle recipes and support!
+	=> use source and existing commands. example:
+
+		source [path sourcedir mydefinitions.tcl]
+
+task:	gui use separators for button groups
+	what to do when list of recipes = buttons way to large?
+
+task:	auto show the used options and values in log
+	when running a recipe.
+
+
+
+idea:	recognize doxygen annotations, call on doxygen
+
+task:	integration of tclchecker usage, naglefar, and others
+	code validation -> tcl packages only.
+
+task:	critcl support - drop support: remove installed headers
+
+	recipe 'uninstall-headers'
+	- has to get info from critcl, or do blind based on package name ...
+	- scan critcl files for specific commands ?
+
+task:	tcllib sak - more integration
+	- generate distribution
+	- generate teabags (teapot ready archive files)
+
+future:	rework internals to break the cycles between layers
+	(options <-> path, some others)
+
+idea:	tests, multi-shell support.
+task:	options - specify accumulative options (--with-shell)
+
+idea:	'kettle tea' command. integrates a configure/make structure
+	into kettle.
+
+use kettle for
+	tclyaml, crimp, critcl, kinetcl

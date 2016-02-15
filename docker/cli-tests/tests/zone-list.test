@@ -1,0 +1,105 @@
+# -*- tcl -*- tcl.tk//DSL tcltest//EN//2.0 tcl.tk//DSL tcltest//EN//2.0
+## (c) 2014 Andreas Kupries
+# # ## ### ##### ######## ############# #####################
+## zone management - list zones
+
+kt check Tcl     8.5
+kt check tcltest 2
+
+# # ## ### ##### ######## ############# #####################
+
+kt source support/common.tcl
+
+# # ## ### ##### ######## ############# #####################
+## Not suitable for CFv1, or S3.0-
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-list-1.0 {placement-zones, wrong args, too many} -setup {
+    stage-open
+} -body {
+    run placement-zones X
+} -cleanup {
+    stage-close
+} -returnCodes error -match glob -result "wrong\#args, too many*"
+
+test zone-list-1.1 {placement-zones, login required} -setup {
+    stage-open
+    ref-target
+} -body {
+    run placement-zones
+} -cleanup {
+    stage-close
+} -returnCodes error -result [login-required]
+
+test zone-list-1.2 {placement-zones, fails for old API} -constraints cfv1 -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zones
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+test zone-list-1.3 {placement-zones, pre stackato 3.2} -constraints s30le -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zones
+} -cleanup {
+    stage-close
+} -returnCodes error -result {Error: This command requires a target with version 3.1 or later.}
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-list-2.0 {placement-zones, non-admin login is ok} -constraints s32ge -setup {
+    stage-open
+    go-admin
+    go-non-admin
+} -body {
+    run placement-zones
+} -cleanup {
+    be-admin
+    remove-non-admin
+    stage-close
+} -match glob -result *
+
+# # ## ### ##### ######## ############# #####################
+
+test zone-list-2.1 {placement-zones} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zones
+} -cleanup {
+    stage-close
+} -match glob -result [map {Placement-zones: @target@
++-*-+-*-+
+| Name *| DEA *|
++-*-+-*-+
+*| default | * |
+*+-*-+-*-+} @target@ [thetarget]]
+
+test zone-list-2.2 {placement-zones, json} -constraints s32ge -setup {
+    stage-open
+    go-admin
+} -body {
+    run placement-zones --json
+} -cleanup {
+    stage-close
+} -match glob -result {*{
+    "entity"   : {
+        "deas" : \[*\],
+        "guid" : "default",
+        "name" : "default"
+    },
+    "metadata" : {
+        "created_at" : *,
+        "guid"       : "default",
+        "updated_at" : *,
+        "url"        : "/v2/zones/default"
+    }
+}*}
+
+# # ## ### ##### ######## ############# #####################
+cleanupTests
