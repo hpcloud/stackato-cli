@@ -1,4 +1,6 @@
-FROM ubuntu:14.04
+#FROM ubuntu:14.04
+FROM phusion/baseimage:0.9.18
+CMD ["/sbin/my_init"]
 MAINTAINER Kamen MacKay "kamenm@activestate.com"
 ENV PATH /atcl/ActiveTcl8.5.18.0.298892-linux-x86_64-threaded/bin/:/bin/stackato-3.2.1-linux-glibc2.3-x86_64:$PATH
 ENV TERM xterm
